@@ -15,4 +15,4 @@ Codigo relacionado a la investigacion de listas hereogeneas en Idris
 * **HList_HVect.idr:** Implementacion que utiliza el tipo `HVect` nativo de las librerias de Idris. En este archivo se encuentran ejemplos, discusiones, y algunos casos de uso posibles
 
 ### Compiler
-Codigo relacionado al desarrollo del compilador correcto descrito por el paper *A type-correct, stack-safe, provably correct expression compiler in Epigram* en Idris
+Codigo relacionado al desarrollo del compilador correcto descrito por el paper *"A type-correct, stack-safe, provably correct expression compiler in Epigram"* en Idris
