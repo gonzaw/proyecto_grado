@@ -139,3 +139,25 @@ studAge : Age
 studAge = getAge studentEx
 -- studAge = AgeC 20
 
+
+{- 
+   Luego del 08/04
+   Investigacion sobre listas heterogeneas con elementos de tipos distintos
+-}
+
+-- Prueba explicita
+namespace NR_Exp
+  data HVect : Vect k Type -> Type where
+    Nil : NR_Exp.HVect []
+    (::) : t -> Not (Elem t ts) -> NR_Exp.HVect ts -> NR_Exp.HVect (t::ts)
+
+  -- Ejemplo de lista heterogenea sin tipos repetidos, donde se debe pasar la prueba de forma explicita
+  natStringPrf : Not (Elem Nat [String])    
+  natStringPrf (There elemNatNil) = noEmptyElem elemNatNil
+  
+  stringPrf : Not (Elem String [])
+  stringPrf elemStrNil = noEmptyElem elemStrNil
+
+  hVectExample : NR_Exp.HVect [Nat, String]
+  hVectExample = (::) 1 natStringPrf $ (::) "Test" stringPrf []
+  
