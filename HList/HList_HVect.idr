@@ -158,6 +158,7 @@ namespace NR_Exp
   stringPrf : Not (Elem String [])
   stringPrf elemStrNil = noEmptyElem elemStrNil
 
+  -- Representa la lista [1,"Test"]
   hVectExample : NR_Exp.HVect [Nat, String]
   hVectExample = (::) 1 natStringPrf $ (::) "Test" stringPrf []
   
