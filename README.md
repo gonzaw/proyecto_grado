@@ -17,3 +17,6 @@ Codigo relacionado a la investigacion de listas hereogeneas en Idris
 
 ### Compiler
 Codigo relacionado al desarrollo del compilador correcto descrito por el paper *"A type-correct, stack-safe, provably correct expression compiler in Epigram"* en Idris
+
+* **Compiler.idr:** Implementacion original del paper, traducida a Idris.
+* **Compiler_UpdatePruebas.idr:** Implementacion modificada, donde la prueba del teorema del paper esta codificada, "silenciosamente", en los tipos de cada estructura.
