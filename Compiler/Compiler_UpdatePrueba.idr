@@ -1,3 +1,8 @@
+{-
+  Este archivo contiene una version actualizada del compilador correcto. En este archivo se va a intentar generar la prueba del teorema
+  de correctitud lo mas "silenciosamente" posible
+-}
+
 %default total
 
 -- Expresiones de tipo

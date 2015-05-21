@@ -14,6 +14,7 @@ Codigo relacionado a la investigacion de listas hereogeneas en Idris
 * **HList_Structured.idr:** Implementacion que utiliza un predicado de tipos para definir la estructura interna de cada elemento de la lista heterogenea.
 * **HList_HVect.idr:** Implementacion que utiliza el tipo `HVect` nativo de las librerias de Idris. En este archivo se encuentran ejemplos, discusiones, y algunos casos de uso posibles.
 * **HList_HVect_Pruebas.idr:** Varias pruebas que se realizaron sobre listas heterogeneas de HVect, pero que fallaron por algun motivo u otro.
+* **Extensible_Records.idr:** Implementacion de un tipo de records extensibles, utilizando tecnicas similares a HVect, pero con una estructura distinta.
 
 ### Compiler
 Codigo relacionado al desarrollo del compilador correcto descrito por el paper *"A type-correct, stack-safe, provably correct expression compiler in Epigram"* en Idris
