@@ -58,8 +58,6 @@ isRepeatedLabel l (x :: xs) with (isSameLabel l x)
 data Record : Vect k Label -> Type where
     NulRec : Record []
     Rec : {t : Type} -> {s : String} -> (val : t) -> Record ts -> (prf : Not (RepLabel (MkLabel s t) ts)) -> Record ((MkLabel s t)::ts)
-    --Sin prueba abajo
-    --Rec : {t : Type} -> (s : String) -> (val : t) -> Record ts -> Record ((MkLabel s t)::ts)
 
 -- Funcion que ayuda a obtener pruebas automaticas
 getNo : (res : Dec p) -> case res of { Yes _ => () ; No _ => Not p }
