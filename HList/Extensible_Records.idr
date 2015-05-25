@@ -77,18 +77,22 @@ data LabelType : Label -> Vect k Label -> Type -> Type where
 -- Dado un label, obtiene el elemento de un record
 getElement' : (l : Label) ->  LabelType l ls t -> Record ls -> t
 getElement' (MkLabel s t) First (Rec val _ _) = val
-getElement' l (Later prfLater) (Rec _ rec _) = getElement' l prfLater rec
+getElement' l (Later prfLater) (Rec _ rs _) = getElement' l prfLater rs
 
+-- Misma funcion, donde se automatiza la prueba de que tiene el tipo
 getElement : (l : Label) -> Record ls -> 
                {default tactics { search } prf : LabelType l ls t} -> t
-getElement l rec {prf} = getElement' l prf rec
+getElement l rs {prf} = getElement' l prf rs
 
--- Tira error de compilacion, no se puede unificar el tipo "t" de val con "getLblType l"
-{-getElement : (l : Label) -> {auto prf : InLabel l ls} -> Record ls -> (getLblType l)
-getElement l {prf=prf} NulRec = void $ noEmptyInLabel prf
-getElement l {prf=(InHere prfSame)} (Rec val rec lnrepls) = val
-getElement l {prf=(InThere prfThere)} (Rec val rec lnrepls) = getElement l {prf=prfThere} rec -}
+-- Toma una funcion t -> t y actualiza un elemento del record con esa funcion
+updateElement' : (l : Label) -> LabelType l ls t -> (t -> t) -> Record ls -> Record ls
+updateElement' (MkLabel s t) First f (Rec val rs prf) = Rec (f val) rs prf
+updateElement' l (Later prfLater) f (Rec val rs prf) = Rec val (updateElement' l prfLater f rs) prf
 
+-- Misma funcino, donde se automatiza la prueba de que tiene el tipo
+updateElement : (l : Label) -> (t -> t) -> Record ls ->
+               {default tactics { search } prf : LabelType l ls t} -> Record ls
+updateElement l f rs {prf} = updateElement' l prf f rs
 
 namespace Ej1
   --Ejemplos simples de records extensibles
@@ -122,7 +126,6 @@ namespace Ej1
     where
       prf = getNo (isInLabel AgeWrong [Age])-}
 
-
   -- Ejemplo de obtener datos de un record
   ex2Age : Nat
   ex2Age = getElement Age example2
@@ -133,3 +136,9 @@ namespace Ej1
   -- Es typesafe. Por ejemplo, este caso de abajo tira error de compilacion
   {-ex1Name : String
   ex1Name = getElement Name example1-}
+
+  -- Ejemplo de actualizar datos den un record
+  
+  example2_updated : Record [Name, Age]
+  example2_updated = updateElement Age (+1) example2
+  
