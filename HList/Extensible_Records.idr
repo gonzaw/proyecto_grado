@@ -9,136 +9,185 @@ import Data.Vect
 
 %default total
 
--- Un label contiene un titulo y un tipo
-data Label : Type where
-  MkLabel : String -> Type -> Label
+namespace Record
 
-getLblTitle : Label -> String
-getLblTitle (MkLabel s _) = s
+  infix 5 :=
 
-getLblType : Label -> Type
-getLblType (MkLabel _ ty) = ty
+  -- Un campo tiene un label (que debe tener igualdad decidible) y un tipo
+  data Field : lbl -> Type -> Type where
+    (:=) : DecEq lbl => (field_label : lbl) -> 
+         (value : b) -> Field field_label b
 
--- Relacion de equivalencia entre labels
-data SameLabel : Label -> Label -> Type where
-  IsSame : SameLabel (MkLabel s t1) (MkLabel s t2)
+  -- Relacion de inclusion. "InLabel l ls" indica que el label "l" ya existe en el vector de label types "ls". Esta repetido si ya existe
+  -- otro labeltype con el mismo label
+  data InLabel : lty -> Vect n (lty, Type) -> Type where
+    InHere : InLabel lbl ((lbl,ty) :: ls)
+    InThere : InLabel lbl1 ls -> InLabel lbl1 ((lbl2,ty) :: ls)
 
-notTheSameLabel : Not (s = w) -> Not (SameLabel (MkLabel s t1) (MkLabel w t2))
-notTheSameLabel sneqw IsSame = sneqw Refl
+   -- Ninguna label puede estar en un vector vacio
+  noEmptyInLabel : InLabel lbl [] -> Void
+  noEmptyInLabel (InHere) impossible
+  
+  -- Un label que no esta en la cabeza ni cola de la lista no esta en la lista
+  neitherInHereNorInThere : {lbl1, lbl2 : lty} -> {ls : Vect n (lty, Type)} -> Not (lbl1 = lbl2) -> Not (InLabel lbl1 ls) 
+                             -> Not (InLabel lbl1 ((lbl2, ty) :: ls))
+  neitherInHereNorInThere l1neql2 l1ninls InHere = l1neql2 Refl
+  neitherInHereNorInThere l1neql2 l1ninls (InThere l1inls) = l1ninls l1inls
 
--- Funcion de decision sobre igualdad de labels
-isSameLabel : (l1 : Label) -> (l2 : Label) -> Dec (SameLabel l1 l2)
-isSameLabel (MkLabel s1 t1) (MkLabel s2 t2)  with (decEq s1 s2)
-  isSameLabel (MkLabel s t1) (MkLabel s t2) | Yes Refl = Yes IsSame
-  isSameLabel (MkLabel s1 t1) (MkLabel s2 t2) | No s1neqs2 = No (notTheSameLabel s1neqs2)
+  -- Si un label no esta en la cola, entonces no esta en el head de la lista
+  ifNotInThereThenNotInHere : {lbl1, lbl2 : lty} -> {ls : Vect n (lty, Type)} -> Not (InLabel lbl1 ((lbl2, ty) :: ls)) 
+                            -> Not (InLabel lbl1 ls)
+  ifNotInThereThenNotInHere l1nincons l1inls = l1nincons (InThere l1inls)
+  
+  -- Funcion de decision que indica si un label esta repetido en una lista de labels o no
+  isInLabelList : DecEq lty => (lbl : lty) -> (ls : Vect n (lty, Type)) -> Dec (InLabel lbl ls)       
+  isInLabelList lbl [] = No noEmptyInLabel
+  isInLabelList lbl1 ((lbl2, ty) :: ls) with (decEq lbl1 lbl2)
+    isInLabelList lbl1 ((lbl1, ty) :: ls) | Yes Refl = Yes InHere
+    isInLabelList lbl1 ((lbl2, ty) :: ls) | No l1neql2 with (isInLabelList lbl1 ls)
+      isInLabelList lbl1 ((lbl2, ty) :: ls) | No l1neql2 | Yes l1inls = Yes (InThere l1inls)
+      isInLabelList lbl1 ((lbl2, ty) :: ls) | No l1neql2 | No l1ninls = No (neitherInHereNorInThere l1neql2 l1ninls)
+  
+ 
+  
+  -- Records
+  -- Un record contiene una lista de labels no repetidos (no se repiten si tienen titulos distintos). A cada label se le asocia un valor
+  -- del tipo correspondiente. Se debe pasar una prueba que el label no esta en el resto del record (para no tener labels repetidos)
+  using (lbl : lty, ls : Vect n (lty, Type))
+    data Record : DecEq lty => Vect n (lty, Type) -> Type where
+      NilRec : DecEq lty => Record {lty} []
+      Rec : DecEq lty => Field lbl a -> Record ls -> (prf : Not (InLabel lbl ls)) -> Record ((lbl, a) :: ls)
 
--- Relacion de inclusion. "InLabel l ls" indica que el label "l" ya existe en el vector de labels "ls". Esta repetido si ya existe
--- otro label con un titulo igual
-data InLabel : Label -> Vect n Label -> Type where
-  InHere : SameLabel l1 l2 -> InLabel l1 (l2 :: ls)
-  InThere : InLabel l ls -> InLabel l (y :: ls)
+    -- FieldType l ls ty indica que el label "l" de la lista "ls" tiene el tipo "ty"
+    data FieldType : lty -> Vect n (lty, Type) -> Type -> Type where
+      First : FieldType lbl ((lbl, ty) :: ls) ty
+      Later : FieldType lbl ls ty -> FieldType lbl (a :: ls) ty
+      
+      
+  -- Funcion que ayuda a obtener pruebas automaticas
+  getNo : (res : Dec p) -> case res of { Yes _ => () ; No _ => Not p }
+  getNo (Yes prf) = ()
+  getNo (No contra) = contra
 
--- Ninguna label puede estar en un vector vacio
-noEmptyInLabel : {l : Label} -> InLabel l [] -> Void
-noEmptyInLabel (InHere isSame) impossible
 
--- Un label que no esta en la cabeza ni cola de la lista no esta en la lista
-neitherInHereNorInThere : {x, y : Label} -> {xs : Vect n Label} -> Not (SameLabel x y) -> Not (InLabel x xs) -> Not (InLabel x (y :: xs))
-neitherInHereNorInThere xneqy xnrepxs (InHere IsSame) = xneqy IsSame
-neitherInHereNorInThere xneqy xnrepxs (InThere xinxs) = xnrepxs xinxs
+  -- *** Obtener un elemento ***
 
--- Funcion de decision que indica si un label esta repetido en una lista de labels o no
-isInLabel : (l : Label) -> (ls : Vect n Label) -> Dec (InLabel l ls)
-isInLabel l [] = No noEmptyInLabel
-isInLabel l (x :: xs) with (isSameLabel l x)
-  isInLabel l (x :: xs) | Yes prf = Yes (InHere prf)
-  isInLabel l (x :: xs) | No lneqx with (isInLabel l xs)
-    isInLabel l (x :: xs) | No lneqx | Yes lrepxs = Yes (InThere lrepxs)
-    isInLabel l (x :: xs) | No lneqx | No lnrepxs = No (neitherInHereNorInThere lneqx lnrepxs)
+  -- Dado un label, obtiene el elemento de un record
+  getField' : DecEq lty => (lbl : lty) -> Record ls -> FieldType lbl ls ty -> ty
+  getField' lbl (Rec (_ := val) _ _) First = val
+  getField' lbl (Rec _ rs _) (Later prfLater) = getField' lbl rs prfLater
 
--- Records
--- Un record contiene una lista de labels no repetidos (no se repiten si tienen titulos distintos). A cada label se le asocia un valor
--- del tipo correspondiente.
--- El titulo del label puede pasarse implicitamente, siempre que se defina en el tipo y se pueda inferir
-data Record : Vect k Label -> Type where
-    NulRec : Record []
-    Rec : {t : Type} -> {s : String} -> (val : t) -> Record ts -> (prf : Not (InLabel (MkLabel s t) ts)) -> Record ((MkLabel s t)::ts)
+  -- Misma funcion, donde se automatiza la prueba de que tiene el tipo
+  getField : DecEq lty => (lbl : lty) -> Record ls -> 
+               {default tactics { search } prf : FieldType lbl ls ty} -> ty
+  getField lbl rs {prf} = getField' lbl rs prf
 
--- Funcion que ayuda a obtener pruebas automaticas
-getNo : (res : Dec p) -> case res of { Yes _ => () ; No _ => Not p }
-getNo (Yes prf) = ()
-getNo (No contra) = contra
+  -- *** Actualizar un elemento ***
 
--- LabelType l ls ty indica que el label "l" de la lista "ls" tiene el tipo "ty"
-data LabelType : Label -> Vect k Label -> Type -> Type where
-  First : LabelType (MkLabel s ty) ((MkLabel s ty) :: xs) ty
-  Later : LabelType l ls ty -> LabelType l (x :: ls) ty
+  -- Toma una funcion t -> t y actualiza un elemento del record con esa funcion
+  updateField' : DecEq lty => (lbl : lty) -> Record ls -> (ty -> ty) -> FieldType lbl ls ty -> Record ls
+  updateField' lbl (Rec (lbl := val) rs prf) f First = Rec (lbl := f val) rs prf 
+  updateField' lbl (Rec field rs prf) f (Later prfLater) = Rec field (updateField' lbl rs f prfLater) prf
 
--- Dado un label, obtiene el elemento de un record
-getElement' : (l : Label) ->  LabelType l ls t -> Record ls -> t
-getElement' (MkLabel s t) First (Rec val _ _) = val
-getElement' l (Later prfLater) (Rec _ rs _) = getElement' l prfLater rs
+  -- Misma funcion, donde se automatiza la prueba de que tiene el tipo
+  updateField : DecEq lty => (lbl : lty) -> Record ls -> (ty -> ty) ->
+               {default tactics { search } prf : FieldType lbl ls ty} -> Record ls
+  updateField l rs f {prf} = updateField' l rs f prf
 
--- Misma funcion, donde se automatiza la prueba de que tiene el tipo
-getElement : (l : Label) -> Record ls -> 
-               {default tactics { search } prf : LabelType l ls t} -> t
-getElement l rs {prf} = getElement' l prf rs
 
--- Toma una funcion t -> t y actualiza un elemento del record con esa funcion
-updateElement' : (l : Label) -> LabelType l ls t -> (t -> t) -> Record ls -> Record ls
-updateElement' (MkLabel s t) First f (Rec val rs prf) = Rec (f val) rs prf
-updateElement' l (Later prfLater) f (Rec val rs prf) = Rec val (updateElement' l prfLater f rs) prf
+  -- *** Actualizar un elemento cambiando su tipo ***
 
--- Misma funcino, donde se automatiza la prueba de que tiene el tipo
-updateElement : (l : Label) -> (t -> t) -> Record ls ->
-               {default tactics { search } prf : LabelType l ls t} -> Record ls
-updateElement l f rs {prf} = updateElement' l prf f rs
+  -- Actualiza el tipo de un label en una lista
+  updLblType : DecEq lty => (ls : Vect n (lty,Type)) -> (lbl : lty) -> (tydes : Type) -> FieldType lbl ls tysrc -> Vect n (lty, Type)
+  updLblType {tysrc=tysrc} ((lbl, tysrc) :: ls) lbl tydes First = (lbl, tydes) :: ls
+  updLblType {tysrc=tysrc} ((lbl1, tyaux) :: ls) lbl tydes (Later prfLater) = (lbl1,tyaux) :: (updLblType ls lbl tydes prfLater)
+  
+  -- Transforma InLabels equivalentes
+  transInLabel : InLabel lbl1 ((lbl2, ty1) :: ls) -> InLabel lbl1 ((lbl2, ty2) :: ls)
+  transInLabel InHere = InHere
+  transInLabel (InThere x) = InThere x
+  
+  -- Si tengo una prueba que el label "l" esta en la lista "ls", entonces modificar su tipo no cambia la prueba
+  updPrfType : DecEq lty => {lbl1, lbl2 : lty} -> {ls : Vect n (lty,Type)} -> {prfLater : FieldType lbl1 ls tysrc}
+              -> Not (InLabel lbl2 ls) -> 
+             Not (InLabel lbl2 (updLblType ls lbl1 tydes prfLater))
+  updPrfType {lbl1=lbl1} {ls= (lbl1, tysrc) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = First} = 
+    let l2inupd_2 = the (InLabel lbl2 ((lbl1, tydes) :: ls2) ) l2inupd
+        l2inupd_3 = transInLabel l2inupd_2 {lbl1=lbl2} {lbl2=lbl1} {ty1=tydes} {ty2=tysrc} {ls=ls2}
+    in l2ninls l2inupd_3
+  updPrfType {lbl1=lbl1} {ls= (lblaux, tyaux) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = (Later prfLaterOther)} with
+             (decEq lbl2 lblaux)
+    updPrfType {lbl1=lbl1} {ls= (lbl2, tyaux) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd | Yes Refl = l2ninls InHere
+    updPrfType {lbl1=lbl1} {ls= (lblaux, tyaux) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = (Later prfLaterOther)} 
+               | No contra = 
+          let l2ninls_2 = ifNotInThereThenNotInHere l2ninls
+              l2ninls_3 = updPrfType {lbl1=lbl1} {lbl2=lbl2} {tydes=tydes} {ls=ls2} {prfLater=prfLaterOther} l2ninls_2
+          in neitherInHereNorInThere contra l2ninls_3 l2inupd
 
-namespace Ej1
-  --Ejemplos simples de records extensibles
-  Age : Label
-  Age = MkLabel "Age" Nat
+  -- Actualiza elementos, y puede cambiar su tipo
+  updateFieldType' : DecEq lty => (lbl : lty) -> Record ls -> (tysrc -> tydes) -> (prf : FieldType lbl ls tysrc) 
+    -> Record (updLblType ls lbl tydes prf)
+  updateFieldType' lbl (Rec (lbl := val) rs prf) f First = Rec (lbl := f val) rs prf
+  updateFieldType' {tydes=tydes} lbl (Rec field rs prf {lbl=lbl2} ) f (Later prfLater) =
+                   Rec field (updateFieldType' lbl rs f prfLater) (updPrfType prf {lbl2=lbl2} {lbl1=lbl} {tydes=tydes} {prfLater=prfLater})
 
-  AgeWrong : Label
-  AgeWrong = MkLabel "Age" String
 
-  Name : Label
-  Name = MkLabel "Name" String
+   -- Misma funcion, donde se automatiza la prueba de que tiene el tipo
+  updateFieldType : DecEq lty => (lbl : lty) -> Record ls -> (tysrc -> tydes) ->
+               {default tactics { search } prf : FieldType lbl ls tysrc} -> Record (updLblType ls lbl tydes prf)
+  updateFieldType l rs f {prf} = updateFieldType' l rs f prf
 
-  -- Este ejemplo compila, y devuelve un record con un unico valor
-  example1 : Record [Age]
-  example1 = Rec 2 NulRec prf
-    where
-      -- La definicion de tipo de esta prueba puede sacarse
-      prf : Not (InLabel Age [])
-      prf = getNo (isInLabel Age [])
+  namespace Ej1
+    --Ejemplos simples de records extensibles
+    Age : (String,Type)
+    Age = ("Age", Nat)
+
+    AgeWrong : (String,Type)
+    AgeWrong = ("Age", String)
+
+    Name : (String,Type)
+    Name = ("Name", String)
     
-  -- Este ejemplo tambien compila. Esto muestra como agregar campos a records
-  example2 : Record [Name, Age]
-  example2 = Rec "John" example1 prf
-    where
-      prf = getNo (isInLabel Name [Age])
+    -- Este ejemplo compila, y devuelve un record con un unico valor
+    example1 : Record [Age]
+    example1 = Rec ("Age" := 2) NilRec prf
+      where
+        prf = getNo (isInLabelList "Age" [])
+    
+    -- Este ejemplo tambien compila. Esto muestra como agregar campos a records
+    example2 : Record [Name, Age]
+    example2 = Rec ("Name" := "John") example1 prf
+      where
+        prf = getNo (isInLabelList "Name" [Age])
 
-  -- Este caso no compila. Se esta intentando agregar un label "AgeWrong" con el mismo titulo que "Age" (aunque tienen tipos distintos, uno
-  -- Nat y otro String). La busqueda automatica de la prueba falla con esto    
-  {-example3 : Record [AgeWrong, Age]
-  example3 = Rec "Wrong" example1 prf
-    where
-      prf = getNo (isInLabel AgeWrong [Age])-}
+    -- Este caso no compila. Se esta intentando agregar un label "AgeWrong" con el mismo titulo que "Age" (aunque tienen tipos distintos, 
+    -- uno Nat y otro String). La busqueda automatica de la prueba falla con esto    
+    {-example3 : Record [AgeWrong, Age]
+    example3 = Rec ("AgeWrong" := "Wrong") example1 prf
+      where
+        prf = getNo (isInLabel "AgeWrong" [Age])-}
 
-  -- Ejemplo de obtener datos de un record
-  ex2Age : Nat
-  ex2Age = getElement Age example2
+    -- Ejemplo de obtener datos de un record
+    ex2Age : Nat
+    ex2Age = getField "Age" example2
   
-  ex2Name : String
-  ex2Name = getElement Name example2
+    ex2Name : String
+    ex2Name = getField "Name" example2
   
-  -- Es typesafe. Por ejemplo, este caso de abajo tira error de compilacion
-  {-ex1Name : String
-  ex1Name = getElement Name example1-}
+    -- Es typesafe. Por ejemplo, este caso de abajo tira error de compilacion
+    {-ex1Name : String
+    ex1Name = getField "Name" example1-}
 
-  -- Ejemplo de actualizar datos den un record
-  
-  example2_updated : Record [Name, Age]
-  example2_updated = updateElement Age (+1) example2
-  
+    -- Ejemplo de actualizar datos de un record  
+    example2_updated : Record [Name, Age]
+    example2_updated = updateField "Age" example2 (+1)
+
+    -- Ejemplo de actualizar datos mas el tipo de un record
+    AgeString : (String, Type)
+    AgeString = ("Age", String)
+    
+    example2_updated_type : Record [Name, AgeString]
+    example2_updated_type = updateFieldType "Age" example2 fun
+      where
+        fun : Nat -> String
+        fun n = "The age is: " ++ (show n)
