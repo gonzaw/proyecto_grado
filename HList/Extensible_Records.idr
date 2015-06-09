@@ -5,6 +5,7 @@
   debe tener un valor de ese tipo. A su vez, se definen relaciones que indican cuando un label es identico a otro (cuando tienen el mismo
   titulo), y cuando un label esta repetido en un vector de labels. Se utiliza una metodologia similar a las pruebas de Data.Vect.Elem
 -}
+
 import Data.Vect
 
 %default total
@@ -98,9 +99,9 @@ namespace Record
   -- *** Actualizar un elemento cambiando su tipo ***
 
   -- Actualiza el tipo de un label en una lista
-  updLblType : DecEq lty => (ls : Vect n (lty,Type)) -> (lbl : lty) -> (tydes : Type) -> FieldType lbl ls tysrc -> Vect n (lty, Type)
-  updLblType {tysrc=tysrc} ((lbl, tysrc) :: ls) lbl tydes First = (lbl, tydes) :: ls
-  updLblType {tysrc=tysrc} ((lbl1, tyaux) :: ls) lbl tydes (Later prfLater) = (lbl1,tyaux) :: (updLblType ls lbl tydes prfLater)
+  updLblType : DecEq lty => (lbl : lty) -> (ls : Vect n (lty,Type)) -> (tydes : Type) -> FieldType lbl ls tysrc -> Vect n (lty, Type)
+  updLblType {tysrc=tysrc} lbl ((lbl, tysrc) :: ls) tydes First = (lbl, tydes) :: ls
+  updLblType {tysrc=tysrc} lbl ((lbl1, tyaux) :: ls) tydes (Later prfLater) = (lbl1,tyaux) :: (updLblType lbl ls tydes prfLater)
   
   -- Transforma InLabels equivalentes
   transInLabel : InLabel lbl1 ((lbl2, ty1) :: ls) -> InLabel lbl1 ((lbl2, ty2) :: ls)
@@ -110,7 +111,7 @@ namespace Record
   -- Si tengo una prueba que el label "l" esta en la lista "ls", entonces modificar su tipo no cambia la prueba
   updPrfType : DecEq lty => {lbl1, lbl2 : lty} -> {ls : Vect n (lty,Type)} -> {prfLater : FieldType lbl1 ls tysrc}
               -> Not (InLabel lbl2 ls) -> 
-             Not (InLabel lbl2 (updLblType ls lbl1 tydes prfLater))
+             Not (InLabel lbl2 (updLblType lbl1 ls tydes prfLater))
   updPrfType {lbl1=lbl1} {ls= (lbl1, tysrc) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = First} = 
     let l2inupd_2 = the (InLabel lbl2 ((lbl1, tydes) :: ls2) ) l2inupd
         l2inupd_3 = transInLabel l2inupd_2 {lbl1=lbl2} {lbl2=lbl1} {ty1=tydes} {ty2=tysrc} {ls=ls2}
@@ -126,7 +127,7 @@ namespace Record
 
   -- Actualiza elementos, y puede cambiar su tipo
   updateFieldType' : DecEq lty => (lbl : lty) -> Record ls -> (tysrc -> tydes) -> (prf : FieldType lbl ls tysrc) 
-    -> Record (updLblType ls lbl tydes prf)
+    -> Record (updLblType lbl ls tydes prf)
   updateFieldType' lbl (Rec (lbl := val) rs prf) f First = Rec (lbl := f val) rs prf
   updateFieldType' {tydes=tydes} lbl (Rec field rs prf {lbl=lbl2} ) f (Later prfLater) =
                    Rec field (updateFieldType' lbl rs f prfLater) (updPrfType prf {lbl2=lbl2} {lbl1=lbl} {tydes=tydes} {prfLater=prfLater})
@@ -134,9 +135,67 @@ namespace Record
 
    -- Misma funcion, donde se automatiza la prueba de que tiene el tipo
   updateFieldType : DecEq lty => (lbl : lty) -> Record ls -> (tysrc -> tydes) ->
-               {default tactics { search } prf : FieldType lbl ls tysrc} -> Record (updLblType ls lbl tydes prf)
+               {default tactics { search } prf : FieldType lbl ls tysrc} -> Record (updLblType lbl ls tydes prf)
   updateFieldType l rs f {prf} = updateFieldType' l rs f prf
 
+  -- *** Eliminar un elemento ***
+
+  -- Prueba de que un vector con tipo "Vect 0 a" es el vector vacio
+  vectCeroIsEmpty : (v : Vect 0 a) -> v = []
+  vectCeroIsEmpty [] = Refl
+
+  -- Dado un label y una lista de label types, elimina ese label de esa lista
+  delLblType : DecEq lty => (lbl : lty) -> (ls : Vect (S n) (lty,Type)) -> InLabel lbl ls -> Vect n (lty,Type)
+  delLblType lbl ((lbl, ty) :: ls) InHere = ls
+  delLblType {n=Z} lbl ((lbl2, ty) :: ls)  (InThere linls) =
+    -- ls es el vector vacio, entonces puedo probar que es una contradiccion
+    let isCero = vectCeroIsEmpty ls
+        some = replace isCero linls
+    in void $ noEmptyInLabel some
+  delLblType {n=S k} lbl ((lbl2, ty) :: ls) (InThere linls) = (lbl2,ty) :: (delLblType lbl ls linls {n=k})
+
+  -- Funcion auxiliar, que dado un vector obtiene su largo
+  getLength : Vect n t -> Nat
+  getLength {n=n} _ = n
+
+  -- Si tengo una prueba que un label "lbl2" no esta en una lista "ls", entonces eliminar cualquier otro elemento de esa lista no
+  -- modifica esa prueba
+  delPrfType : DecEq lty => {lbl1, lbl2 : lty} -> {ls : Vect (S n) (lty,Type)} -> {l1inls : InLabel lbl1 ls}
+              -> Not (InLabel lbl2 ls) -> 
+             Not (InLabel lbl2 (delLblType lbl1 ls l1inls))
+  delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lbl1, ty) :: ls2} {l1inls= InHere} l2ninls l2indel = 
+    let l2indel_2 = the (InLabel lbl2 ls2) l2indel
+        l2indel_3 = the (InLabel lbl2 ((lbl1,ty) :: ls2)) $ InThere l2indel_2
+    in  l2ninls l2indel_3
+  delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: ls2} {l1inls= (InThere l1inls2)} l2ninls l2indel  with (decEq lbl2 lblaux)
+    delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lbl2, ty) :: ls2} l2inls l2indel  | Yes Refl = l2inls InHere
+    delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: (ls2)} {l1inls= (InThere l1inls2)} l2ninls l2indel | No contra with (getLength ls2) 
+      delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: (ls2)} {l1inls= (InThere l1inls2)} l2ninls l2indel | No contra | Z = 
+        let isCero = vectCeroIsEmpty ls2
+            some = replace isCero l1inls2
+        in void $ noEmptyInLabel some
+      delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: (ls2)} {l1inls= (InThere l1inls2)} l2ninls l2indel | No contra | S k = 
+         let l2ninls_2 = ifNotInThereThenNotInHere l2ninls
+             l2ninls_3 = delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls=ls2} {l1inls=l1inls2} l2ninls_2
+         in   neitherInHereNorInThere contra l2ninls_3 l2indel
+          
+  -- Funcion que elimina un campo de un record, dado su label
+  deleteField' : DecEq lty => {ls : Vect (S n) (lty,Type)} -> (lbl : lty) -> Record ls -> (prf : InLabel lbl ls) 
+                 -> Record (delLblType lbl ls prf)
+  deleteField' lbl (Rec _ rs ninls) InHere = rs
+  deleteField' {n = Z} lbl (Rec {ls=ls_rec} field rs prf) (InThere linls) =
+  let isCero = vectCeroIsEmpty ls_rec
+      some = replace isCero linls
+  in void $ noEmptyInLabel some
+  deleteField' {n = S k} lbl (Rec field rs prf {lbl=lbl2}) (InThere linls) = 
+    Rec field (deleteField' lbl rs linls) (delPrfType {lbl1=lbl} {lbl2=lbl2} {l1inls=linls} prf)
+
+  -- Misma funcion, donde se automatiza la prueba de que tiene el tipo
+  deleteField :  DecEq lty => {ls : Vect (S n) (lty,Type)} -> (lbl : lty) -> Record ls -> 
+                 {default tactics { search } prf : InLabel lbl ls} -> Record (delLblType lbl ls prf)
+  deleteField lbl rs {prf} = deleteField' lbl rs prf
+  
+  
   namespace Ej1
     --Ejemplos simples de records extensibles
     Age : (String,Type)
@@ -191,3 +250,11 @@ namespace Record
       where
         fun : Nat -> String
         fun n = "The age is: " ++ (show n)
+
+    -- Ejemplo de eliminar un campo de un record
+    example2_delete : Record [Name]
+    example2_delete = deleteField "Age" example2
+
+    -- Es typesafe, esto no compila
+    {-example2_delete_error : ?unknownType
+    example2_delete_error = deleteField "Wrong" example2-}
