@@ -229,7 +229,13 @@ namespace Record
     -- Ejemplo de obtener datos de un record
     ex2Age : Nat
     ex2Age = getField "Age" example2
-  
+
+    getAge : Record ls -> {default tactics { search } prf : FieldType "Age" ls Nat} -> Nat
+    getAge = getField "Age"
+
+    getName : Record ls -> {default tactics { search } prf : FieldType "Name" ls String} -> String
+    getName = getField "Name"
+              
     ex2Name : String
     ex2Name = getField "Name" example2
   
