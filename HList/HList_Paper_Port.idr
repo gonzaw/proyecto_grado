@@ -478,7 +478,6 @@ namespace HList
     
     -- Aqui se puede definir hProjectByLabels. Esta funcion realiza lo mismo que las typeclasses H2ProjectByLabels, etc de HList
     -- (en hackage)
-    -- NOTA: El compilador dice que no es total
     hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> Vect k lty -> HList3 ts ->     
       ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** HList3 ls1)),
       (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** HList3 ls2)) )
@@ -486,7 +485,7 @@ namespace HList
     hProjectByLabels [] {n=n} {ts=ts} hs = ((0 ** ([] ** [])), (n ** (ts ** hs)))
     -- Si el HList es vacio, se debe devolver todo vacio
     hProjectByLabels _ [] = ((0 ** ([] ** [])), (0 ** ([] ** [])))
-    hProjectByLabels {lty=lty} ((::) {n=k} l ls) ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
+    hProjectByLabels {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
       -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
       case (isElem l2 ls) of
         Yes l2inls => 
@@ -592,14 +591,13 @@ namespace HList
       MkRecord4 : HLabelSet_7 (labelsOf ts) -> HList4 ts -> Record_4 ts
     
     -- Misma hProjectByLabels definida anteriormente, pero para "List" en vez de "Vect"
-    -- NOTA: El compilador dice que no es total  
     -- NOTA: Por ahora no se usa porque se pudo implementar mas arriba con Vect. Pero esto muestra que con "List" se pueden implementar
     -- records igual.           
-    {-hProjectByLabels: DecEq lty => {ts : List (lty, Type)} -> List lty -> HList4 ts -> 
+    hProjectByLabels: DecEq lty => {ts : List (lty, Type)} -> List lty -> HList4 ts -> 
       ((res1 : List (lty, Type) ** HList4 res1), (res2 : List (lty, Type) ** HList4 res2))
     hProjectByLabels [] _ = (([] ** []),([] ** []))
     hProjectByLabels _ [] = (([] ** []),([] ** [])) 
-    hProjectByLabels {lty=lty} (l1 :: ls) ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =       
+    hProjectByLabels {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =       
        -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
       case (elem (wrapEq l2) (map wrapEq ls)) of
          True =>
@@ -607,12 +605,12 @@ namespace HList
            let lsNew = (map unWrapEq) $ delete (wrapEq l2) (map wrapEq ls)
            -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
                ((subInLs ** subInHs), (subOutLs ** subOutHs)) = 
-                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} lsNew (val :: hs)
+                         hProjectByLabels {lty=lty} {ts=ts2} lsNew hs
            -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
            in (((l2,t) :: subInLs ** val :: subInHs), (subOutLs ** subOutHs))
          False => 
            -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
            -- actual a la lista de los que NO estan en la proyeccion
            let ((subInLs ** subInHs), (subOutLs ** subOutHs)) = 
-                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} ls (val :: hs)
-           in ((subInLs ** subInHs), ((l2,t) :: subOutLs ** val :: subOutHs))-}
+                         hProjectByLabels {lty=lty} {ts=ts2} ls hs
+           in ((subInLs ** subInHs), ((l2,t) :: subOutLs ** val :: subOutHs))
