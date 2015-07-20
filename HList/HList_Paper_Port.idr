@@ -79,16 +79,6 @@ namespace HList
     
     
   {- Seccion 5 - Extensible records: -}
-
-  -- Definicion textual
-  data Label : Nat -> ns -> Type where
-    MkLabel : (n : Nat) -> ns -> String -> Label n ns
-
-  firstLabel : ns -> String -> Label 0 ns
-  firstLabel = MkLabel 0
-  
-  nextLabel : {n : Nat} -> Label n ns -> String -> Label (S n) ns
-  nextLabel (MkLabel n a _) = MkLabel (S n) a
   
   -- zipWith Pair : Vect k Type -> Vect k Type -> Vect k Type
   -- A diferencia de zip: Vect k t1 -> Vect k t2 -> Vect k (t1,t2)
@@ -103,11 +93,7 @@ namespace HList
   hUnZip {ls1=(tx::txs)} {ls2=(ty::tys)} ((x,y) :: ls) = 
     let (uzLeft, uzRight) = hUnZip ls
     in (x :: uzLeft, y :: uzRight)
-  
-  -- No compila. La diferencia con hZip es que hUnzip tiene un Vect n Type, donde cada valor de ese vector debe ser del tipo
-  -- "Pair Type Type"
-  --hUnzip : {ls : Vect n (Type,Type)} -> HList ls -> (HList (fst $ unzip ls), HList (snd $ unzip ls))
-  
+   
   
   -- Funciones que ayudan a obtener pruebas automaticas
   getNo : (res : Dec p) -> case res of { Yes _ => () ; No _ => Not p }
@@ -253,6 +239,14 @@ namespace HList
   data HLabelSet_6 : Vect n lty -> Type where
     HLabelSet6Nil : HLabelSet_6 []
     HLabelSet6Cons : Not (HMember_6 lbl ls) -> HLabelSet_6 ls -> HLabelSet_6 (lbl :: ls)
+  
+  -- Funciones auxiliares
+  getNotMember_6 : HLabelSet_6 (lbl :: ls) -> Not (HMember_6 lbl ls)
+  getNotMember_6 (HLabelSet6Cons notMember _) = notMember
+  
+  getRecLabelSet_6 : HLabelSet_6 (lbl :: ls) -> HLabelSet_6 ls
+  getRecLabelSet_6 (HLabelSet6Cons _ recLabelSet) = recLabelSet
+
 
   -- Pruebas y funcion de decision para HMember_6
   noEmptyInLabel_6 : HMember_6 lbl [] -> Void
@@ -431,35 +425,6 @@ namespace HList
       HProjectByLabels ls r rin rout -> HProjectByLabels' Nothing ls (otro :: r) rin (otro :: rout) 
   -}
    
-  
-  -- #1, HList  estructurado    
-  namespace HList2
-    -- Es un HList donde el tipo del valor en runtime, y el tipo que se guarda en la lista de tipos pueden ser distinta
-    using (P : Type -> Type)        
-      data HList2 : (P : Type -> Type) -> Vect n Type ->  Type where
-        Nil : HList2 P []
-        (::) : t -> HList2 P ts -> HList2 P (P t :: ts) 
-    
-    -- Ejemplo
-    hTest : HList2 (\x => (x,x)) [(Nat,Nat),(String,String)]
-    hTest = [1, "Hello"] 
-    
-    -- Esto permite que el valor en runtime pueda se un tipo "ty", mientras que en el vector de tipos se puede guardar
-    -- el label    
-    -- TODO: Ver bien como hacer para meter valores del label, y no solo su tipo
-    --LabelList : Type -> Vect n Type -> Type
-    --LabelList lty ts = HList2 (\ty => (lty, ty)) ts
-    
-    -- Funcion que toma un HList con labels y obtiene la lista de labels de tal
-    -- TODO: Como saco la informacion del tipo? Como saco el label "lty"?
-    --labelsOf : {ts : Vect n Type} -> LabelList lty ts -> Vect n lty
-    --labelsOf [] = []
-    --labelsOf {lty=lty} whole@(h :: hs) = ?wat
-    
-    -- Asi se podria definir un nuevo record
-    --data Record_3 : Vect n (lty, Type) -> Type where
-    --  MkRecord3 : HLabelSet_6 ls -> HList ts -> Record_1 (zip ls ts) 
-
   -- En algunos casos se necesita una istancia de "Eq a" en vez de "DecEq a". Pero se puede construir.
   -- Se necesita un wrapper para no tener instancias solapadas ni huerfanas (ej "Eq ()")
   data WrappedEq a = MkWrappedEq a
@@ -476,7 +441,7 @@ namespace HList
                     No _ => False
 
 
-  -- #2 - HList que tiene labels en su tipo pero no en runtime (como Record de Extensible_Records.idr)
+  -- #1 - HList que tiene labels en su tipo pero no en runtime (como Record de Extensible_Records.idr)
   namespace HList3
     -- Con este tipo se pueden tener los labels a nivel de tipos y no en runtime
     data HList3 : Vect n (lty, Type) -> Type where
@@ -491,28 +456,46 @@ namespace HList
     data Record_3 : Vect n (lty, Type) -> Type where
       MkRecord3 : HLabelSet_6 (labelsOf ts) -> HList3 ts -> Record_3 ts
     
+    -- Prueba de que un vector con tipo "Vect 0 a" es el vector vacio
+    vectCeroIsEmpty : (v : Vect 0 a) -> v = []
+    vectCeroIsEmpty [] = Refl
+    
+    -- Funcion auxiliar parecida a "noEmptyElem", pero donde el [] no es explicito
+    noEmptyElemImplicit : (xs : Vect 0 t) -> Elem x xs -> Void
+    noEmptyElemImplicit xs xinxs = noEmptyElem $ replace (vectCeroIsEmpty xs) xinxs
+    
     -- Funcion auxiliar para eliminar un elemento de un vector (uno solo, asume que no se repite, o que se puede llamar
     -- sucesivamente)
     deleteElem : {x : t} -> (xs : Vect (S n) t) -> Elem x xs -> Vect n t
     deleteElem (x :: xs) Here = xs
     deleteElem {n=S n} (x :: xs) (There xinthere) = x :: (deleteElem {n=n} xs xinthere)
+    deleteElem {n=Z} (x :: xs) (There xinthere) = absurd $ noEmptyElemImplicit xs xinthere
     
-    -- Se puede definir un hProjectByLabels (utilizado en Hackage)
+    -- Si se tiene un Elem x xs, con xs de largo "k", entonces si o si "k" debe ser un "S n" (no puede ser 0)
+    convertLengthElem : {xs : Vect k t} -> Elem x xs -> (n : Nat ** (xs2 : Vect (S n) t ** Elem x xs2))
+    convertLengthElem {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
+    convertLengthElem {k = S n} {xs=xs} xinxs = (n ** (xs ** xinxs))
+    
+    -- Aqui se puede definir hProjectByLabels. Esta funcion realiza lo mismo que las typeclasses H2ProjectByLabels, etc de HList
+    -- (en hackage)
+    -- NOTA: El compilador dice que no es total
     hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> Vect k lty -> HList3 ts ->     
       ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** HList3 ls1)),
       (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** HList3 ls2)) )
-    hProjectByLabels [] _ = ((0 ** ([] ** [])), (0 ** ([] ** [])))
+    -- Si la lista de labels a proyectar es vacia, entonces a la izq no viene nada y a la der la HList original
+    hProjectByLabels [] {n=n} {ts=ts} hs = ((0 ** ([] ** [])), (n ** (ts ** hs)))
+    -- Si el HList es vacio, se debe devolver todo vacio
     hProjectByLabels _ [] = ((0 ** ([] ** [])), (0 ** ([] ** [])))
-    hProjectByLabels {lty=lty} (l :: ls) ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
+    hProjectByLabels {lty=lty} ((::) {n=k} l ls) ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
       -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
       case (isElem l2 ls) of
-        Yes _ => 
+        Yes l2inls => 
           -- Si pertenece, obtengo la lista de labels a proyectar SIN ese label
-          let (n2 ** wrapDel) = delete (wrapEq l2) (map wrapEq ls)
-              lsNew = the (Vect n2 lty) $ map unWrapEq wrapDel
+          let (modLs ** modL2inls) = getProof $ convertLengthElem l2inls
+              lsNew = deleteElem modLs modL2inls
           -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
               ((n3 ** (subInLs ** subInHs)), (n4 ** (subOutLs ** subOutHs))) = 
-                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} lsNew (val :: hs)
+                         hProjectByLabels {lty=lty} {ts=ts2} lsNew hs
           -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
               rLeft =  (S n3 ** ((l2,t) :: subInLs ** (::) {lbl=l2} val subInHs))
               rRight = (n4 ** (subOutLs ** subOutHs)) 
@@ -521,12 +504,79 @@ namespace HList
           -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
           -- actual a la lista de los que NO estan en la proyeccion
           let ((n3 ** (subInLs ** subInHs)), (n4 ** (subOutLs ** subOutHs))) = 
-                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} ls (val :: hs)
+                         hProjectByLabels {lty=lty} {ts=ts2} ls hs
               rLeft =  (n3 ** (subInLs ** subInHs))
               rRight = (S n4 ** ((l2,t) :: subOutLs ** (::) {lbl=l2} val subOutHs))      
           in (rLeft, rRight)
+      
+    -- Parece que un ejemplo como este no puede funcionar, porque hProjectByLabels devuelve tipos existenciales.
+    -- Nunca hace ninguna computacion con los tipos, entonces no puede saber cuales son los HList resultantes
+    {-hProjectByLabelsExample : (HList3 [("Edad", Nat)], HList3 [("Nombre", String)])                
+    hProjectByLabelsExample =
+      let iniHs = the (HList3 [("Edad", Nat), ("Nombre", String)]) $ [23, "Gonzalo"]
+          ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs))) = hProjectByLabels ["Edad"] iniHs
+      in
+          (inHs, outHs) -}
+          
+    -- Ejemplo de hProjectByLabels
+    hProjectByLabelsExample2 :  
+      ((q1 : Nat ** (ls1 : Vect q1 (String, Type) ** HList3 ls1)),
+      (q2 : Nat ** (ls2 : Vect q2 (String, Type) ** HList3 ls2)) )            
+    hProjectByLabelsExample2 =
+      let iniHs = the (HList3 [("Edad", Nat), ("Nombre", String)]) $ [23, "Gonzalo"]
+          ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs))) = hProjectByLabels ["Edad"] iniHs
+      in
+          ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs)))
+              
+    -- NOTA: Este es un hProjectByLabels que usa, y devuelve, pruebas de HLabelSet_6. Estas pruebas son necesarias para
+    -- implementar operaciones que devuelven records, como hDeleteAtLabel                
+    -- No se pudo implementar (ver comentarios TODO dentro de la funcion por mas informacion)
+    {-hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> Vect k lty -> HList3 ts -> HLabelSet_6 (labelsOf ts) ->    
+      ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, HLabelSet_6 (labelsOf ls1)))),
+      (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, HLabelSet_6 (labelsOf ls2)))) )
+    hProjectByLabels [] _ _ = ((0 ** ([] ** ([], HLabelSet6Nil))), (0 ** ([] ** ([], HLabelSet6Nil))))
+    hProjectByLabels _ [] _ = ((0 ** ([] ** ([], HLabelSet6Nil))), (0 ** ([] ** ([], HLabelSet6Nil))))
+    hProjectByLabels {lty=lty} ((::) {n=k} l ls) ((::) {lbl=l2} {t=t} {ts=ts2} val hs) isLabelSet = 
+      -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
+      case (isElem l2 ls) of
+        Yes l2inls => 
+          -- Si pertenece, obtengo la lista de labels a proyectar SIN ese label
+          let (modLs ** modL2inls) = getProof $ convertLengthElem l2inls
+              lsNew = deleteElem modLs modL2inls
+          -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
+              ((n3 ** (subInLs ** (subInHs, isLabelSetInHs))), (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs)))) = 
+                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} lsNew (val :: hs) isLabelSet
+          -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
+              test1 = getRecLabelSet_6 isLabelSet
+              test2 = getNotMember_6 isLabelSet
+              -- TODO: Hay que ver como encontrar una prueba de "Not (HMember_6 val subInHs)". Sin esa prueba no puedo construir la
+              -- prueba para retornar
+              rLeft =  (S n3 ** ((l2,t) :: subInLs ** ((::) {lbl=l2} val subInHs, isLabelSet)))
+              rRight = (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs))) 
+          --in (rLeft, rRight)
+          in ?wat1
+        No _ => 
+          -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
+          -- actual a la lista de los que NO estan en la proyeccion
+          let ((n3 ** (subInLs ** (subInHs, isLabelSetInHs))), (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs)))) = 
+                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} ls (val :: hs) isLabelSet
+              -- TODO: Idem que arriba. Necesito encontrar una prueba de "Not (HMember_6 val subOutHs)"
+              rLeft =  (n3 ** (subInLs ** (subInHs, isLabelSetInHs)))
+              rRight = (S n4 ** ((l2,t) :: subOutLs ** (::) {lbl=l2} val subOutHs))      
+          --in (rLeft, rRight)
+          in ?wat2-}        
+          
+          
+    -- Definicion de "delete" de hackage
+    -- NOTA: Esta incompleta porque no se pudo implementar un hProjectByLabels que devolviera un HLabelSet_6
+    {-hDeleteByLabels : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> Record_3 ts1 -> lty -> 
+      (n2 : Nat ** (ts2 : Vect n2 (lty, Type) ** Record_3 ts2 ))
+    hDeleteByLabels (MkRecord3 isLabelSet hs) lbl =
+      let (_, (n2 ** (ts2 ** (hs2, isLabelSet2)))) = hProjectByLabels [lbl] hs isLabelSet
+      in (n2 ** (ts2 **  MkRecord3 isLabelSet2 hs2)) -}
                   
-  -- #4 - Igual que HList3 pero con List en vez de Vect
+                  
+  -- #2 - Igual que HList3 pero con List en vez de Vect
   namespace HList4
     -- Con este tipo se pueden tener los labels a nivel de tipos y no en runtime
     data HList4 : List (lty, Type) -> Type where
@@ -541,9 +591,11 @@ namespace HList
     data Record_4 : List (lty, Type) -> Type where
       MkRecord4 : HLabelSet_7 (labelsOf ts) -> HList4 ts -> Record_4 ts
     
-    -- Aqui se puede definir hProjectByLabels. Esta funcion realiza lo mismo que las typeclasses H2ProjectByLabels, etc de HList
-    -- (en hackage)             
-    hProjectByLabels: DecEq lty => {ts : List (lty, Type)} -> List lty -> HList4 ts -> 
+    -- Misma hProjectByLabels definida anteriormente, pero para "List" en vez de "Vect"
+    -- NOTA: El compilador dice que no es total  
+    -- NOTA: Por ahora no se usa porque se pudo implementar mas arriba con Vect. Pero esto muestra que con "List" se pueden implementar
+    -- records igual.           
+    {-hProjectByLabels: DecEq lty => {ts : List (lty, Type)} -> List lty -> HList4 ts -> 
       ((res1 : List (lty, Type) ** HList4 res1), (res2 : List (lty, Type) ** HList4 res2))
     hProjectByLabels [] _ = (([] ** []),([] ** []))
     hProjectByLabels _ [] = (([] ** []),([] ** [])) 
@@ -563,4 +615,4 @@ namespace HList
            -- actual a la lista de los que NO estan en la proyeccion
            let ((subInLs ** subInHs), (subOutLs ** subOutHs)) = 
                          hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} ls (val :: hs)
-           in ((subInLs ** subInHs), ((l2,t) :: subOutLs ** val :: subOutHs))
+           in ((subInLs ** subInHs), ((l2,t) :: subOutLs ** val :: subOutHs))-}
