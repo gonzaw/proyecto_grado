@@ -221,7 +221,9 @@ namespace HList
   -- Instancia generica para tipos con "Eq"
   instance Eq t => HEq t v1 v2 (v1 == v2) where
     
-  -- Esta es la definicion mas literal basada en HList, que necesita HEq
+  -- Esta es la definicion mas literal basada en HList, que necesita HEq. Aunque en la practica, como no hay reglas de inferencia
+  -- como para las typeclasses de Haskell, no funciona muy bien (se necesita pasar la prueba explicita de HEq y HMember_5 de todas
+  -- formas)
   data HMember_5 : lty -> Vect n lty -> Bool -> Type where
     HMember5Nil : HMember_5 lbl [] False
     HMember5InHere : HMember_5 lbl (lbl :: ls) True
@@ -344,9 +346,12 @@ namespace HList
   
   testHLabelSet_5 : (ls : Vect n lty) -> {default tactics { search } prf : HLabelSet_5 ls} -> HLabelSet_5 ls
   testHLabelSet_5 ls {prf=prf} = prf
+  
+  testHLabelSet_6 : (ls : Vect n lty) -> {default tactics { search } prf : HLabelSet_6 ls} -> HLabelSet_6 ls
+  testHLabelSet_6 ls {prf=prf} = prf
 
   -- testHLabelSet 2 y 3 ejecutan bien, pero el predicado es incorrecto
-  -- testHLabelSet 1 y 4 no pueden generar la prueba, pero el predicado es correcto
+  -- testHLabelSet 1, 4 y 6 no pueden generar la prueba, pero el predicado es correcto
   -- testHLabelSet 5 es correcto (me parece) pero tampoco puede generar la prueba de forma automatica con "search"
   -- NOTA: Usar testHLabelSet_5 con naturales, que tienen definido "HEq" mas arriba
   -- NOTA: HLabelSet_2 y HLabelSet_3 estan mal porque permiten definir predicados mal, como HLabelSet_3 [1,2,1]
@@ -358,11 +363,11 @@ namespace HList
   -- Definicion hibrida de record entre la de HList y la que hice anteriormente
   -- Como no pude definir HZip, creo los 2 tipos distintos de Records que indica HList
   
-  -- Primera definicion de HList, donde se tiene una lista heterogenea de pares "Label"/"Tipo"
+  -- Primera definicion de Record, donde se tiene una lista heterogenea de pares "Label"/"Tipo"
   data Record_1 : Vect n (lty, Type) -> Type where
     MkRecord1 : HLabelSet_6 ls -> HList ts -> Record_1 (zip ls ts)
     
-  -- Segunda definicion de HList, donde se tienen 2 listas heterogeneas separadas para labels, y otra para los tipos  
+  -- Segunda definicion de Record, donde se tienen 2 listas heterogeneas separadas para labels, y otra para los tipos  
   data Record_2 : Vect n lty -> Vect n Type -> Type where
     MkRecord2 : HLabelSet_6 ls -> HList ts -> Record_2 ls ts
   
@@ -384,47 +389,14 @@ namespace HList
   emptyRecord_2 : DecEq lty => Record_2 [] []
   emptyRecord_2 = MkRecord2 HLabelSet6Nil {ls=[]} []
   
-   -- ** Version del HList de hackage (actualizado) **
-  
-  -- Definicion identica a HMember_6, pero utilizando listas de tags
-  -- TODO: Ver como hacer pattern matching sobre el lbl
-  -- NOTA: Tal vez hacer como en HList y usar HLabelSet_6 pero sacando los labels de Tagged
-  --data HMember_7 : lty -> Vect n (Tagged lty Type) -> Type where
-  --  HMember7InHere : HMember_7 lbl ((MkTagged t {lbl=lbl}) :: ls)
-  --  HMember7InThere : HMember_7 lbl1 ls -> HMember_6 lbl1 ((MkTagged t) :: ls)
-
-  --data HLabelSet_6 : Vect n lty -> Type where
-  --  HLabelSet6Nil : HLabelSet_6 []
-  --  HLabelSet6Cons : Not (HMember_6 lbl ls) -> HLabelSet_6 ls -> HLabelSet_6 (lbl :: ls)
+  -- ** Version del HList de hackage (actualizado) **
+  -- Mas abajo se muestran otras definiciones de Records, pero tomadas de la implementacion mas actualizada de HList (que esta en
+  -- hackage)
+  -- Link: https://hackage.haskell.org/package/HList
   
   
   -- Proyeccion --
-  
-  {-
-    Definiciones de tipos "parecidas" a la de HList
-    Se hace dificil portarlas a Idris
-  
-    data HMemberM
-       HMemberM e [] Nothing
-       Heq e1 e2 b -> HMemberM' b e1 (e2 :: ls) res -> HMember e1 (e2 :: ls) res
-       
-    data HMemberM'
-       HMemberM' True e (e :: ls) (Just ls)
-       HMemberM' Nothing e ls Nothing
-       HMemberM' (Just ls2) e1 (e1 :: ls1) (Just e2 :: ls2)
-       HMemberM e1 ls r -> HMemberM' r e1 (e2 :: ls) res -> HMemberM' False e1 (e2 :: ls) res
-  
-    data HProjectByLabels  
-       HProjectByLabels [] r [] r
-       HProjectByLabels (l :: ls) [] [] []
-       HMemberM l1 ls b ->  H2ProjectByLabels' b ls (Tagged l1 v1 :: r1) rin out -> 
-                HProjectByLabels (l :: ls) (Tagged l1 v1 :: r1) rin rout
-  
-    data HProjectByLabels'
-      HProjectByLabels ls1 r rin rout -> HProjectByLabels' (Just ls1) ls (otro :: r) (otro :: rin) rout    
-      HProjectByLabels ls r rin rout -> HProjectByLabels' Nothing ls (otro :: r) rin (otro :: rout) 
-  -}
-   
+     
   -- En algunos casos se necesita una istancia de "Eq a" en vez de "DecEq a". Pero se puede construir.
   -- Se necesita un wrapper para no tener instancias solapadas ni huerfanas (ej "Eq ()")
   data WrappedEq a = MkWrappedEq a
@@ -442,6 +414,7 @@ namespace HList
 
 
   -- #1 - HList que tiene labels en su tipo pero no en runtime (como Record de Extensible_Records.idr)
+  -- Se llama HList3 para que este acorde a Record_3
   namespace HList3
     -- Con este tipo se pueden tener los labels a nivel de tipos y no en runtime
     data HList3 : Vect n (lty, Type) -> Type where
@@ -535,7 +508,7 @@ namespace HList
       (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, HLabelSet_6 (labelsOf ls2)))) )
     hProjectByLabels [] _ _ = ((0 ** ([] ** ([], HLabelSet6Nil))), (0 ** ([] ** ([], HLabelSet6Nil))))
     hProjectByLabels _ [] _ = ((0 ** ([] ** ([], HLabelSet6Nil))), (0 ** ([] ** ([], HLabelSet6Nil))))
-    hProjectByLabels {lty=lty} ((::) {n=k} l ls) ((::) {lbl=l2} {t=t} {ts=ts2} val hs) isLabelSet = 
+    hProjectByLabels {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) isLabelSet = 
       -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
       case (isElem l2 ls) of
         Yes l2inls => 
@@ -544,7 +517,7 @@ namespace HList
               lsNew = deleteElem modLs modL2inls
           -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
               ((n3 ** (subInLs ** (subInHs, isLabelSetInHs))), (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs)))) = 
-                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} lsNew (val :: hs) isLabelSet
+                         hProjectByLabels {lty=lty} {ts=ts2} lsNew hs isLabelSet
           -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
               test1 = getRecLabelSet_6 isLabelSet
               test2 = getNotMember_6 isLabelSet
@@ -558,7 +531,7 @@ namespace HList
           -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
           -- actual a la lista de los que NO estan en la proyeccion
           let ((n3 ** (subInLs ** (subInHs, isLabelSetInHs))), (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs)))) = 
-                         hProjectByLabels {lty=lty} {ts=((l2,t) :: ts2)} ls (val :: hs) isLabelSet
+                         hProjectByLabels {lty=lty} {ts=ts2} ls hs isLabelSet
               -- TODO: Idem que arriba. Necesito encontrar una prueba de "Not (HMember_6 val subOutHs)"
               rLeft =  (n3 ** (subInLs ** (subInHs, isLabelSetInHs)))
               rRight = (S n4 ** ((l2,t) :: subOutLs ** (::) {lbl=l2} val subOutHs))      
