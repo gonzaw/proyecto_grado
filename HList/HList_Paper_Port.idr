@@ -233,7 +233,7 @@ namespace HList
     HLabelSet5Nil : HLabelSet_5 []
     HLabelSet5Cons : HMember_5 lbl ls False -> HLabelSet_5 ls -> HLabelSet_5 (lbl :: ls)
 
-  -- Definicion identica a HMember_1, pero solo para vector de labels
+    -- Definicion identica a HMember_1, pero solo para vector de labels
   data HMember_6 : lty -> Vect n lty -> Type where
     HMember6InHere : HMember_6 lbl (lbl :: ls)
     HMember6InThere : HMember_6 lbl1 ls -> HMember_6 lbl1 (lbl2 :: ls)
@@ -330,6 +330,12 @@ namespace HList
     isLabelSet_7 (l :: ls) | Yes lsyesls with (isInLabelList_7 l ls)
       isLabelSet_7 (l :: ls) | Yes lsyesls | No lninls = Yes $ HLabelSet7Cons lninls lsyesls
       isLabelSet_7 (l :: ls) | Yes lsyesls | Yes linls = No $ ifHasRepeatedThenNotLabelSet_7 lsyesls linls
+
+
+  -- Definicion de HLabelSet que utiliza Eq
+  HMember5InThere : Eq lty => HMember_5 lbl1 ls b2 -> HMember_5 lbl1 (lbl2 :: ls) ((lbl1 == lbl2) || b2)
+  HLabelSet5Cons : Eq lty =>HMember_5 lbl ls False -> HLabelSet_5 ls -> HLabelSet_5 (lbl :: ls)
+
 
   -- Casos de prueba que pueda generar la prueba automaticamente, de forma inferida (como lo hace HList digamos)
   testHLabelSet_1 : (ls : Vect n (lty, Type)) -> {default tactics { search } prf : HLabelSet_1 ls} -> HLabelSet_1 ls
@@ -453,7 +459,7 @@ namespace HList
     -- (en hackage)
     hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> Vect k lty -> HList3 ts ->     
       ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** HList3 ls1)),
-      (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** HList3 ls2)) )
+      (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** HList3 ls2)))
     -- Si la lista de labels a proyectar es vacia, entonces a la izq no viene nada y a la der la HList original
     hProjectByLabels [] {n=n} {ts=ts} hs = ((0 ** ([] ** [])), (n ** (ts ** hs)))
     -- Si el HList es vacio, se debe devolver todo vacio
@@ -488,7 +494,7 @@ namespace HList
       let iniHs = the (HList3 [("Edad", Nat), ("Nombre", String)]) $ [23, "Gonzalo"]
           ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs))) = hProjectByLabels ["Edad"] iniHs
       in
-          (inHs, outHs) -}
+          (inHs, outHs)-} 
           
     -- Ejemplo de hProjectByLabels
     hProjectByLabelsExample2 :  
@@ -499,7 +505,66 @@ namespace HList
           ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs))) = hProjectByLabels ["Edad"] iniHs
       in
           ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs)))
-              
+    
+    -- Funcion de test que tira el mismo "error" de hProjectByLabels_2.
+    -- Sera un bug de Idris?    
+    vectFunction : Vect n Nat -> Vect k Nat -> (Nat,Nat)
+    vectFunction _ [] = (0,0)
+    vectFunction [] _ = (1,1)
+    vectFunction _ _ = (2,2)
+    
+    errorFunction : (xs : Vect n Nat) -> (ys : Vect k Nat) ->
+      let (n1,n2) = vectFunction xs ys in (Vect n1 Nat, Vect n2 Nat)
+    errorFunction _ [] = ([],[])
+    errorFunction [] _ = ?errorFunction_rhs
+    errorFunction (x :: xs) (y :: ys) = ([1,2],[3,4])
+    
+    
+    
+    -- Funcion que proyecta un vector de labels sobre otro de (tly,Type)
+    projectVect : DecEq lty => Vect k lty -> Vect n (lty, Type) -> 
+      ((n1 : Nat ** Vect n1 (lty, Type)), (n2 : Nat ** Vect n2 (lty, Type)))
+    projectVect [] {n=n} ts = ((0 ** []), (n ** ts))
+    projectVect ls [] = ((0 ** []),(0 ** []))
+    projectVect ls (t :: ts) =
+      case (isElem (fst t) ls) of
+        Yes tinls =>
+          -- Pertenece, entonces lo saco de esa lista
+          let (modls ** modtinls) = getProof $ convertLengthElem tinls
+              lsNew = deleteElem modls modtinls
+              ((n1 ** ts1), (n2 ** ts2)) = projectVect lsNew ts
+              tsLeft = (S n1 ** t :: ts1)
+              tsRight = (n2 ** ts2)
+          in (tsLeft, tsRight)
+        No _ => 
+          let ((n1 ** ts1), (n2 ** ts2)) = projectVect ls ts
+              tsLeft = (n1 ** ts1)
+              tsRight = (S n2 ** t :: ts2)
+          in (tsLeft, tsRight)
+       
+    -- Nueva implementacion de hProjectByLabels, utilizando la funcion de vectores de arriba    
+    hProjectByLabels_2 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->
+                       let ((n1 ** tsLeft), (n2 ** tsRight)) = projectVect ls ts in (HList3 tsLeft, HList3 tsRight)
+    hProjectByLabels_2 [] hs = ([],hs)
+    -- TODO: Ver como implementar este pattern matching
+    hProjectByLabels_2 {k=k} ls {n=Z} {ts=[]} [] = ?case1
+    hProjectByLabels_2 ts ls = ?case2
+    {-hProjectByLabels_2 {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
+      case (isElem l2 ls) of
+        Yes l2inls => 
+          let (modLs ** modL2inls) = getProof $ convertLengthElem l2inls
+              lsNew = deleteElem modLs modL2inls
+              (subInHs, subOutHs) = hProjectByLabels_2 {lty=lty} {ts=ts2} lsNew hs
+              rLeft =  (::) {lbl=l2} val subInHs
+              rRight = subOutHs
+          in (rLeft, rRight)
+        No _ => 
+          let (subInHs, subOutHs) = hProjectByLabels_2 {lty=lty} {ts=ts2} ls hs
+              rLeft =  subInHs
+              rRight = (::) {lbl=l2} val subOutHs)      
+          in (rLeft, rRight)                  -} 
+                                
+                                                  
     -- NOTA: Este es un hProjectByLabels que usa, y devuelve, pruebas de HLabelSet_6. Estas pruebas son necesarias para
     -- implementar operaciones que devuelven records, como hDeleteAtLabel                
     -- No se pudo implementar (ver comentarios TODO dentro de la funcion por mas informacion)
