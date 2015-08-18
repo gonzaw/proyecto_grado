@@ -233,48 +233,22 @@ namespace HList
     HLabelSet5Nil : HLabelSet_5 []
     HLabelSet5Cons : HMember_5 lbl ls False -> HLabelSet_5 ls -> HLabelSet_5 (lbl :: ls)
 
-    -- Definicion identica a HMember_1, pero solo para vector de labels
-  data HMember_6 : lty -> Vect n lty -> Type where
-    HMember6InHere : HMember_6 lbl (lbl :: ls)
-    HMember6InThere : HMember_6 lbl1 ls -> HMember_6 lbl1 (lbl2 :: ls)
-
+  -- Nota: HLabelSet_6 puede utilizar Elem directamente
   data HLabelSet_6 : Vect n lty -> Type where
     HLabelSet6Nil : HLabelSet_6 []
-    HLabelSet6Cons : Not (HMember_6 lbl ls) -> HLabelSet_6 ls -> HLabelSet_6 (lbl :: ls)
-  
+    HLabelSet6Cons : Not (Elem lbl ls) -> HLabelSet_6 ls -> HLabelSet_6 (lbl :: ls)
+    
   -- Funciones auxiliares
-  getNotMember_6 : HLabelSet_6 (lbl :: ls) -> Not (HMember_6 lbl ls)
+  getNotMember_6 : HLabelSet_6 (lbl :: ls) -> Not (Elem lbl ls)
   getNotMember_6 (HLabelSet6Cons notMember _) = notMember
   
   getRecLabelSet_6 : HLabelSet_6 (lbl :: ls) -> HLabelSet_6 ls
   getRecLabelSet_6 (HLabelSet6Cons _ recLabelSet) = recLabelSet
 
-
-  -- Pruebas y funcion de decision para HMember_6
-  noEmptyInLabel_6 : HMember_6 lbl [] -> Void
-  noEmptyInLabel_6 (HMember6InHere) impossible
-  
-  neitherInHereNorInThere_6 : {lbl1, lbl2 : lty} -> {ls : Vect n lty} -> Not (lbl1 = lbl2) -> Not (HMember_6 lbl1 ls) 
-                             -> Not (HMember_6 lbl1 (lbl2 :: ls))
-  neitherInHereNorInThere_6 l1neql2 l1ninls HMember6InHere = l1neql2 Refl
-  neitherInHereNorInThere_6 l1neql2 l1ninls (HMember6InThere l1inls) = l1ninls l1inls
-
-  ifNotInThereThenNotInHere_6 : {lbl1, lbl2 : lty} -> {ls : Vect n lty} -> Not (HMember_6 lbl1 (lbl2 :: ls)) 
-                            -> Not (HMember_6 lbl1 ls)
-  ifNotInThereThenNotInHere_6 l1nincons l1inls = l1nincons (HMember6InThere l1inls)
-  
-  isInLabelList_6 : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> Dec (HMember_6 lbl ls)       
-  isInLabelList_6 lbl [] = No noEmptyInLabel_6
-  isInLabelList_6 lbl1 (lbl2 :: ls) with (decEq lbl1 lbl2)
-    isInLabelList_6 lbl1 (lbl1 :: ls) | Yes Refl = Yes HMember6InHere
-    isInLabelList_6 lbl1 (lbl2 :: ls) | No l1neql2 with (isInLabelList_6 lbl1 ls)
-      isInLabelList_6 lbl1 (lbl2 :: ls) | No l1neql2 | Yes l1inls = Yes (HMember6InThere l1inls)
-      isInLabelList_6 lbl1 (lbl2 :: ls) | No l1neql2 | No l1ninls = No (neitherInHereNorInThere_6 l1neql2 l1ninls)
-      
   ifNotLabelSetHereThenNeitherThere_6 : Not (HLabelSet_6 ls) -> Not (HLabelSet_6 (l :: ls))
   ifNotLabelSetHereThenNeitherThere_6 lsnotls (HLabelSet6Cons lnotm lsyesls) = lsnotls lsyesls  
   
-  ifHasRepeatedThenNotLabelSet_6 : HLabelSet_6 ls -> HMember_6 l ls -> Not (HLabelSet_6 (l :: ls))      
+  ifHasRepeatedThenNotLabelSet_6 : HLabelSet_6 ls -> Elem l ls -> Not (HLabelSet_6 (l :: ls))      
   ifHasRepeatedThenNotLabelSet_6 lsyesls linls (HLabelSet6Cons lninls lsyesls_2) = lninls linls
   
   -- Esta es la funcion de decision que determina si una lista de labels tiene repetidos o no    
@@ -282,7 +256,7 @@ namespace HList
   isLabelSet_6 [] = Yes HLabelSet6Nil
   isLabelSet_6 (l :: ls) with (isLabelSet_6 ls)
     isLabelSet_6 (l :: ls) | No lsnotls = No $ ifNotLabelSetHereThenNeitherThere_6 lsnotls
-    isLabelSet_6 (l :: ls) | Yes lsyesls with (isInLabelList_6 l ls)
+    isLabelSet_6 (l :: ls) | Yes lsyesls with (isElem l ls)
       isLabelSet_6 (l :: ls) | Yes lsyesls | No lninls = Yes $ HLabelSet6Cons lninls lsyesls
       isLabelSet_6 (l :: ls) | Yes lsyesls | Yes linls = No $ ifHasRepeatedThenNotLabelSet_6 lsyesls linls
    
@@ -593,7 +567,7 @@ namespace HList
     deleteElem_2 {n=Z} (x :: xs) (There xinthere) = absurd $ noEmptyElemImplicit xs xinthere
           
     -- hProjectByLabels que tambien devuelve una prueba de que los vectores son actualmente proyecciones izq y der      
-    hProjectByLabels_3=2 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
+    hProjectByLabels_2 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
       ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, IsProjectLeft ls ts ls1))),
       (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, IsProjectRight ls ts ls2))))
     hProjectByLabels_2 [] {n=n} {ts=ts} hs = 
@@ -624,15 +598,37 @@ namespace HList
               rRight = (S n4 ** ((l2,t) :: subOutLs ** ((::) {lbl=l2} val subOutHs, rPrjRight)))
           in (rLeft, rRight)
     
-             
+    
+    --TODO: Terminar Lemma
+    hProjectByLabelsRightisLabelSet_Lemma1 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} ->
+      IsProjectRight ls ts1 ts2 -> Not (Elem lbl (map fst ts1)) -> Not (Elem lbl (map fst ts2))
+    hProjectByLabelsRightisLabelSet_Lemma1 IPR_EmptyLabels notElem = notElem
+    hProjectByLabelsRightisLabelSet_Lemma1 IPR_EmptyVect notElem = notElem
+    hProjectByLabelsRightisLabelSet_Lemma1 (IPR_ProjLabelElem isElem x y) notElem = ?hProjectByLabelsRightisLabelSet_Lemma1_rhs_3
+    hProjectByLabelsRightisLabelSet_Lemma1 (IPR_ProjLabelNotElem subNotElem subPrjRight) notElem = 
+      --let notElemRec = hProjectByLabelsRightisLabelSet_Lemma1 subPrjRight notElem
+      --in 
+        ?hProjectByLabelsRightisLabelSet_Lemma1_rhs_4
+    
+    --TODO: Terminar lemma
+    hProjectByLabelsRightIsLabelSet_Lemma2 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} -> 
+                                  IsProjectRight ls ts1 ts2 -> HLabelSet_6 (map fst ts1) -> HLabelSet_6 (map fst ts2)
+    hProjectByLabelsRightIsLabelSet_Lemma2 IPR_EmptyLabels isLabelSet = isLabelSet         
+    hProjectByLabelsRightIsLabelSet_Lemma2 IPR_EmptyVect isLabelSet = isLabelSet         
+    hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelElem isElem x y) isLabelSet = ?hProj_labelSetPrf_rhs_3         
+    hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelNotElem notElem subPrjRight) (HLabelSet6Cons notMember subLabelSet) = 
+      let isLabelSetRec = hProjectByLabelsRightIsLabelSet_Lemma2 subPrjRight subLabelSet
+      --in HLabelSet6Cons notElem isLabelSetRec
+      in  ?hProj_labelSetPrf_rhs_4         
           
     -- Definicion de "delete" de hackage
-    -- NOTA: Esta incompleta porque no se pudo implementar un hProjectByLabels que devolviera un HLabelSet_6
-    {-hDeleteByLabels : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> Record_3 ts1 -> lty -> 
+    hDeleteByLabels : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> Record_3 ts1 -> lty -> 
       (n2 : Nat ** (ts2 : Vect n2 (lty, Type) ** Record_3 ts2 ))
     hDeleteByLabels (MkRecord3 isLabelSet hs) lbl =
-      let (_, (n2 ** (ts2 ** (hs2, isLabelSet2)))) = hProjectByLabels [lbl] hs isLabelSet
-      in (n2 ** (ts2 **  MkRecord3 isLabelSet2 hs2)) -}
+      let 
+        (_, (n2 ** (ts2 ** (hs2, isPrjRight)))) = hProjectByLabels_2 [lbl] hs
+        isLabelSet2 = the (HLabelSet_6 (map fst ts2)) $ hProjectByLabelsRightIsLabelSet_Lemma2 isPrjRight isLabelSet
+      in (n2 ** (ts2 **  MkRecord3 isLabelSet2 hs2))
                   
                   
   -- #2 - Igual que HList3 pero con List en vez de Vect
