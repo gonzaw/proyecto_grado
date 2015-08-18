@@ -591,50 +591,9 @@ namespace HList
       let (subDel ** subPrf) = deleteElem_2 {n=n} xs xinthere
       in (x :: subDel ** DeleteElemThere subPrf)
     deleteElem_2 {n=Z} (x :: xs) (There xinthere) = absurd $ noEmptyElemImplicit xs xinthere
-    
-    -- Igual que convertLengthElem, pero se pasa la prueba de igualdad explicitamente
-    {-convertLengthElem_2 : {xs : Vect k t} -> Elem x xs -> (n : Nat ** (xs2 : Vect (S n) t ** (Elem x xs2, xs = xs2)))
-    convertLengthElem_2 {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
-    convertLengthElem_2 {k = S n} {xs=xs} xinxs = (n ** (xs ** (xinxs, Refl)))-}
-    
-    -- Lema auxiliar
-    {-convertElemLemma : {xs : Vect k t} -> (xinxs : Elem x xs) -> k = S (getWitness (convertLengthElem xinxs))
-    convertElemLemma {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
-    convertElemLemma {k = S n} {xs=xs} xinxs = Refl
-    
-    convertElemLemma_2 : {xs : Vect k t} -> (xinxs : Elem x xs) -> k = S (getWitness (convertLengthElem_2 xinxs))
-    convertElemLemma_2 {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
-    convertElemLemma_2 {k = S n} {xs=xs} xinxs = Refl-}
-    
-    --convertElemLemma_2 : {xs : Vect k t} -> (xinxs : Elem x xs) -> Vect (getWitness (convertLengthElem xinxs))) t    
-    -- Otro lema auxiliar
-    -- En realidad este no me sirve por que ambos ls1 y ls2 tienen el nat "k", que no es verdad en la funcion
-    {-convertIsRightPrf : DecEq lty => {ls1, ls2 : Vect k lty} -> {ts : Vect n (lty, Type)} -> {res : Vect m (lty, Type)} ->
-                      IsProjectRight ls1 ts res -> (ls1 = ls2) -> IsProjectRight ls2 ts res
-    convertIsRightPrf isPrjRight Refl = isPrjRight-}
-    
-    -- Este de abajo no compila, por la misma razon (no puede unificar k y S (...))
-    -- Ademas porque no esta la prueba de que ls1 = ls2
-    {-convertIsRightPrf_2 : DecEq lty => {ls1 : Vect k lty} -> {xinxs : Elem x ls1} -> 
-                          {ls2 : Vect (S (getWitness (convertLengthElem xinxs))) lty}
-                          -> {ts : Vect n (lty, Type)} -> {res : Vect m (lty, Type)} -> IsProjectRight ls1 ts res -> 
-                          IsProjectRight ls2 ts res
-    convertIsRightPrf_2 isPrjRight = isPrjRight -}
-    
-    --La funcion que me devuelva la prueba deberia ser algo parecido a esto. Pero de alguna forma deberia introducir la igualdad
-    --entre ls1 y ls2
-    {-convertIsRightPrf_3 : DecEq lty => {ls1 : Vect k lty} -> {xinxs : Elem x ls1} -> 
-                          {ls2 : Vect (S (getWitness (convertLengthElem xinxs))) lty}
-                          -> {ts : Vect n (lty, Type)} -> {res : Vect m (lty, Type)} -> IsProjectRight ls1 ts res -> 
-                          IsProjectRight ls2 ts res
-    convertIsRightPrf_3 {k=Z} {ls1=ls1} {xinxs=xinxs} isPrjRight = absurd $ noEmptyElemImplicit ls1 xinxs
-    convertIsRightPrf_3 {k=S n} isPrjRight = ?wat-}
-    
-    {- convertLengthElem : {xs : Vect k t} -> Elem x xs -> (n : Nat ** (xs2 : Vect (S n) t ** Elem x xs2))
-    convertLengthElem {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
-    convertLengthElem {k = S n} {xs=xs} xinxs = (n ** (xs ** xinxs))-}
-    
-    {-hProjectByLabels_2 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
+          
+    -- hProjectByLabels que tambien devuelve una prueba de que los vectores son actualmente proyecciones izq y der      
+    hProjectByLabels_3=2 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
       ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, IsProjectLeft ls ts ls1))),
       (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, IsProjectRight ls ts ls2))))
     hProjectByLabels_2 [] {n=n} {ts=ts} hs = 
@@ -643,34 +602,18 @@ namespace HList
     hProjectByLabels_2 _ [] =
                        ((0 ** ([] ** ([], IPL_EmptyVect))),
                        (0 ** ([] ** ([], IPR_EmptyVect))))
-    hProjectByLabels_2 {lty=lty} {k=k} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =
+    hProjectByLabels_2 {lty=lty} {k=S k2} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
       case (isElem l2 ls) of
-        Yes l2inls => 
-          let (modLs ** (modL2inls, lsEqModLs)) = getProof $ convertLengthElem_2 l2inls
-              (lsNew ** isDelElem) = deleteElem_2 modLs modL2inls
+        Yes l2inls =>
+          let 
+              (lsNew ** isDelElem) = deleteElem_2 ls l2inls
               ((n3 ** (subInLs ** (subInHs, subPrjLeft))), (n4 ** (subOutLs ** (subOutHs, subPrjRight)))) = 
                          hProjectByLabels_2 {lty=lty} {ts=ts2} lsNew hs
-              rPrjRight = IPR_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subOutLs}  modL2inls isDelElem subPrjRight  
-              -- convertElemLemma : {xs : Vect k t} -> (xinxs : Elem x xs) -> k = S (getWitness (convertLengthElem xinxs))
-              natsEqualProof = convertElemLemma_2 {k=k} {xs=ls} {t=lty} l2inls 
-              --replaced = replace lsEqModLs {P=(\vec => IsProjectRight vec ((l2, t) :: ts2) subOutLs)} rPrjRight
-              replaced_ls = replace natsEqualProof {P=(\nat => Vect nat lty)} ls
-              replaced_modLs = replace (sym natsEqualProof) {P=(\nat => Vect nat lty)} modLs
-              --(\vec => IsProjectRight vec ((l2, t) :: ts2) subOutLs)
-              --(\nat => ???)
-              
-              --Este paso de abajo no compila:  Unifying k and S (getWitness (convertLengthElem_2 l2inls)) would lead to infinite value
-              --finalPrjRight = convertIsRightPrf {lty=lty} {ls1=modLs} {ls2=ls} rPrjRight lsEqModLs
-              --rRight = (n4 ** (subOutLs ** (subOutHs, rPrjRight)))
-              -- rLeft =  (S n3 ** ((l2,t) :: subInLs ** ((::) {lbl=l2} val subInHs, rPrjLeft)))            
-          {-
-          IPR_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElem ls isElem lsNew ->
-                          IsProjectRight {lty=lty} lsNew ts res1 -> IsProjectRight ls (t :: ts) res1 
-          IPL_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElem ls isElem lsNew ->
-                          IsProjectLeft {lty=lty} lsNew ts res1 -> IsProjectLeft ls (t :: ts) (t :: res1) 
-          -}
-          in ?case1
-          --in (?case1, (n4 ** (subOutLs ** (subOutHs, rPrjRight))))
+              rPrjRight = IPR_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subOutLs}  l2inls isDelElem subPrjRight  
+              rPrjLeft = IPL_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subInLs}  l2inls isDelElem subPrjLeft
+              rRight = (n4 ** (subOutLs ** (subOutHs, rPrjRight)))
+              rLeft =  (S n3 ** ((l2,t) :: subInLs ** ((::) {lbl=l2} val subInHs, rPrjLeft)))       
+          in (rLeft, rRight)
         No l2ninls => 
           let ((n3 ** (subInLs ** (subInHs, subPrjLeft))), (n4 ** (subOutLs ** (subOutHs, subPrjRight))))  = 
               hProjectByLabels_2 {lty=lty} {ts=ts2} ls hs
@@ -679,133 +622,9 @@ namespace HList
               rLeft = (n3 ** (subInLs ** (subInHs, rPrjLeft)))
               rPrjRight = IPR_ProjLabelNotElem {t=(l2,t)} {ts=ts2} {res1=subOutLs} l2ninls subPrjRight
               rRight = (S n4 ** ((l2,t) :: subOutLs ** ((::) {lbl=l2} val subOutHs, rPrjRight)))
-          in (rLeft, rRight)-}
-          
-          
-    hProjectByLabels_3 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
-      ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, IsProjectLeft ls ts ls1))),
-      (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, IsProjectRight ls ts ls2))))
-    hProjectByLabels_3 [] {n=n} {ts=ts} hs = 
-                       ((0 ** ([] ** ([], IPL_EmptyLabels))),
-                       (n ** (ts ** (hs, IPR_EmptyLabels))))
-    hProjectByLabels_3 _ [] =
-                       ((0 ** ([] ** ([], IPL_EmptyVect))),
-                       (0 ** ([] ** ([], IPR_EmptyVect))))
-    hProjectByLabels_3 {lty=lty} {k=S k2} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
-      case (isElem l2 ls) of
-        Yes l2inls =>
-          let 
-              --(modLs ** (modL2inls, lsEqModLs)) = getProof $ convertLengthElem_2 l2inls
-              (lsNew ** isDelElem) = deleteElem_2 ls l2inls
-              ((n3 ** (subInLs ** (subInHs, subPrjLeft))), (n4 ** (subOutLs ** (subOutHs, subPrjRight)))) = 
-                         hProjectByLabels_3 {lty=lty} {ts=ts2} lsNew hs
-              rPrjRight = IPR_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subOutLs}  l2inls isDelElem subPrjRight  
-              rPrjLeft = IPL_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subInLs}  l2inls isDelElem subPrjLeft
-              rRight = (n4 ** (subOutLs ** (subOutHs, rPrjRight)))
-              rLeft =  (S n3 ** ((l2,t) :: subInLs ** ((::) {lbl=l2} val subInHs, rPrjLeft)))            
-          {-
-          IPR_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElem ls isElem lsNew ->
-                          IsProjectRight {lty=lty} lsNew ts res1 -> IsProjectRight ls (t :: ts) res1 
-          IPL_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElem ls isElem lsNew ->
-                          IsProjectLeft {lty=lty} lsNew ts res1 -> IsProjectLeft ls (t :: ts) (t :: res1) 
-          -}
-          in (rLeft, rRight)
-        No l2ninls => 
-          let ((n3 ** (subInLs ** (subInHs, subPrjLeft))), (n4 ** (subOutLs ** (subOutHs, subPrjRight))))  = 
-              hProjectByLabels_3 {lty=lty} {ts=ts2} ls hs
-              
-              rPrjLeft = IPL_ProjLabelNotElem {t=(l2,t)} {ts=ts2} {res1=subInLs} l2ninls subPrjLeft
-              rLeft = (n3 ** (subInLs ** (subInHs, rPrjLeft)))
-              rPrjRight = IPR_ProjLabelNotElem {t=(l2,t)} {ts=ts2} {res1=subOutLs} l2ninls subPrjRight
-              rRight = (S n4 ** ((l2,t) :: subOutLs ** ((::) {lbl=l2} val subOutHs, rPrjRight)))
           in (rLeft, rRight)
     
-    
-    -- NOTA: Estas funciones de abajo fallan por el bug de Idris:
-    -- https://github.com/idris-lang/Idris-dev/issues/2479
-        
-    -- Funcion que proyecta un vector de labels sobre otro de (tly,Type)
-    {-projectVect : DecEq lty => Vect k lty -> Vect n (lty, Type) -> 
-      ((n1 : Nat ** Vect n1 (lty, Type)), (n2 : Nat ** Vect n2 (lty, Type)))
-    projectVect [] {n=n} ts = ((0 ** []), (n ** ts))
-    projectVect ls [] = ((0 ** []),(0 ** []))
-    projectVect ls (t :: ts) =
-      case (isElem (fst t) ls) of
-        Yes tinls =>
-          -- Pertenece, entonces lo saco de esa lista
-          let (modls ** modtinls) = getProof $ convertLengthElem tinls
-              lsNew = deleteElem modls modtinls
-              ((n1 ** ts1), (n2 ** ts2)) = projectVect lsNew ts
-              tsLeft = (S n1 ** t :: ts1)
-              tsRight = (n2 ** ts2)
-          in (tsLeft, tsRight)
-        No _ => 
-          let ((n1 ** ts1), (n2 ** ts2)) = projectVect ls ts
-              tsLeft = (n1 ** ts1)
-              tsRight = (S n2 ** t :: ts2)
-          in (tsLeft, tsRight)
-       
-    -- Nueva implementacion de hProjectByLabels, utilizando la funcion de vectores de arriba    
-    hProjectByLabels_2 : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->
-                       let ((n1 ** tsLeft), (n2 ** tsRight)) = projectVect ls ts in (HList3 tsLeft, HList3 tsRight)
-    hProjectByLabels_2 [] hs = ([],hs)
-    -- TODO: Ver como implementar este pattern matching
-    hProjectByLabels_2 {k=k} ls {n=Z} {ts=[]} [] = ?case1
-    hProjectByLabels_2 ts ls = ?case2
-    hProjectByLabels_2 {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
-      case (isElem l2 ls) of
-        Yes l2inls => 
-          let (modLs ** modL2inls) = getProof $ convertLengthElem l2inls
-              lsNew = deleteElem modLs modL2inls
-              (subInHs, subOutHs) = hProjectByLabels_2 {lty=lty} {ts=ts2} lsNew hs
-              rLeft =  (::) {lbl=l2} val subInHs
-              rRight = subOutHs
-          in (rLeft, rRight)
-        No _ => 
-          let (subInHs, subOutHs) = hProjectByLabels_2 {lty=lty} {ts=ts2} ls hs
-              rLeft =  subInHs
-              rRight = (::) {lbl=l2} val subOutHs)      
-          in (rLeft, rRight)                  -} 
-                                
-                                                  
-    -- NOTA: Este es un hProjectByLabels que usa, y devuelve, pruebas de HLabelSet_6. Estas pruebas son necesarias para
-    -- implementar operaciones que devuelven records, como hDeleteAtLabel                
-    -- No se pudo implementar (ver comentarios TODO dentro de la funcion por mas informacion)
-    {-hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> Vect k lty -> HList3 ts -> HLabelSet_6 (labelsOf ts) ->    
-      ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, HLabelSet_6 (labelsOf ls1)))),
-      (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, HLabelSet_6 (labelsOf ls2)))) )
-    hProjectByLabels [] _ _ = ((0 ** ([] ** ([], HLabelSet6Nil))), (0 ** ([] ** ([], HLabelSet6Nil))))
-    hProjectByLabels _ [] _ = ((0 ** ([] ** ([], HLabelSet6Nil))), (0 ** ([] ** ([], HLabelSet6Nil))))
-    hProjectByLabels {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) isLabelSet = 
-      -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
-      case (isElem l2 ls) of
-        Yes l2inls => 
-          -- Si pertenece, obtengo la lista de labels a proyectar SIN ese label
-          let (modLs ** modL2inls) = getProof $ convertLengthElem l2inls
-              lsNew = deleteElem modLs modL2inls
-          -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
-              ((n3 ** (subInLs ** (subInHs, isLabelSetInHs))), (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs)))) = 
-                         hProjectByLabels {lty=lty} {ts=ts2} lsNew hs isLabelSet
-          -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
-              test1 = getRecLabelSet_6 isLabelSet
-              test2 = getNotMember_6 isLabelSet
-              -- TODO: Hay que ver como encontrar una prueba de "Not (HMember_6 val subInHs)". Sin esa prueba no puedo construir la
-              -- prueba para retornar
-              rLeft =  (S n3 ** ((l2,t) :: subInLs ** ((::) {lbl=l2} val subInHs, isLabelSet)))
-              rRight = (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs))) 
-          --in (rLeft, rRight)
-          in ?wat1
-        No _ => 
-          -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
-          -- actual a la lista de los que NO estan en la proyeccion
-          let ((n3 ** (subInLs ** (subInHs, isLabelSetInHs))), (n4 ** (subOutLs ** (subOutHs, isLabelSetOutHs)))) = 
-                         hProjectByLabels {lty=lty} {ts=ts2} ls hs isLabelSet
-              -- TODO: Idem que arriba. Necesito encontrar una prueba de "Not (HMember_6 val subOutHs)"
-              rLeft =  (n3 ** (subInLs ** (subInHs, isLabelSetInHs)))
-              rRight = (S n4 ** ((l2,t) :: subOutLs ** (::) {lbl=l2} val subOutHs))      
-          --in (rLeft, rRight)
-          in ?wat2-}        
-          
+             
           
     -- Definicion de "delete" de hackage
     -- NOTA: Esta incompleta porque no se pudo implementar un hProjectByLabels que devolviera un HLabelSet_6
