@@ -598,13 +598,7 @@ namespace HList
               rPrjRight = IPR_ProjLabelNotElem {t=(l2,t)} {ts=ts2} {res1=subOutLs} l2ninls subPrjRight
               rRight = (S n4 ** ((l2,t) :: subOutLs ** ((::) {lbl=l2} val subOutHs, rPrjRight)))
           in (rLeft, rRight)
-    
-    
-    -- *-* Definicion de "hProjectByLabels" de hackage *-*
-    hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
-      (q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, IsProjectLeft ls ts ls1)))
-    hProjectByLabels ls hs = fst $ hProjectByLabels_both ls hs
-    
+  
     
     -- Dada una prueba que un elemento no pertenece a un Cons de una lista, divide tal prueba en sus dos componentes
     notElemLemma1 : Not (Elem x (y :: xs)) -> (Not (Elem x xs), Not (x = y))
@@ -626,23 +620,61 @@ namespace HList
     hProjectByLabelsRightIsLabelSet_Lemma1 (IPR_ProjLabelElem isElem delLs subPrjRight) notElem = 
       let
         (notElemSub, notEq) = notElemLemma1 notElem
-      in hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notElemSub
+        isNotElemRec = hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notElemSub
+      in isNotElemRec
     hProjectByLabelsRightIsLabelSet_Lemma1 (IPR_ProjLabelNotElem subNotElem subPrjRight) notElem = 
       let
         (notElemSub, notEq) = notElemLemma1 notElem
         isNotElemRec = hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notElemSub
       in notElemLemma2 isNotElemRec notEq
+      
+    hProjectByLabelsLeftIsLabelSet_Lemma1 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} ->
+      IsProjectLeft ls ts1 ts2 -> Not (Elem lbl (map fst ts1)) -> Not (Elem lbl (map fst ts2))
+    hProjectByLabelsLeftIsLabelSet_Lemma1 IPL_EmptyLabels notElem = noEmptyElem
+    hProjectByLabelsLeftIsLabelSet_Lemma1 IPL_EmptyVect notElem = notElem
+    hProjectByLabelsLeftIsLabelSet_Lemma1 (IPL_ProjLabelElem isElem delElem subPrjLeft) notElem = 
+      let
+        (notElemSub, notEq) = notElemLemma1 notElem
+        isNotElemRec = hProjectByLabelsLeftIsLabelSet_Lemma1 subPrjLeft notElemSub
+      in notElemLemma2 isNotElemRec notEq  
+    hProjectByLabelsLeftIsLabelSet_Lemma1 (IPL_ProjLabelNotElem subNotElem subPrjLeft) notElem =
+      let
+        (notElemSub, notEq) = notElemLemma1 notElem
+        isNotElemRec = hProjectByLabelsLeftIsLabelSet_Lemma1 subPrjLeft notElemSub
+      in isNotElemRec
+    
+    hProjectByLabelsLeftIsLabelSet_Lemma2 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} 
+    -> IsProjectLeft ls ts1 ts2 -> HLabelSet_6 (map fst ts1) -> HLabelSet_6 (map fst ts2)
+    hProjectByLabelsLeftIsLabelSet_Lemma2 IPL_EmptyLabels isLabelSet = HLabelSet6Nil
+    hProjectByLabelsLeftIsLabelSet_Lemma2 IPL_EmptyVect isLabelSet = isLabelSet
+    hProjectByLabelsLeftIsLabelSet_Lemma2 (IPL_ProjLabelElem isElem delLs subPrjLeft) (HLabelSet6Cons notMember subLabelSet) = 
+      let isLabelSetRec = hProjectByLabelsLeftIsLabelSet_Lemma2 subPrjLeft subLabelSet
+          notElemPrf = hProjectByLabelsLeftIsLabelSet_Lemma1 subPrjLeft notMember
+      in HLabelSet6Cons notElemPrf isLabelSetRec
+    hProjectByLabelsLeftIsLabelSet_Lemma2 (IPL_ProjLabelNotElem notElem subPrjLeft) (HLabelSet6Cons notMember subLabelSet) = 
+      let isLabelSetRec = hProjectByLabelsLeftIsLabelSet_Lemma2 subPrjLeft subLabelSet
+      in isLabelSetRec
     
     hProjectByLabelsRightIsLabelSet_Lemma2 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} 
     -> IsProjectRight ls ts1 ts2 -> HLabelSet_6 (map fst ts1) -> HLabelSet_6 (map fst ts2)
     hProjectByLabelsRightIsLabelSet_Lemma2 IPR_EmptyLabels isLabelSet = isLabelSet         
     hProjectByLabelsRightIsLabelSet_Lemma2 IPR_EmptyVect isLabelSet = isLabelSet         
-    hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelElem isElem delLs subPrjRight) (HLabelSet6Cons notMember subLabelSet) = 
-      hProjectByLabelsRightIsLabelSet_Lemma2 subPrjRight subLabelSet
+    hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelElem isElem delLs subPrjRight) (HLabelSet6Cons notMember subLabelSet) =
+      let isLabelSetRec = hProjectByLabelsRightIsLabelSet_Lemma2 subPrjRight subLabelSet
+      in isLabelSetRec 
     hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelNotElem notElem subPrjRight) (HLabelSet6Cons notMember subLabelSet) = 
       let isLabelSetRec = hProjectByLabelsRightIsLabelSet_Lemma2 subPrjRight subLabelSet
           notElemPrf = hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notMember 
       in HLabelSet6Cons notElemPrf isLabelSetRec
+          
+    
+    -- *-* Definicion de "hProjectByLabels" de hackage *-*
+    hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> Record_3 ts ->     
+      (q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (Record_3 ls1, IsProjectLeft ls ts ls1)))
+    hProjectByLabels ls (MkRecord3 isLabelSet hs) =
+      let (qRes ** (lsRes ** (hsRes, prjLeftRes))) = fst $ hProjectByLabels_both ls hs
+          isLabelSetRes = hProjectByLabelsLeftIsLabelSet_Lemma2 prjLeftRes isLabelSet
+      in (qRes ** (lsRes ** (MkRecord3 isLabelSetRes hsRes, prjLeftRes)))         
           
     -- *-* Definicion de "hDeleteAtLabel" de hackage *-*
     hDeleteAtLabel : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> Record_3 ts1 -> lty -> 
@@ -650,8 +682,8 @@ namespace HList
     hDeleteAtLabel (MkRecord3 isLabelSet hs) lbl =
       let 
         (_, (n2 ** (ts2 ** (hs2, isPrjRight)))) = hProjectByLabels_both [lbl] hs
-        isLabelSet2 = the (HLabelSet_6 (map fst ts2)) $ hProjectByLabelsRightIsLabelSet_Lemma2 isPrjRight isLabelSet
-      in (n2 ** (ts2 **  MkRecord3 isLabelSet2 hs2))
+        isLabelSet2 = hProjectByLabelsRightIsLabelSet_Lemma2 isPrjRight isLabelSet
+      in (n2 ** (ts2 ** MkRecord3 isLabelSet2 hs2))
                   
                   
   -- #2 - Igual que HList3 pero con List en vez de Vect
