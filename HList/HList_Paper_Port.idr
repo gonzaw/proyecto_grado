@@ -464,6 +464,61 @@ namespace HList
     -- Asi se puede definir un nuevo record similar al de HList en hackage
     data Record_3 : Vect n (lty, Type) -> Type where
       MkRecord3 : HLabelSet_6 (labelsOf ts) -> HList3 ts -> Record_3 ts
+       
+    emptyRecord_3 : DecEq lty => Record_3 []
+    emptyRecord_3 = MkRecord3 HLabelSet6Nil {ts=[]} [] 
+        
+    mkRecord_3 : DecEq lty => {ts : Vect n (lty, Type)} -> {prf : HLabelSet_6 (labelsOf ts)} -> HList3 ts -> Record_3 ts
+    mkRecord_3 {prf=prf} hs = MkRecord3 prf hs
+      
+    addToRec_3 : DecEq lty => {ts : Vect n (lty, Type)} -> {t : Type} -> 
+      (lbl : lty) -> (val : t)->  Record_3 ts -> {notElem : Not (Elem lbl (labelsOf ts))} -> Record_3 ((lbl,t) :: ts)
+    addToRec_3 lbl val (MkRecord3 subLabelSet hs) {notElem=notElem} = MkRecord3 (HLabelSet6Cons notElem subLabelSet) (val :: hs)
+    
+     -- Prueba de generacion de Proof
+    
+    HLabelSet6OrUnit : DecEq lty => Vect n lty -> Type
+    HLabelSet6OrUnit vec =
+      case (isLabelSet_6 vec) of
+        Yes _ => HLabelSet_6 vec
+        No _ => ()
+     
+    mkHLabelSet6 : DecEq lty => (ls : Vect n lty) -> HLabelSet6OrUnit ls
+    mkHLabelSet6 ls with (isLabelSet_6 ls)
+      mkHLabelSet6 ls | Yes isLabelSet = isLabelSet
+      mkHLabelSet6 ls | No _  = ()
+          
+    data NotElemLabel : lty -> Vect n lty -> Type where
+      MkNotElemLabel : (lbl : lty) -> Not (Elem lbl ls) -> NotElemLabel lbl ls
+      
+    NotElemLabelOrUnit : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> Type
+    NotElemLabelOrUnit lbl ls =
+      case (isElem lbl ls) of
+        Yes _ => ()
+        No notElem => Not (Elem lbl ls)
+        
+    mkNotElemLabel : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> NotElemLabelOrUnit lbl ls
+    mkNotElemLabel lbl ls with (isElem lbl ls)
+      mkNotElemLabel lbl ls | Yes _ = ()
+      mkNotElemLabel lbl ls | No notElem = notElem
+        
+    --Testing de pruebas automaticas    
+    pruebaHLabelSet6 : HLabelSet_6 [1,2,3]
+    pruebaHLabelSet6 = mkHLabelSet6 [1,2,3]
+    
+    pruebaNotElemLabel : Not (Elem 1 [2,3])
+    pruebaNotElemLabel = mkNotElemLabel 1 [2,3]   
+     
+    --Tests creando records usando tales pruebas automaticas       
+    pruebaRecord3_1 : Record_3 [("Edad", Nat)]
+    pruebaRecord3_1 = addToRec_3 "Edad" 23 (emptyRecord_3 {lty=String}) {notElem=mkNotElemLabel "Edad" []}
+    
+    pruebaRecord3_2 : Record_3 [("Edad", Nat)]    
+    pruebaRecord3_2 = mkRecord_3 [23] {prf=mkHLabelSet6 ["Edad"]}
+    
+    -- Fin Prueba de generacion de proof
+    
+    
     
     -- Prueba de que un vector con tipo "Vect 0 a" es el vector vacio
     vectCeroIsEmpty : (v : Vect 0 a) -> v = []
@@ -684,44 +739,3 @@ namespace HList
         (_, (n2 ** (ts2 ** (hs2, isPrjRight)))) = hProjectByLabels_both [lbl] hs
         isLabelSet2 = hProjectByLabelsRightIsLabelSet_Lemma2 isPrjRight isLabelSet
       in (n2 ** (ts2 ** MkRecord3 isLabelSet2 hs2))
-                  
-                  
-  -- #2 - Igual que HList3 pero con List en vez de Vect
-  {-namespace HList4
-    -- Con este tipo se pueden tener los labels a nivel de tipos y no en runtime
-    data HList4 : List (lty, Type) -> Type where
-      Nil : HList4 []
-      (::) : {lbl : lty} -> (val : t) -> HList4 ts -> HList4 ((lbl,t) :: ts)
- 
-    -- Obtiene los labels de una lista de tal HList
-    labelsOf : List (lty, Type) -> List lty
-    labelsOf = map fst
-    
-    -- Asi se puede definir un nuevo record similar al de HList en hackage
-    data Record_4 : List (lty, Type) -> Type where
-      MkRecord4 : HLabelSet_7 (labelsOf ts) -> HList4 ts -> Record_4 ts
-    
-    -- Misma hProjectByLabels definida anteriormente, pero para "List" en vez de "Vect"
-    -- NOTA: Por ahora no se usa porque se pudo implementar mas arriba con Vect. Pero esto muestra que con "List" se pueden implementar
-    -- records igual.           
-    hProjectByLabels: DecEq lty => {ts : List (lty, Type)} -> List lty -> HList4 ts -> 
-      ((res1 : List (lty, Type) ** HList4 res1), (res2 : List (lty, Type) ** HList4 res2))
-    hProjectByLabels [] _ = (([] ** []),([] ** []))
-    hProjectByLabels _ [] = (([] ** []),([] ** [])) 
-    hProjectByLabels {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =       
-       -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
-      case (elem (wrapEq l2) (map wrapEq ls)) of
-         True =>
-           -- Si pertenece, obtengo la lista de labels a proyectar SIN ese label
-           let lsNew = (map unWrapEq) $ delete (wrapEq l2) (map wrapEq ls)
-           -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
-               ((subInLs ** subInHs), (subOutLs ** subOutHs)) = 
-                         hProjectByLabels {lty=lty} {ts=ts2} lsNew hs
-           -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
-           in (((l2,t) :: subInLs ** val :: subInHs), (subOutLs ** subOutHs))
-         False => 
-           -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
-           -- actual a la lista de los que NO estan en la proyeccion
-           let ((subInLs ** subInHs), (subOutLs ** subOutHs)) = 
-                         hProjectByLabels {lty=lty} {ts=ts2} ls hs
-           in ((subInLs ** subInHs), ((l2,t) :: subOutLs ** val :: subOutHs))-}
