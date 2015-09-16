@@ -539,59 +539,7 @@ namespace HList
     convertLengthElem : {xs : Vect k t} -> Elem x xs -> (n : Nat ** (xs2 : Vect (S n) t ** Elem x xs2))
     convertLengthElem {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
     convertLengthElem {k = S n} {xs=xs} xinxs = (n ** (xs ** xinxs))
-    
-    -- Aqui se puede definir hProjectByLabels. Esta funcion realiza lo mismo que las typeclasses H2ProjectByLabels, etc de HList
-    -- (en hackage)
-    -- NOTA: Este funciona, pero se utiliza otro que mantiene las invariantes
-    {-hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> Vect k lty -> HList3 ts ->     
-      ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** HList3 ls1)),
-      (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** HList3 ls2)))
-    -- Si la lista de labels a proyectar es vacia, entonces a la izq no viene nada y a la der la HList original
-    hProjectByLabels [] {n=n} {ts=ts} hs = ((0 ** ([] ** [])), (n ** (ts ** hs)))
-    -- Si el HList es vacio, se debe devolver todo vacio
-    hProjectByLabels _ [] = ((0 ** ([] ** [])), (0 ** ([] ** [])))
-    hProjectByLabels {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
-      -- Primero debo fijarme si el label del primer elemento del HList pertenece a la lista de labels a proyectar
-      case (isElem l2 ls) of
-        Yes l2inls => 
-          -- Si pertenece, obtengo la lista de labels a proyectar SIN ese label
-          let (modLs ** modL2inls) = getProof $ convertLengthElem l2inls
-              lsNew = deleteElem modLs modL2inls
-          -- Luego realizo la proyeccion de esa nueva lista sobre el resto del HList
-              ((n3 ** (subInLs ** subInHs)), rRight) = 
-                         hProjectByLabels {lty=lty} {ts=ts2} lsNew hs
-          -- Al final obtengo esa proyeccion, agregando el valor al HList proyectado (y no al que NO se proyecto)
-              rLeft =  (S n3 ** ((l2,t) :: subInLs ** (::) {lbl=l2} val subInHs))
-          in (rLeft, rRight)
-        No _ => 
-          -- No pertenece, entonces solamente se realiza la proyeccion sobre el resto del HList, y se agrega el valor
-          -- actual a la lista de los que NO estan en la proyeccion
-          let (rLeft, (n4 ** (subOutLs ** subOutHs))) = 
-                         hProjectByLabels {lty=lty} {ts=ts2} ls hs
-              rRight = (S n4 ** ((l2,t) :: subOutLs ** (::) {lbl=l2} val subOutHs))      
-          in (rLeft, rRight)-}
-      
-    -- Parece que un ejemplo como este no puede funcionar, porque hProjectByLabels devuelve tipos existenciales.
-    -- Nunca hace ninguna computacion con los tipos, entonces no puede saber cuales son los HList resultantes
-    {-hProjectByLabelsExample : (HList3 [("Edad", Nat)], HList3 [("Nombre", String)])                
-    hProjectByLabelsExample =
-      let iniHs = the (HList3 [("Edad", Nat), ("Nombre", String)]) $ [23, "Gonzalo"]
-          ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs))) = hProjectByLabels ["Edad"] iniHs
-      in
-          (inHs, outHs)-} 
-          
-    -- Ejemplo de hProjectByLabels
-    {-hProjectByLabelsExample2 :  
-      ((q1 : Nat ** (ls1 : Vect q1 (String, Type) ** HList3 ls1)),
-      (q2 : Nat ** (ls2 : Vect q2 (String, Type) ** HList3 ls2)) )            
-    hProjectByLabelsExample2 =
-      let iniHs = the (HList3 [("Edad", Nat), ("Nombre", String)]) $ [23, "Gonzalo"]
-          ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs))) = hProjectByLabels ["Edad"] iniHs
-      in
-          ((n1 ** (ts1 ** inHs)), (n2 ** (ts2 ** outHs)))-}
-    
-    -- *** Aqui se define hProjectByLabels devolviendo el existencial, mas un predicado que indica que es la proyeccion ***
-    
+           
     -- DeleteElem es el predicado equivalente a la funcion "deleteElem" del Prelude
     data DeleteElem : (xs : Vect (S n) t) -> Elem x xs -> Vect n t -> Type where
       DeleteElemHere : DeleteElem (x :: xs) Here xs
@@ -724,18 +672,36 @@ namespace HList
           
     
     -- *-* Definicion de "hProjectByLabels" de hackage *-*
-    hProjectByLabels : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> Record_3 ts ->     
-      (q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (Record_3 ls1, IsProjectLeft ls ts ls1)))
+    hProjectByLabels : DecEq lty => {ts1 : Vect n (lty, Type)} -> (ls : Vect k lty) -> Record_3 ts1 ->     
+      (q1 : Nat ** (ts2 : Vect q1 (lty, Type) ** (Record_3 ts2, IsProjectLeft ls ts1 ts2)))
     hProjectByLabels ls (MkRecord3 isLabelSet hs) =
       let (qRes ** (lsRes ** (hsRes, prjLeftRes))) = fst $ hProjectByLabels_both ls hs
           isLabelSetRes = hProjectByLabelsLeftIsLabelSet_Lemma2 prjLeftRes isLabelSet
       in (qRes ** (lsRes ** (MkRecord3 isLabelSetRes hsRes, prjLeftRes)))         
           
+    -- Predicado que indica que un campo fue eliminado de la lista de un record      
+    data DeleteFromRecPred : DecEq lty => lty -> Vect n (lty, Type) -> Vect m (lty, Type) -> Type where
+      DFR_EmptyRecord : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl [] []
+      DFR_IsElem : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl ((lbl,ty) :: ts) ts
+      DFR_IsNotElem : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl ts1 ts2 -> DeleteFromRecPred lbl (tup :: ts1) (tup :: ts2)
+          
+    -- Transformo una prueba de que se proyecto una lista con un solo elemento a una prueba de que se elimino tal elemento
+    fromIsProjectRightToDeleteFromRec : DecEq lty => {ts1 : Vect n (lty, Type)} -> {ts2 : Vect m (lty, Type)} ->
+                                      {lbl : lty} -> IsProjectRight [lbl] ts1 ts2 -> DeleteFromRecPred lbl ts1 ts2
+    fromIsProjectRightToDeleteFromRec IPR_EmptyVect = DFR_EmptyRecord
+    fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here DeleteElemHere IPR_EmptyLabels) = DFR_IsElem
+    fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here DeleteElemHere IPR_EmptyVect) = DFR_IsElem
+    fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here DeleteElemHere (IPR_ProjLabelNotElem f x)) impossible
+    fromIsProjectRightToDeleteFromRec (IPR_ProjLabelNotElem notElem subPrjRight) = 
+      let subDelFromRec = fromIsProjectRightToDeleteFromRec subPrjRight
+      in DFR_IsNotElem subDelFromRec
+    
+    
     -- *-* Definicion de "hDeleteAtLabel" de hackage *-*
-    hDeleteAtLabel : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> Record_3 ts1 -> lty -> 
-      (n2 : Nat ** (ts2 : Vect n2 (lty, Type) ** Record_3 ts2 ))
-    hDeleteAtLabel (MkRecord3 isLabelSet hs) lbl =
+    hDeleteAtLabel : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> (lbl : lty) -> Record_3 ts1 ->
+      (n2 : Nat ** (ts2 : Vect n2 (lty, Type) ** (Record_3 ts2, DeleteFromRecPred lbl ts1 ts2)))
+    hDeleteAtLabel lbl (MkRecord3 isLabelSet hs) =
       let 
-        (_, (n2 ** (ts2 ** (hs2, isPrjRight)))) = hProjectByLabels_both [lbl] hs
-        isLabelSet2 = hProjectByLabelsRightIsLabelSet_Lemma2 isPrjRight isLabelSet
-      in (n2 ** (ts2 ** MkRecord3 isLabelSet2 hs2))
+        (_, (n2 ** (ts2 ** (hs2, prjRightRes)))) = hProjectByLabels_both [lbl] hs
+        isLabelSet2 = hProjectByLabelsRightIsLabelSet_Lemma2 prjRightRes isLabelSet
+      in (n2 ** (ts2 ** (MkRecord3 isLabelSet2 hs2, fromIsProjectRightToDeleteFromRec prjRightRes)))
