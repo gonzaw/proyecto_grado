@@ -1,265 +1,309 @@
 {-
-  En este archivo se van a intentar definir records extensibles.
+  Definición de Records Extensibles.
   
-  Basicamente, se definen los records como una lista heterogenea de labels. Un label tiene un titulo y un tipo. Un record, para un label,
-  debe tener un valor de ese tipo. A su vez, se definen relaciones que indican cuando un label es identico a otro (cuando tienen el mismo
-  titulo), y cuando un label esta repetido en un vector de labels. Se utiliza una metodologia similar a las pruebas de Data.Vect.Elem
+  Se toma inspiración en HList de Haskell
+  Paper: http://okmij.org/ftp/Haskell/HList-ext.pdf
+  Hackage: https://hackage.haskell.org/package/HList
 -}
 module Extensible_Records
 
 import Data.Vect
+import Data.Fin
 
 %default total
 
-
-infix 5 :=
-
--- Un campo tiene un label (que debe tener igualdad decidible) y un tipo
-data Field : lbl -> Type -> Type where
-  (:=) : DecEq lbl => (field_label : lbl) -> 
-       (value : b) -> Field field_label b
-
--- Relacion de inclusion. "InLabel l ls" indica que el label "l" ya existe en el vector de label types "ls". Esta repetido si ya existe
--- otro labeltype con el mismo label
-data InLabel : lty -> Vect n (lty, Type) -> Type where
-  InHere : InLabel lbl ((lbl,ty) :: ls)
-  InThere : InLabel lbl1 ls -> InLabel lbl1 ((lbl2,ty) :: ls)
-
--- Ninguna label puede estar en un vector vacio
-noEmptyInLabel : InLabel lbl [] -> Void
-noEmptyInLabel (InHere) impossible
-  
--- Un label que no esta en la cabeza ni cola de la lista no esta en la lista
-neitherInHereNorInThere : {lbl1, lbl2 : lty} -> {ls : Vect n (lty, Type)} -> Not (lbl1 = lbl2) -> Not (InLabel lbl1 ls) 
-                           -> Not (InLabel lbl1 ((lbl2, ty) :: ls))
-neitherInHereNorInThere l1neql2 l1ninls InHere = l1neql2 Refl
-neitherInHereNorInThere l1neql2 l1ninls (InThere l1inls) = l1ninls l1inls
-
--- Si un label no esta en la cola, entonces no esta en el head de la lista
-ifNotInThereThenNotInHere : {lbl1, lbl2 : lty} -> {ls : Vect n (lty, Type)} -> Not (InLabel lbl1 ((lbl2, ty) :: ls)) 
-                          -> Not (InLabel lbl1 ls)
-ifNotInThereThenNotInHere l1nincons l1inls = l1nincons (InThere l1inls)
-  
--- Funcion de decision que indica si un label esta repetido en una lista de labels o no
-isInLabelList : DecEq lty => (lbl : lty) -> (ls : Vect n (lty, Type)) -> Dec (InLabel lbl ls)       
-isInLabelList lbl [] = No noEmptyInLabel
-isInLabelList lbl1 ((lbl2, ty) :: ls) with (decEq lbl1 lbl2)
-  isInLabelList lbl1 ((lbl1, ty) :: ls) | Yes Refl = Yes InHere
-  isInLabelList lbl1 ((lbl2, ty) :: ls) | No l1neql2 with (isInLabelList lbl1 ls)
-    isInLabelList lbl1 ((lbl2, ty) :: ls) | No l1neql2 | Yes l1inls = Yes (InThere l1inls)
-    isInLabelList lbl1 ((lbl2, ty) :: ls) | No l1neql2 | No l1ninls = No (neitherInHereNorInThere l1neql2 l1ninls)
- 
- 
-  
--- Records
--- Un record contiene una lista de labels no repetidos (no se repiten si tienen titulos distintos). A cada label se le asocia un valor
--- del tipo correspondiente. Se debe pasar una prueba que el label no esta en el resto del record (para no tener labels repetidos)
-using (lbl : lty, ls : Vect n (lty, Type))
-  data Record : DecEq lty => Vect n (lty, Type) -> Type where
-    NilRec : DecEq lty => Record {lty} []
-    Rec : DecEq lty => Field lbl a -> Record ls -> (prf : Not (InLabel lbl ls)) -> Record ((lbl, a) :: ls)
-
-  -- FieldType l ls ty indica que el label "l" de la lista "ls" tiene el tipo "ty"
-  data FieldType : lty -> Vect n (lty, Type) -> Type -> Type where
-    First : FieldType lbl ((lbl, ty) :: ls) ty
-    Later : FieldType lbl ls ty -> FieldType lbl (a :: ls) ty
-      
-      
--- Funcion que ayuda a obtener pruebas automaticas
+-- Funciones que ayudan a obtener pruebas automaticas
 getNo : (res : Dec p) -> case res of { Yes _ => () ; No _ => Not p }
 getNo (Yes prf) = ()
 getNo (No contra) = contra
 
--- *** Obtener un elemento ***
+getYes : (res : Dec p) -> case res of { Yes _ => p ; No _ => () }
+getYes (Yes prf) = prf
+getYes (No contra) = ()
 
--- Dado un label, obtiene el elemento de un record
-getField' : DecEq lty => (lbl : lty) -> Record ls -> FieldType lbl ls ty -> ty
-getField' lbl (Rec (_ := val) _ _) First = val
-getField' lbl (Rec _ rs _) (Later prfLater) = getField' lbl rs prfLater
+-- Igual a las de arriba, pero obtiene la prueba necesaria sin importar si es Yes o No
+getDec : (res : Dec p) -> case res of { Yes _ => p; No _ => Not p}
+getDec (Yes prf) = prf
+getDec (No contra) = contra
 
--- Misma funcion, donde se automatiza la prueba de que tiene el tipo
-getField : DecEq lty => (lbl : lty) -> Record ls -> 
-             {default tactics { search } prf : FieldType lbl ls ty} -> ty
-getField lbl rs {prf} = getField' lbl rs prf
-
--- *** Actualizar un elemento ***
-
--- Toma una funcion t -> t y actualiza un elemento del record con esa funcion
-updateField' : DecEq lty => (lbl : lty) -> Record ls -> (ty -> ty) -> FieldType lbl ls ty -> Record ls
-updateField' lbl (Rec (lbl := val) rs prf) f First = Rec (lbl := f val) rs prf 
-updateField' lbl (Rec field rs prf) f (Later prfLater) = Rec field (updateField' lbl rs f prfLater) prf
-
--- Misma funcion, donde se automatiza la prueba de que tiene el tipo
-updateField : DecEq lty => (lbl : lty) -> Record ls -> (ty -> ty) ->
-             {default tactics { search } prf : FieldType lbl ls ty} -> Record ls
-updateField l rs f {prf} = updateField' l rs f prf
-
-
--- *** Actualizar un elemento cambiando su tipo ***
-
--- Actualiza el tipo de un label en una lista
-updLblType : DecEq lty => (lbl : lty) -> (ls : Vect n (lty,Type)) -> (tydes : Type) -> FieldType lbl ls tysrc -> Vect n (lty, Type)
-updLblType {tysrc=tysrc} lbl ((lbl, tysrc) :: ls) tydes First = (lbl, tydes) :: ls
-updLblType {tysrc=tysrc} lbl ((lbl1, tyaux) :: ls) tydes (Later prfLater) = (lbl1,tyaux) :: (updLblType lbl ls tydes prfLater)
+-- PRedicado de que un vector no tiene repetidos
+data HLabelSet_6 : Vect n lty -> Type where
+  HLabelSet6Nil : HLabelSet_6 []
+  HLabelSet6Cons : Not (Elem lbl ls) -> HLabelSet_6 ls -> HLabelSet_6 (lbl :: ls)
+    
+-- Funciones auxiliares
+getNotMember_6 : HLabelSet_6 (lbl :: ls) -> Not (Elem lbl ls)
+getNotMember_6 (HLabelSet6Cons notMember _) = notMember
   
--- Transforma InLabels equivalentes
-transInLabel : InLabel lbl1 ((lbl2, ty1) :: ls) -> InLabel lbl1 ((lbl2, ty2) :: ls)
-transInLabel InHere = InHere
-transInLabel (InThere x) = InThere x
+getRecLabelSet_6 : HLabelSet_6 (lbl :: ls) -> HLabelSet_6 ls
+getRecLabelSet_6 (HLabelSet6Cons _ recLabelSet) = recLabelSet
+
+ifNotLabelSetHereThenNeitherThere_6 : Not (HLabelSet_6 ls) -> Not (HLabelSet_6 (l :: ls))
+ifNotLabelSetHereThenNeitherThere_6 lsnotls (HLabelSet6Cons lnotm lsyesls) = lsnotls lsyesls  
   
--- Si tengo una prueba que el label "l" esta en la lista "ls", entonces modificar su tipo no cambia la prueba
-updPrfType : DecEq lty => {lbl1, lbl2 : lty} -> {ls : Vect n (lty,Type)} -> {prfLater : FieldType lbl1 ls tysrc}
-            -> Not (InLabel lbl2 ls) -> 
-           Not (InLabel lbl2 (updLblType lbl1 ls tydes prfLater))
-updPrfType {lbl1=lbl1} {ls= (lbl1, tysrc) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = First} = 
-  let l2inupd_2 = the (InLabel lbl2 ((lbl1, tydes) :: ls2) ) l2inupd
-      l2inupd_3 = transInLabel l2inupd_2 {lbl1=lbl2} {lbl2=lbl1} {ty1=tydes} {ty2=tysrc} {ls=ls2}
-  in l2ninls l2inupd_3
-updPrfType {lbl1=lbl1} {ls= (lblaux, tyaux) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = (Later prfLaterOther)} with
-           (decEq lbl2 lblaux)
-  updPrfType {lbl1=lbl1} {ls= (lbl2, tyaux) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd | Yes Refl = l2ninls InHere
-  updPrfType {lbl1=lbl1} {ls= (lblaux, tyaux) :: ls2} {lbl2=lbl2} {tydes=tydes} l2ninls l2inupd {prfLater = (Later prfLaterOther)} 
-             | No contra = 
-        let l2ninls_2 = ifNotInThereThenNotInHere l2ninls
-            l2ninls_3 = updPrfType {lbl1=lbl1} {lbl2=lbl2} {tydes=tydes} {ls=ls2} {prfLater=prfLaterOther} l2ninls_2
-        in neitherInHereNorInThere contra l2ninls_3 l2inupd
+ifHasRepeatedThenNotLabelSet_6 : HLabelSet_6 ls -> Elem l ls -> Not (HLabelSet_6 (l :: ls))      
+ifHasRepeatedThenNotLabelSet_6 lsyesls linls (HLabelSet6Cons lninls lsyesls_2) = lninls linls
+  
+-- Esta es la funcion de decision que determina si una lista de labels tiene repetidos o no    
+isLabelSet_6 : DecEq lty => (ls : Vect n lty) -> Dec (HLabelSet_6 ls)
+isLabelSet_6 [] = Yes HLabelSet6Nil
+isLabelSet_6 (l :: ls) with (isLabelSet_6 ls)
+  isLabelSet_6 (l :: ls) | No lsnotls = No $ ifNotLabelSetHereThenNeitherThere_6 lsnotls
+  isLabelSet_6 (l :: ls) | Yes lsyesls with (isElem l ls)
+    isLabelSet_6 (l :: ls) | Yes lsyesls | No lninls = Yes $ HLabelSet6Cons lninls lsyesls
+    isLabelSet_6 (l :: ls) | Yes lsyesls | Yes linls = No $ ifHasRepeatedThenNotLabelSet_6 lsyesls linls
+   
+-- ** HList **
+data HList3 : Vect n (lty, Type) -> Type where
+  Nil : HList3 []
+  (::) : {lbl : lty} -> (val : t) -> HList3 ts -> HList3 ((lbl,t):: ts)
+ 
+-- Obtiene los labels de una lista de tal HList
+labelsOf : Vect n (lty, Type) -> Vect n lty
+labelsOf = map fst
 
--- Actualiza elementos, y puede cambiar su tipo
-updateFieldType' : DecEq lty => (lbl : lty) -> Record ls -> (tysrc -> tydes) -> (prf : FieldType lbl ls tysrc) 
-  -> Record (updLblType lbl ls tydes prf)
-updateFieldType' lbl (Rec (lbl := val) rs prf) f First = Rec (lbl := f val) rs prf
-updateFieldType' {tydes=tydes} lbl (Rec field rs prf {lbl=lbl2} ) f (Later prfLater) =
-                 Rec field (updateFieldType' lbl rs f prfLater) (updPrfType prf {lbl2=lbl2} {lbl1=lbl} {tydes=tydes} {prfLater=prfLater})
-
-
--- Misma funcion, donde se automatiza la prueba de que tiene el tipo
-updateFieldType : DecEq lty => (lbl : lty) -> Record ls -> (tysrc -> tydes) ->
-             {default tactics { search } prf : FieldType lbl ls tysrc} -> Record (updLblType lbl ls tydes prf)
-updateFieldType l rs f {prf} = updateFieldType' l rs f prf
-
--- *** Eliminar un elemento ***
-
+data Record_3 : Vect n (lty, Type) -> Type where
+  MkRecord3 : HLabelSet_6 (labelsOf ts) -> HList3 ts -> Record_3 ts
+       
+emptyRecord_3 : DecEq lty => Record_3 []
+emptyRecord_3 = MkRecord3 HLabelSet6Nil {ts=[]} [] 
+        
+mkRecord_3 : DecEq lty => {ts : Vect n (lty, Type)} -> {prf : HLabelSet_6 (labelsOf ts)} -> HList3 ts -> Record_3 ts
+mkRecord_3 {prf=prf} hs = MkRecord3 prf hs
+      
+addToRec_3 : DecEq lty => {ts : Vect n (lty, Type)} -> {t : Type} -> 
+  (lbl : lty) -> (val : t)->  Record_3 ts -> {notElem : Not (Elem lbl (labelsOf ts))} -> Record_3 ((lbl,t) :: ts)
+addToRec_3 lbl val (MkRecord3 subLabelSet hs) {notElem=notElem} = MkRecord3 (HLabelSet6Cons notElem subLabelSet) (val :: hs)
+    
+ -- Prueba de generacion de Proof
+    
+HLabelSet6OrUnit : DecEq lty => Vect n lty -> Type
+HLabelSet6OrUnit vec =
+  case (isLabelSet_6 vec) of
+    Yes _ => HLabelSet_6 vec
+    No _ => ()
+     
+mkHLabelSet6 : DecEq lty => (ls : Vect n lty) -> HLabelSet6OrUnit ls
+mkHLabelSet6 ls with (isLabelSet_6 ls)
+  mkHLabelSet6 ls | Yes isLabelSet = isLabelSet
+  mkHLabelSet6 ls | No _  = ()
+          
+data NotElemLabel : lty -> Vect n lty -> Type where
+  MkNotElemLabel : (lbl : lty) -> Not (Elem lbl ls) -> NotElemLabel lbl ls
+      
+NotElemLabelOrUnit : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> Type
+NotElemLabelOrUnit lbl ls =
+  case (isElem lbl ls) of
+    Yes _ => ()
+    No notElem => Not (Elem lbl ls)
+        
+mkNotElemLabel : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> NotElemLabelOrUnit lbl ls
+mkNotElemLabel lbl ls with (isElem lbl ls)
+  mkNotElemLabel lbl ls | Yes _ = ()
+  mkNotElemLabel lbl ls | No notElem = notElem
+        
+--Testing de pruebas automaticas    
+pruebaHLabelSet6 : HLabelSet_6 [1,2,3]
+pruebaHLabelSet6 = mkHLabelSet6 [1,2,3]
+    
+pruebaNotElemLabel : Not (Elem 1 [2,3])
+pruebaNotElemLabel = mkNotElemLabel 1 [2,3]   
+     
+--Tests creando records usando tales pruebas automaticas       
+pruebaRecord3_1 : Record_3 [("Edad", Nat)]
+pruebaRecord3_1 = addToRec_3 "Edad" 23 (emptyRecord_3 {lty=String}) {notElem=mkNotElemLabel "Edad" []}
+    
+pruebaRecord3_2 : Record_3 [("Edad", Nat)]    
+pruebaRecord3_2 = mkRecord_3 [23] {prf=mkHLabelSet6 ["Edad"]}
+    
+-- Fin Prueba de generacion de proof
+    
+    
+    
 -- Prueba de que un vector con tipo "Vect 0 a" es el vector vacio
 vectCeroIsEmpty : (v : Vect 0 a) -> v = []
 vectCeroIsEmpty [] = Refl
-
--- Dado un label y una lista de label types, elimina ese label de esa lista
-delLblType : DecEq lty => (lbl : lty) -> (ls : Vect (S n) (lty,Type)) -> InLabel lbl ls -> Vect n (lty,Type)
-delLblType lbl ((lbl, ty) :: ls) InHere = ls
-delLblType {n=Z} lbl ((lbl2, ty) :: ls)  (InThere linls) =
-  -- ls es el vector vacio, entonces puedo probar que es una contradiccion
-  let isCero = vectCeroIsEmpty ls
-      some = replace isCero linls
-  in void $ noEmptyInLabel some
-delLblType {n=S k} lbl ((lbl2, ty) :: ls) (InThere linls) = (lbl2,ty) :: (delLblType lbl ls linls {n=k})
-
--- Funcion auxiliar, que dado un vector obtiene su largo
-getLength : Vect n t -> Nat
-getLength {n=n} _ = n
-
--- Si tengo una prueba que un label "lbl2" no esta en una lista "ls", entonces eliminar cualquier otro elemento de esa lista no
--- modifica esa prueba
-delPrfType : DecEq lty => {lbl1, lbl2 : lty} -> {ls : Vect (S n) (lty,Type)} -> {l1inls : InLabel lbl1 ls}
-            -> Not (InLabel lbl2 ls) -> 
-           Not (InLabel lbl2 (delLblType lbl1 ls l1inls))
-delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lbl1, ty) :: ls2} {l1inls= InHere} l2ninls l2indel = 
-  let l2indel_2 = the (InLabel lbl2 ls2) l2indel
-      l2indel_3 = the (InLabel lbl2 ((lbl1,ty) :: ls2)) $ InThere l2indel_2
-  in  l2ninls l2indel_3
-delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: ls2} {l1inls= (InThere l1inls2)} l2ninls l2indel  with (decEq lbl2 lblaux)
-  delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lbl2, ty) :: ls2} l2inls l2indel  | Yes Refl = l2inls InHere
-  delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: (ls2)} {l1inls= (InThere l1inls2)} l2ninls l2indel | No contra with (getLength ls2) 
-    delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: (ls2)} {l1inls= (InThere l1inls2)} l2ninls l2indel | No contra | Z = 
-      let isCero = vectCeroIsEmpty ls2
-          some = replace isCero l1inls2
-      in void $ noEmptyInLabel some
-    delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls= (lblaux, ty) :: (ls2)} {l1inls= (InThere l1inls2)} l2ninls l2indel | No contra | S k = 
-       let l2ninls_2 = ifNotInThereThenNotInHere l2ninls
-           l2ninls_3 = delPrfType {lbl1=lbl1} {lbl2=lbl2} {ls=ls2} {l1inls=l1inls2} l2ninls_2
-       in   neitherInHereNorInThere contra l2ninls_3 l2indel
+    
+-- Funcion auxiliar parecida a "noEmptyElem", pero donde el [] no es explicito
+noEmptyElemImplicit : (xs : Vect 0 t) -> Elem x xs -> Void
+noEmptyElemImplicit xs xinxs = noEmptyElem $ replace (vectCeroIsEmpty xs) xinxs
+    
+-- Funcion auxiliar para eliminar un elemento de un vector (uno solo, asume que no se repite, o que se puede llamar
+-- sucesivamente)
+deleteElem : {x : t} -> (xs : Vect (S n) t) -> Elem x xs -> Vect n t
+deleteElem (x :: xs) Here = xs
+deleteElem {n=S n} (x :: xs) (There xinthere) = x :: (deleteElem {n=n} xs xinthere)
+deleteElem {n=Z} (x :: xs) (There xinthere) = absurd $ noEmptyElemImplicit xs xinthere
+    
+-- Si se tiene un Elem x xs, con xs de largo "k", entonces si o si "k" debe ser un "S n" (no puede ser 0)
+convertLengthElem : {xs : Vect k t} -> Elem x xs -> (n : Nat ** (xs2 : Vect (S n) t ** Elem x xs2))
+convertLengthElem {k = Z} {xs=xs} xinxs = absurd $ noEmptyElemImplicit xs xinxs
+convertLengthElem {k = S n} {xs=xs} xinxs = (n ** (xs ** xinxs))
+           
+-- DeleteElem es el predicado equivalente a la funcion "deleteElem" del Prelude
+data DeleteElem : (xs : Vect (S n) t) -> Elem x xs -> Vect n t -> Type where
+  DeleteElemHere : DeleteElem (x :: xs) Here xs
+  DeleteElemThere : DeleteElem xs isThere ys -> DeleteElem (x :: xs) (There isThere) (x :: ys)
+    
+data IsProjectLeft : DecEq lty => Vect k lty -> Vect n (lty, Type) -> Vect m (lty, Type) -> Type where
+  IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty=lty} [] ts []
+  IPL_EmptyVect : DecEq lty => IsProjectLeft {lty=lty} ls [] []
+  IPL_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElem ls isElem lsNew ->
+                      IsProjectLeft {lty=lty} lsNew ts res1 -> IsProjectLeft ls (t :: ts) (t :: res1)      
+  IPL_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectLeft {lty=lty} ls ts res1 -> 
+                       IsProjectLeft ls (t :: ts) res1
+    
+data IsProjectRight : DecEq lty => Vect k lty -> Vect n (lty, Type) -> Vect m (lty, Type) -> Type where
+  IPR_EmptyLabels : DecEq lty => IsProjectRight {lty=lty} [] ts ts
+  IPR_EmptyVect : DecEq lty => IsProjectRight {lty=lty} ls [] []
+  IPR_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElem ls isElem lsNew ->
+                      IsProjectRight {lty=lty} lsNew ts res1 -> IsProjectRight ls (t :: ts) res1      
+  IPR_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectRight {lty=lty} ls ts res1 -> 
+                       IsProjectRight ls (t :: ts) (t :: res1)
+    
+-- Igual que deleteElem, pero devuelve la prueba de DeleteElem tambien
+deleteElem_2 : {x : t} -> (xs : Vect (S n) t) -> (elem : Elem x xs) -> (res : Vect n t ** DeleteElem xs elem res)
+deleteElem_2 (x :: xs) Here = (xs ** DeleteElemHere)
+deleteElem_2 {n=S n} (x :: xs) (There xinthere) = 
+  let (subDel ** subPrf) = deleteElem_2 {n=n} xs xinthere
+  in (x :: subDel ** DeleteElemThere subPrf)
+deleteElem_2 {n=Z} (x :: xs) (There xinthere) = absurd $ noEmptyElemImplicit xs xinthere
           
--- Funcion que elimina un campo de un record, dado su label
-deleteField' : DecEq lty => {ls : Vect (S n) (lty,Type)} -> (lbl : lty) -> Record ls -> (prf : InLabel lbl ls) 
-               -> Record (delLblType lbl ls prf)
-deleteField' lbl (Rec _ rs ninls) InHere = rs
-deleteField' {n = Z} lbl (Rec {ls=ls_rec} field rs prf) (InThere linls) =
-let isCero = vectCeroIsEmpty ls_rec
-    some = replace isCero linls
-in void $ noEmptyInLabel some
-deleteField' {n = S k} lbl (Rec field rs prf {lbl=lbl2}) (InThere linls) = 
-  Rec field (deleteField' lbl rs linls) (delPrfType {lbl1=lbl} {lbl2=lbl2} {l1inls=linls} prf)
-
--- Misma funcion, donde se automatiza la prueba de que tiene el tipo
-deleteField :  DecEq lty => {ls : Vect (S n) (lty,Type)} -> (lbl : lty) -> Record ls -> 
-               {default tactics { search } prf : InLabel lbl ls} -> Record (delLblType lbl ls prf)
-deleteField lbl rs {prf} = deleteField' lbl rs prf
-  
-  
-namespace Ej1
-  --Ejemplos simples de records extensibles
-  Age : (String,Type)
-  Age = ("Age", Nat)
-
-  AgeWrong : (String,Type)
-  AgeWrong = ("Age", String)
-
-  Name : (String,Type)
-  Name = ("Name", String)
-    
-  -- Este ejemplo compila, y devuelve un record con un unico valor
-  example1 : Record [Age]
-  example1 = Rec ("Age" := 2) NilRec prf
-    where
-      prf = getNo (isInLabelList "Age" [])
-    
-  -- Este ejemplo tambien compila. Esto muestra como agregar campos a records
-  example2 : Record [Name, Age]
-  example2 = Rec ("Name" := "John") example1 prf
-    where
-      prf = getNo (isInLabelList "Name" [Age])
-
-  -- Este caso no compila. Se esta intentando agregar un label "AgeWrong" con el mismo titulo que "Age" (aunque tienen tipos distintos, 
-  -- uno Nat y otro String). La busqueda automatica de la prueba falla con esto    
-  {-example3 : Record [AgeWrong, Age]
-  example3 = Rec ("AgeWrong" := "Wrong") example1 prf
-    where
-      prf = getNo (isInLabel "AgeWrong" [Age])-}
-
-  -- Ejemplo de obtener datos de un record
-  ex2Age : Nat
-  ex2Age = getField "Age" example2
-
-  getAge : Record ls -> {default tactics { search } prf : FieldType "Age" ls Nat} -> Nat
-  getAge = getField "Age"
-
-  getName : Record ls -> {default tactics { search } prf : FieldType "Name" ls String} -> String
-  getName = getField "Name"
+-- hProjectByLabels que tambien devuelve una prueba de que los vectores son actualmente proyecciones izq y der
+-- Este hProjectByLabels retorna ambas listas: La de proyecciones y la resultante      
+hProjectByLabels_both : DecEq lty => {ts : Vect n (lty, Type)} -> (ls : Vect k lty) -> HList3 ts ->     
+  ((q1 : Nat ** (ls1 : Vect q1 (lty, Type) ** (HList3 ls1, IsProjectLeft ls ts ls1))),
+  (q2 : Nat ** (ls2 : Vect q2 (lty, Type) ** (HList3 ls2, IsProjectRight ls ts ls2))))
+hProjectByLabels_both [] {n=n} {ts=ts} hs = 
+                   ((0 ** ([] ** ([], IPL_EmptyLabels))),
+                   (n ** (ts ** (hs, IPR_EmptyLabels))))
+hProjectByLabels_both _ [] =
+                   ((0 ** ([] ** ([], IPL_EmptyVect))),
+                   (0 ** ([] ** ([], IPR_EmptyVect))))
+hProjectByLabels_both {lty=lty} {k=S k2} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) = 
+  case (isElem l2 ls) of
+    Yes l2inls =>
+      let 
+          (lsNew ** isDelElem) = deleteElem_2 ls l2inls
+          ((n3 ** (subInLs ** (subInHs, subPrjLeft))), (n4 ** (subOutLs ** (subOutHs, subPrjRight)))) = 
+                     hProjectByLabels_both {lty=lty} {ts=ts2} lsNew hs
+          rPrjRight = IPR_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subOutLs}  l2inls isDelElem subPrjRight  
+          rPrjLeft = IPL_ProjLabelElem {t=(l2,t)} {ts=ts2} {res1=subInLs}  l2inls isDelElem subPrjLeft
+          rRight = (n4 ** (subOutLs ** (subOutHs, rPrjRight)))
+          rLeft =  (S n3 ** ((l2,t) :: subInLs ** ((::) {lbl=l2} val subInHs, rPrjLeft)))       
+      in (rLeft, rRight)
+    No l2ninls => 
+      let ((n3 ** (subInLs ** (subInHs, subPrjLeft))), (n4 ** (subOutLs ** (subOutHs, subPrjRight))))  = 
+          hProjectByLabels_both {lty=lty} {ts=ts2} ls hs
               
-  ex2Name : String
-  ex2Name = getField "Name" example2
+          rPrjLeft = IPL_ProjLabelNotElem {t=(l2,t)} {ts=ts2} {res1=subInLs} l2ninls subPrjLeft
+          rLeft = (n3 ** (subInLs ** (subInHs, rPrjLeft)))
+          rPrjRight = IPR_ProjLabelNotElem {t=(l2,t)} {ts=ts2} {res1=subOutLs} l2ninls subPrjRight
+          rRight = (S n4 ** ((l2,t) :: subOutLs ** ((::) {lbl=l2} val subOutHs, rPrjRight)))
+      in (rLeft, rRight)
   
-  -- Es typesafe. Por ejemplo, este caso de abajo tira error de compilacion
-  {-ex1Name : String
-  ex1Name = getField "Name" example1-}
-
-  -- Ejemplo de actualizar datos de un record  
-  example2_updated : Record [Name, Age]
-  example2_updated = updateField "Age" example2 (+1)
-
-  -- Ejemplo de actualizar datos mas el tipo de un record
-  AgeString : (String, Type)
-  AgeString = ("Age", String)
     
-  example2_updated_type : Record [Name, AgeString]
-  example2_updated_type = updateFieldType "Age" example2 fun
-    where
-      fun : Nat -> String
-      fun n = "The age is: " ++ (show n)
+-- Dada una prueba que un elemento no pertenece a un Cons de una lista, divide tal prueba en sus dos componentes
+notElemLemma1 : Not (Elem x (y :: xs)) -> (Not (Elem x xs), Not (x = y))
+notElemLemma1 notElemCons = (notElem_prf, notEq_prf)
+  where
+    notElem_prf isElem = notElemCons $ There isElem
+    notEq_prf isEq = notElemCons $ rewrite isEq in Here
+    
+-- Dada una prueba que un elemento no pertenece a una lista, y no es igual a otro, se obtiene la prueba de que no pertenece al Cons
+-- Es isomorfo al lemma anterior
+notElemLemma2 : Not (Elem x xs) -> Not (x = y) -> Not (Elem x (y :: xs))
+notElemLemma2 notElem notEq Here = notEq Refl
+notElemLemma2 notElem notEq (There isElem) = notElem isElem 
+    
+hProjectByLabelsRightIsLabelSet_Lemma1 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} ->
+  IsProjectRight ls ts1 ts2 -> Not (Elem lbl (map fst ts1)) -> Not (Elem lbl (map fst ts2))
+hProjectByLabelsRightIsLabelSet_Lemma1 IPR_EmptyLabels notElem = notElem
+hProjectByLabelsRightIsLabelSet_Lemma1 IPR_EmptyVect notElem = notElem
+hProjectByLabelsRightIsLabelSet_Lemma1 (IPR_ProjLabelElem isElem delLs subPrjRight) notElem = 
+  let
+    (notElemSub, notEq) = notElemLemma1 notElem
+    isNotElemRec = hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notElemSub
+  in isNotElemRec
+hProjectByLabelsRightIsLabelSet_Lemma1 (IPR_ProjLabelNotElem subNotElem subPrjRight) notElem = 
+  let
+    (notElemSub, notEq) = notElemLemma1 notElem
+    isNotElemRec = hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notElemSub
+  in notElemLemma2 isNotElemRec notEq
+      
+hProjectByLabelsLeftIsLabelSet_Lemma1 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} ->
+  IsProjectLeft ls ts1 ts2 -> Not (Elem lbl (map fst ts1)) -> Not (Elem lbl (map fst ts2))
+hProjectByLabelsLeftIsLabelSet_Lemma1 IPL_EmptyLabels notElem = noEmptyElem
+hProjectByLabelsLeftIsLabelSet_Lemma1 IPL_EmptyVect notElem = notElem
+hProjectByLabelsLeftIsLabelSet_Lemma1 (IPL_ProjLabelElem isElem delElem subPrjLeft) notElem = 
+  let
+    (notElemSub, notEq) = notElemLemma1 notElem
+    isNotElemRec = hProjectByLabelsLeftIsLabelSet_Lemma1 subPrjLeft notElemSub
+  in notElemLemma2 isNotElemRec notEq  
+hProjectByLabelsLeftIsLabelSet_Lemma1 (IPL_ProjLabelNotElem subNotElem subPrjLeft) notElem =
+  let
+    (notElemSub, notEq) = notElemLemma1 notElem
+    isNotElemRec = hProjectByLabelsLeftIsLabelSet_Lemma1 subPrjLeft notElemSub
+  in isNotElemRec
+    
+hProjectByLabelsLeftIsLabelSet_Lemma2 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} 
+  -> IsProjectLeft ls ts1 ts2 -> HLabelSet_6 (map fst ts1) -> HLabelSet_6 (map fst ts2)
+hProjectByLabelsLeftIsLabelSet_Lemma2 IPL_EmptyLabels isLabelSet = HLabelSet6Nil
+hProjectByLabelsLeftIsLabelSet_Lemma2 IPL_EmptyVect isLabelSet = isLabelSet
+hProjectByLabelsLeftIsLabelSet_Lemma2 (IPL_ProjLabelElem isElem delLs subPrjLeft) (HLabelSet6Cons notMember subLabelSet) = 
+  let isLabelSetRec = hProjectByLabelsLeftIsLabelSet_Lemma2 subPrjLeft subLabelSet
+      notElemPrf = hProjectByLabelsLeftIsLabelSet_Lemma1 subPrjLeft notMember
+  in HLabelSet6Cons notElemPrf isLabelSetRec
+hProjectByLabelsLeftIsLabelSet_Lemma2 (IPL_ProjLabelNotElem notElem subPrjLeft) (HLabelSet6Cons notMember subLabelSet) = 
+  let isLabelSetRec = hProjectByLabelsLeftIsLabelSet_Lemma2 subPrjLeft subLabelSet
+  in isLabelSetRec
+    
+hProjectByLabelsRightIsLabelSet_Lemma2 : DecEq lty => {ls : Vect n1 lty} -> {ts1 : Vect n2 (lty,Type)} -> {ts2 : Vect n3 (lty,Type)} 
+  -> IsProjectRight ls ts1 ts2 -> HLabelSet_6 (map fst ts1) -> HLabelSet_6 (map fst ts2)
+hProjectByLabelsRightIsLabelSet_Lemma2 IPR_EmptyLabels isLabelSet = isLabelSet         
+hProjectByLabelsRightIsLabelSet_Lemma2 IPR_EmptyVect isLabelSet = isLabelSet         
+hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelElem isElem delLs subPrjRight) (HLabelSet6Cons notMember subLabelSet) =
+  let isLabelSetRec = hProjectByLabelsRightIsLabelSet_Lemma2 subPrjRight subLabelSet
+  in isLabelSetRec 
+hProjectByLabelsRightIsLabelSet_Lemma2 (IPR_ProjLabelNotElem notElem subPrjRight) (HLabelSet6Cons notMember subLabelSet) = 
+  let isLabelSetRec = hProjectByLabelsRightIsLabelSet_Lemma2 subPrjRight subLabelSet
+      notElemPrf = hProjectByLabelsRightIsLabelSet_Lemma1 subPrjRight notMember 
+  in HLabelSet6Cons notElemPrf isLabelSetRec
+          
+    
+-- *-* Definicion de "hProjectByLabels" de hackage *-*
+hProjectByLabels : DecEq lty => {ts1 : Vect n (lty, Type)} -> (ls : Vect k lty) -> Record_3 ts1 ->     
+  (q1 : Nat ** (ts2 : Vect q1 (lty, Type) ** (Record_3 ts2, IsProjectLeft ls ts1 ts2)))
+hProjectByLabels ls (MkRecord3 isLabelSet hs) =
+  let (qRes ** (lsRes ** (hsRes, prjLeftRes))) = fst $ hProjectByLabels_both ls hs
+      isLabelSetRes = hProjectByLabelsLeftIsLabelSet_Lemma2 prjLeftRes isLabelSet
+  in (qRes ** (lsRes ** (MkRecord3 isLabelSetRes hsRes, prjLeftRes)))         
+          
+-- Predicado que indica que un campo fue eliminado de la lista de un record      
+data DeleteFromRecPred : DecEq lty => lty -> Vect n (lty, Type) -> Vect m (lty, Type) -> Type where
+  DFR_EmptyRecord : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl [] []
+  DFR_IsElem : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl ((lbl,ty) :: ts) ts
+  DFR_IsNotElem : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl ts1 ts2 -> DeleteFromRecPred lbl (tup :: ts1) (tup :: ts2)
+          
+-- Transformo una prueba de que se proyecto una lista con un solo elemento a una prueba de que se elimino tal elemento
+fromIsProjectRightToDeleteFromRec : DecEq lty => {ts1 : Vect n (lty, Type)} -> {ts2 : Vect m (lty, Type)} ->
+                                  {lbl : lty} -> IsProjectRight [lbl] ts1 ts2 -> DeleteFromRecPred lbl ts1 ts2
+fromIsProjectRightToDeleteFromRec IPR_EmptyVect = DFR_EmptyRecord
+fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here DeleteElemHere IPR_EmptyLabels) = DFR_IsElem
+fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here DeleteElemHere IPR_EmptyVect) = DFR_IsElem
+fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here DeleteElemHere (IPR_ProjLabelNotElem f x)) impossible
+fromIsProjectRightToDeleteFromRec (IPR_ProjLabelNotElem notElem subPrjRight) = 
+  let subDelFromRec = fromIsProjectRightToDeleteFromRec subPrjRight
+  in DFR_IsNotElem subDelFromRec
+    
+    
+-- *-* Definicion de "hDeleteAtLabel" de hackage *-*
+hDeleteAtLabel : DecEq lty => {ts1 : Vect n1 (lty, Type)} -> (lbl : lty) -> Record_3 ts1 ->
+  (n2 : Nat ** (ts2 : Vect n2 (lty, Type) ** (Record_3 ts2, DeleteFromRecPred lbl ts1 ts2)))
+hDeleteAtLabel lbl (MkRecord3 isLabelSet hs) =
+  let 
+    (_, (n2 ** (ts2 ** (hs2, prjRightRes)))) = hProjectByLabels_both [lbl] hs
+    isLabelSet2 = hProjectByLabelsRightIsLabelSet_Lemma2 prjRightRes isLabelSet
+  in (n2 ** (ts2 ** (MkRecord3 isLabelSet2 hs2, fromIsProjectRightToDeleteFromRec prjRightRes)))
 
-  -- Ejemplo de eliminar un campo de un record
-  example2_delete : Record [Name]
-  example2_delete = deleteField "Age" example2
 
-  -- Es typesafe, esto no compila
-  {-example2_delete_error : ?unknownType
-  example2_delete_error = deleteField "Wrong" example2-}
