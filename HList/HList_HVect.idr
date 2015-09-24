@@ -66,18 +66,18 @@ hValEx2 = (get hVectEx3) ++ " World!"
   su tipo. Si hay varios del mismo tipo, toma el primero que encuentra, al igual que "get"
 -}
 hVectEx5 : HVect [String, List Nat, Nat, (Nat, Nat)]
-hVectEx5 = put (the Nat 3) hVectEx1
+hVectEx5 = put {t=Nat} 3 hVectEx1
 -- hVectEx5 =  ["Hello", [1,2,3], 3, (0,10)]
 
 hVectEx6 : HVect [String, String, Nat, (Nat, Nat)]
-hVectEx6 = put "Test" hVectEx3 
+hVectEx6 = put {t=String} "Test" hVectEx3 
 -- hVectEx6 = ["Test", "77", 42, (0, 10)]
 
 {-
   "update" funciona igual que "get" y "put", pero toma una funcion y modifica el valor
 -}
 hVectEx7 : HVect [String, Nat, Nat, (Nat, Nat)]
-hVectEx7 = update sum hVectEx1
+hVectEx7 = update {t=List Nat} sum hVectEx1
 -- hVectEx7 = ["Hello", 6, 42, (0,10)]
 
       {- Otras funciones de ejemplo -}

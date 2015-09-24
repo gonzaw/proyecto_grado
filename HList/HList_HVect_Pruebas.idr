@@ -72,11 +72,12 @@ namespace NR_Imp
 -- Debajo estan mis intentos de investigar tacticas, o algun tipo de reflection para generar las pruebas automaticas
 
 --Ejemplo de tactica que funciona
-normPlus : List (TTName, Binder TT) -> TT -> Tactic
+-- Update 23/09/2015 - Luego de actualizar a 0.9.19 no compila
+{-normPlus : List (TTName, Binder TT) -> TT -> Tactic
 normPlus ctxt `((=) {Nat} {Nat} ~x ~y) = normPlus ctxt x `Seq` normPlus ctxt y
 normPlus ctxt `(S ~n) = normPlus ctxt n
 normPlus ctxt `(plus ~n (S ~m)) = Seq (Rewrite `(plusSuccRightSucc ~n ~m)) (normPlus ctxt m)
-normPlus _ _ = Skip
+normPlus _ _ = Skip-}
 
 -- Esto de abajo me tira error de typechecking.
 -- Utilizando la tactica de arriba, tenia pensado hacer pattern matching sobre el goal "Not (Elem t ts)", para poder crear una 
