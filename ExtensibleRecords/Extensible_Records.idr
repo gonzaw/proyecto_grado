@@ -62,7 +62,7 @@ isSet (x :: xs) with (isSet xs)
 
 data HList : Vect n (lty, Type) -> Type where
   Nil : HList []
-  (::) : {lbl : lty} -> (val : t) -> HList ts -> HList ((lbl,t):: ts)
+  (::) : {lbl : lty} -> (val : t) -> HList ts -> HList ((lbl,t) :: ts)
  
 -- Obtiene los labels de una lista de tal HList
 labelsOf : Vect n (lty, Type) -> Vect n lty
@@ -82,65 +82,62 @@ recLblIsSet : Record ts -> IsSet (labelsOf ts)
 recLblIsSet (MkRecord lsIsSet _ ) = lsIsSet       
        
 -- Record vacio       
-emptyRecord : DecEq lty => Record []
-emptyRecord = MkRecord IsSetNil {ts=[]} [] 
+emptyRec : DecEq lty => Record []
+emptyRec = MkRecord IsSetNil {ts=[]} [] 
         
 -- Dado una lista heterogenea y una prueba de que sus labels son un set, crea un record        
 hListToRec : DecEq lty => {ts : Vect n (lty, Type)} -> {prf : IsSet (labelsOf ts)} -> HList ts -> Record ts
 hListToRec {prf=prf} hs = MkRecord prf hs
 
---TODO: Agregar un hListToRec con el RecOrUnit
-      
+-- Dado un record, un label y un valor, extiende el record con ese valor.      
 consRec : DecEq lty => {ts : Vect n (lty, Type)} -> {t : Type} -> 
   (lbl : lty) -> (val : t)->  Record ts -> {notElem : Not (Elem lbl (labelsOf ts))} -> Record ((lbl,t) :: ts)
 consRec lbl val (MkRecord subLabelSet hs) {notElem=notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
-    
---TODO: Agregar un consRec con el RecOrUnit    
-    
--- * Prueba de generacion de Proof *
---TODO: Modificar con lo nuevo visto
 
-HLabelSet6OrUnit : DecEq lty => Vect n lty -> Type
-HLabelSet6OrUnit vec =
-  case (isSet vec) of
-    Yes _ => IsSet vec
-    No _ => ()
-     
-mkHLabelSet6 : DecEq lty => (ls : Vect n lty) -> HLabelSet6OrUnit ls
-mkHLabelSet6 ls with (isSet ls)
-  mkHLabelSet6 ls | Yes isLabelSet = isLabelSet
-  mkHLabelSet6 ls | No _  = ()
-          
-data NotElemLabel : lty -> Vect n lty -> Type where
-  MkNotElemLabel : (lbl : lty) -> Not (Elem lbl ls) -> NotElemLabel lbl ls
-      
-NotElemLabelOrUnit : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> Type
-NotElemLabelOrUnit lbl ls =
-  case (isElem lbl ls) of
-    Yes _ => ()
-    No notElem => Not (Elem lbl ls)
-        
-mkNotElemLabel : DecEq lty => (lbl : lty) -> (ls : Vect n lty) -> NotElemLabelOrUnit lbl ls
-mkNotElemLabel lbl ls with (isElem lbl ls)
-  mkNotElemLabel lbl ls | Yes _ = ()
-  mkNotElemLabel lbl ls | No notElem = notElem
-        
---Testing de pruebas automaticas    
-pruebaHLabelSet6 : IsSet [1,2,3]
-pruebaHLabelSet6 = mkHLabelSet6 [1,2,3]
-    
-pruebaNotElemLabel : Not (Elem 1 [2,3])
-pruebaNotElemLabel = mkNotElemLabel 1 [2,3]   
-     
---Tests creando records usando tales pruebas automaticas       
-pruebaRecord3_1 : Record [("Edad", Nat)]
-pruebaRecord3_1 = consRec "Edad" 23 (emptyRecord {lty=String}) {notElem=mkNotElemLabel "Edad" []}
-    
-pruebaRecord3_2 : Record [("Edad", Nat)]    
-pruebaRecord3_2 = hListToRec [23] {prf=mkHLabelSet6 ["Edad"]}
-    
--- * Fin Prueba de generacion de proof *
-    
+-- Tipo que representa un Record o () (i.e una falla)    
+RecordOrUnit : DecEq lty => (ts : Vect n (lty, Type)) -> Type
+RecordOrUnit ts with (isSet (labelsOf ts))
+  RecordOrUnit ts | Yes _ = Record ts
+  RecordOrUnit ts | No _ = ()
+
+-- Dada una prueba de que labels no son un conjunto, retorna ()
+mkRecordOrUnitFromUnit : DecEq lty => (ts : Vect n (lty, Type)) -> Not (IsSet (labelsOf ts)) -> RecordOrUnit ts
+mkRecordOrUnitFromUnit ts notTsIsSet with (isSet (labelsOf ts))
+  mkRecordOrUnitFromUnit ts notTsIsSet | Yes tsIsSet = absurd $ notTsIsSet tsIsSet 
+  mkRecordOrUnitFromUnit ts notTsIsSet | No _ = ()
+
+-- Dada una prueba de que labels son un conjunto, y un record, retorna ese record  
+mkRecordOrUnitFromRecord : DecEq lty => (ts : Vect n (lty, Type)) -> Record ts -> IsSet (labelsOf ts) -> RecordOrUnit ts
+mkRecordOrUnitFromRecord ts rec tsIsSet with (isSet (labelsOf ts))
+  mkRecordOrUnitFromRecord ts rec tsIsSet | Yes _ = rec
+  mkRecordOrUnitFromRecord ts rec tsIsSet | No notTsIsSet = absurd $ notTsIsSet tsIsSet
+ 
+-- "consRec" donde la prueba de labels no repetidos es calculada automaticamente  
+consRecAuto : DecEq lty => {ts : Vect n (lty, Type)} -> {t : Type} -> (lbl : lty) -> (val : t) -> Record ts -> 
+  RecordOrUnit ((lbl,t) :: ts)
+consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) with (isElem lbl (labelsOf ts))
+  consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) | Yes lblIsInTs = 
+    let notIsSet = ifIsElemThenConsIsNotSet lblIsInTs
+    in mkRecordOrUnitFromUnit ((lbl,t) :: ts) notIsSet
+  consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) | No notLblIsInTs =
+    let isSet = IsSetCons notLblIsInTs subLabelSet
+    in mkRecordOrUnitFromRecord ((lbl,t) :: ts) (MkRecord isSet (val :: hs)) isSet
+  
+-- "hListToRecAuto" donde la prueba de labels no repetidos es calculada automaticamente
+hListToRecAuto : DecEq lty => (ts : Vect n (lty, Type)) -> HList ts -> RecordOrUnit ts
+hListToRecAuto ts hs with (isSet (labelsOf ts))
+  hListToRecAuto ts hs | No notTsIsSet = ()
+  hListToRecAuto ts hs | Yes tsIsSet = MkRecord tsIsSet hs
+
+-- *** Ejemplos ***
+
+recPruebaAuto1 : Record [("Edad", Nat)]
+recPruebaAuto1 = consRecAuto "Edad" 23 (emptyRec {lty=String})
+
+recPruebaAuto2 : Record [("Nombre", String), ("Edad", Nat)]
+recPruebaAuto2 = hListToRecAuto [("Nombre",String),("Edad",Nat)] ["Gonzalo", 23]
+
+-- *** Fin Ejemplos ****  
     
     
 -- Prueba de que un vector con tipo "Vect 0 a" es el vector vacio
