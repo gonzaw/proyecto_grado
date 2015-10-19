@@ -7,7 +7,7 @@
   Hackage: https://hackage.haskell.org/package/HList
   
 -}
-module Extensible_Records
+module Extensible_Records_Vect
 
 import Data.Vect
 import Data.Fin

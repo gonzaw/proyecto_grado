@@ -9,7 +9,9 @@ Este repositorio contiene código y archivos relacionados a mi proyecto de grado
 ## ExtensibleRecords
 Código relacionado a la investigación de records extensibles en Idris
 
-* **Extensible_Records.idr:** Implementación de records extensibles similar a la de HList de Haskell vista [aquí](https://hackage.haskell.org/package/HList), y en el paper *"Strongly Typed Heterogeneous Collections"*
+* **Extensible_Records.idr:** Implementación de records extensibles similar a la de HList de Haskell vista [aquí](https://hackage.haskell.org/package/HList), y en el paper *"Strongly Typed Heterogeneous Collections"*.
+* **Extensible_Records_Vect.idr:** Implementación de records extensibles vieja, utilizando "Vect n" en vez de "List".
+* **Extensible_Records_Examples.idr:** Ejemplos de funcionalidades de extensible records.
 
 ### HList
 Código relacionado a la investigación de listas hereogéneas en Idris
