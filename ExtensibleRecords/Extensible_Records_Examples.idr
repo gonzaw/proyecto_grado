@@ -65,3 +65,11 @@ recEx9 = hAppend recEx7 recEx8 (getYes $ isLabelSet [("Calle", String), ("Apto",
 -- *** hAppendAuto ***
 recEx10 : Record [("Calle", String), ("Apto", Nat)]
 recEx10 = hAppendAuto recEx7 recEx8
+
+-- *** hDeleteLabels ***
+-- TODO: No compila por problema de unificacion de "ls" y el tipo
+--recEx11 : Record [("Nombre", String)]
+--recEx11 = fst . getProof $ hDeleteLabels ["Apellido","Edad"] recEx4
+-- TODO: Ver si es puede inferir este tipo de abajo
+--recEx11 : ?recEx11Type
+--recEx11 = fst . getProof $ hDeleteLabels ["Apellido","Edad"] recEx4

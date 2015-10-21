@@ -300,28 +300,28 @@ hProjectByLabels ls rec =
 -- *** hDeleteByLabel *** 
   
 -- Predicado que indica que un campo fue eliminado de la lista de un record      
-data DeleteFromRecPred : DecEq lty => lty -> LabelList lty -> LabelList lty -> Type where
-  DFR_EmptyRecord : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl [] []
-  DFR_IsElem : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl ((lbl,ty) :: ts) ts
-  DFR_IsNotElem : DecEq lty => {lbl : lty} -> DeleteFromRecPred lbl ts1 ts2 -> DeleteFromRecPred lbl (tup :: ts1) (tup :: ts2)
+data DeleteLabelAtPred : DecEq lty => lty -> LabelList lty -> LabelList lty -> Type where
+  EmptyRecord : DecEq lty => {lbl : lty} -> DeleteLabelAtPred lbl [] []
+  IsElem : DecEq lty => {lbl : lty} -> DeleteLabelAtPred lbl ((lbl,ty) :: ts) ts
+  IsNotElem : DecEq lty => {lbl : lty} -> DeleteLabelAtPred lbl ts1 ts2 -> DeleteLabelAtPred lbl (tup :: ts1) (tup :: ts2)
           
 -- Transformo una prueba de que se proyecto una lista con un solo elemento a una prueba de que se elimino tal elemento
 fromIsProjectRightToDeleteFromRec : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} ->
-                                  {lbl : lty} -> IsProjectRight [lbl] ts1 ts2 -> DeleteFromRecPred lbl ts1 ts2
-fromIsProjectRightToDeleteFromRec IPR_EmptyVect = DFR_EmptyRecord
-fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here delElem IPR_EmptyLabels) = DFR_IsElem
+                                  {lbl : lty} -> IsProjectRight [lbl] ts1 ts2 -> DeleteLabelAtPred lbl ts1 ts2
+fromIsProjectRightToDeleteFromRec IPR_EmptyVect = EmptyRecord
+fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here delElem IPR_EmptyLabels) = IsElem
 fromIsProjectRightToDeleteFromRec (IPR_ProjLabelElem (There isElem) delElem IPR_EmptyLabels) = absurd $ noEmptyElem isElem
-fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here delElem IPR_EmptyVect) = DFR_IsElem
+fromIsProjectRightToDeleteFromRec {lbl=lbl} (IPR_ProjLabelElem {t=(lbl,ty)} Here delElem IPR_EmptyVect) = IsElem
 fromIsProjectRightToDeleteFromRec (IPR_ProjLabelElem (There isElem) delElem IPR_EmptyVect) = absurd $ noEmptyElem isElem
 fromIsProjectRightToDeleteFromRec (IPR_ProjLabelElem isElem delElem (IPR_ProjLabelElem subElem subDel subPrjRight)) impossible
 fromIsProjectRightToDeleteFromRec (IPR_ProjLabelElem isElem delElem (IPR_ProjLabelNotElem subNotElem subPrjRight)) impossible
 fromIsProjectRightToDeleteFromRec (IPR_ProjLabelNotElem notElem subPrjRight) = 
   let subDelFromRec = fromIsProjectRightToDeleteFromRec subPrjRight
-  in DFR_IsNotElem subDelFromRec
+  in IsNotElem subDelFromRec
     
 -- *-* Definicion de "hDeleteAtLabel" de hackage *-*
 hDeleteAtLabel : DecEq lty => {ts1 : LabelList lty} -> (lbl : lty) -> Record ts1 ->
-  (ts2 : LabelList lty ** (Record ts2, DeleteFromRecPred lbl ts1 ts2))
+  (ts2 : LabelList lty ** (Record ts2, DeleteLabelAtPred lbl ts1 ts2))
 hDeleteAtLabel lbl rec =
   let 
     isLabelSet = recLblIsSet rec
@@ -352,3 +352,83 @@ hAppendAuto : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> Rec
 hAppendAuto {ts1=ts1} {ts2=ts2} rec1 rec2 with (isLabelSet (ts1 ++ ts2))
   hAppendAuto {ts1=ts1} {ts2=ts2} rec1 rec2 | No notIsSet = ()
   hAppendAuto {ts1=ts1} {ts2=ts2} rec1 rec2 | Yes isSet = hAppend rec1 rec2 isSet
+
+
+-- *** hDeleteLabels ***
+
+-- Predicado que indica que una lista de labels fue eliminada de un record
+DeleteLabelsPred : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type
+DeleteLabelsPred = IsProjectRight
+
+-- *-* Definicion de "hDeleteLabels" de hackage *-*
+hDeleteLabels : DecEq lty => {ts1 : LabelList lty} -> (ls : List lty) -> Record ts1 ->
+  (ts2 : LabelList lty ** (Record ts2, DeleteLabelsPred ls ts1 ts2))
+hDeleteLabels ls rec =
+  let
+    isLabelSet = recLblIsSet rec
+    hs = recToHList rec
+    (_, (ts2 ** (hs2, prjRightRes))) = hProjectByLabelsHList ls hs
+    isLabelSet2 = hProjectByLabelsRightIsSet_Lemma2 prjRightRes isLabelSet
+  in
+    (ts2 ** (hListToRec {prf=isLabelSet2} hs2, prjRightRes))
+
+
+-- *** hLeftUnion ***
+
+-- Predicado que indica que la union de dos LabelList que son un set es equivalente a la tercera
+data IsSetUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty -> Type where
+  LeftIsEmpty : DecEq lty => IsLabelSet ts2 -> IsSetUnion {lty=lty} [] ts2 ts2
+  IsInRight : DecEq lty => ElemLabel (fst t) ts2 -> Not (ElemLabel (fst t) ts1) ->  IsSetUnion ts1 ts2 tsRes -> 
+    IsSetUnion {lty=lty} (t :: ts1) ts2 tsRes
+  IsNotInRight : DecEq lty => Not (ElemLabel (fst t) ts2) -> Not (ElemLabel (fst t) ts1) -> IsSetUnion ts1 ts2 tsRes -> 
+    IsSetUnion {lty=lty} (t :: ts1) ts2 (t :: tsRes)
+
+-- Lemmas necesarios
+ifAppendEmptyIsLabelSetLemma : IsLabelSet ts -> IsLabelSet (ts ++ [])
+ifAppendEmptyIsLabelSetLemma {ts=ts} isLblSet = rewrite (appendNilRightNeutral ts) in isLblSet
+
+ifDeleteLabelsThenAppendIsSetLemma_1 : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> {t : (lty, Type)} ->
+  IsLabelSet (ts1 ++ ts2) -> Not (ElemLabel (fst t) ts1) -> IsLabelSet (ts1 ++ (t :: ts2))
+ifDeleteLabelsThenAppendIsSetLemma_1 lblSetAppend notElem = ?ifDeleteLabelsThenAppendIsSetLemma_1_rhs
+
+-- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero es un labelset
+ifDeleteLabelsThenAppendIsSetLemma : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> {tsDel : LabelList lty} ->
+  IsLabelSet ts1 -> IsLabelSet ts2 -> DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsLabelSet (ts1 ++ tsDel)
+ifDeleteLabelsThenAppendIsSetLemma {ts1=[]} isLblSet1 isLblSet2 IPR_EmptyLabels = isLblSet2
+ifDeleteLabelsThenAppendIsSetLemma isLblSet1 isLblSet2 IPR_EmptyVect = ifAppendEmptyIsLabelSetLemma isLblSet1
+ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=(t :: tsSub)} isLblSet1 isLblSet2 (IPR_ProjLabelElem isElem delElem subPrjRight) = ?ifDeleteLabelsThenAppendIsSetLemma_rhs_2
+ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=(t :: tsSub)} isLblSet1 isLblSet2 (IPR_ProjLabelNotElem {res1=subTsDel} notElem subPrjRight) = 
+  let
+    subLabelSet = ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=tsSub} {tsDel=subTsDel} isLblSet1 (ifSetThenRestIsSet isLblSet2) subPrjRight
+  in ifDeleteLabelsThenAppendIsSetLemma_1 {ts1=ts1} {ts2=subTsDel} {t=t} subLabelSet notElem
+    
+-- Lemma que indica que una lista es la union de si misma (por la izquierda)
+leftListIsSetUnion : DecEq lty => {ts : LabelList lty} -> IsLabelSet ts -> IsSetUnion ts [] ts
+leftListIsSetUnion {ts=[]} IsSetNil = LeftIsEmpty IsSetNil
+leftListIsSetUnion {ts=(t :: ts)} (IsSetCons notElem subLblSet) = 
+  let subSetUnion = leftListIsSetUnion {ts=ts} subLblSet
+  in IsNotInRight noEmptyElem notElem subSetUnion
+
+-- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero equivale a la union de
+-- ambos
+ifDeleteLabelsThenItIsSetUnion : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> {tsDel : LabelList lty} ->
+  IsLabelSet ts1 -> IsLabelSet ts2 -> DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsSetUnion ts1 ts2 (ts1 ++ tsDel)
+ifDeleteLabelsThenItIsSetUnion {ts1=[]} isLblSet1 isLblSet2 IPR_EmptyLabels = LeftIsEmpty isLblSet2
+ifDeleteLabelsThenItIsSetUnion {ts1=ts1} isLblSet1 isLblSet2 IPR_EmptyVect = 
+  rewrite (appendNilRightNeutral ts1) in leftListIsSetUnion isLblSet1
+ifDeleteLabelsThenItIsSetUnion {ts2=(t::ts2)} isLblSet1 isLblSet2 (IPR_ProjLabelElem isElem delElem subPrjRight) = ?ifDeleteLabelsThenItIsSetUnion_rhs_2
+ifDeleteLabelsThenItIsSetUnion {ts2=(t::ts2)} isLblSet1 isLblSet2 (IPR_ProjLabelNotElem notElem subPrjRight) = ?ifDeleteLabelsThenItIsSetUnion_rhs_3
+
+-- *-* Definicion de "hLeftUnion" de hackage *-*
+hLeftUnion : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> 
+   (tsRes : LabelList lty ** (Record tsRes, IsSetUnion ts1 ts2 tsRes))
+hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 = 
+  let
+    isLblSet1 = recLblIsSet rec1
+    isLblSet2 = recLblIsSet rec2
+    (tsDel ** (recDel, prfDel)) = hDeleteLabels (labelsOf ts1) rec2
+    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel)
+   in
+    (ts1 ++ tsDel ** (recRes, ifDeleteLabelsThenItIsSetUnion {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel))
+    
+  
