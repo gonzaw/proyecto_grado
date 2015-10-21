@@ -161,7 +161,6 @@ data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty -> 
   IPL_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectLeft {lty=lty} ls ts res1 -> 
                        IsProjectLeft ls (t :: ts) res1
 
-    
 -- Predicado que la proyeccion derecha de un hProjectByLabels es efectivamente tal proyeccion    
 data IsProjectRight : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
   IPR_EmptyLabels : DecEq lty => IsProjectRight {lty=lty} [] ts ts
@@ -215,17 +214,17 @@ hProjectByLabelsHList {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =
         (rLeft, rRight)
     
 -- Dada una prueba que un elemento no pertenece a un Cons de una lista, divide tal prueba en sus dos componentes
-notElemLemma1 : Not (Elem x (y :: xs)) -> (Not (Elem x xs), Not (x = y))
-notElemLemma1 notElemCons = (notElem_prf, notEq_prf)
+notElem_Lemma1 : Not (Elem x (y :: xs)) -> (Not (Elem x xs), Not (x = y))
+notElem_Lemma1 notElemCons = (notElem_prf, notEq_prf)
   where
     notElem_prf isElem = notElemCons $ There isElem
     notEq_prf isEq = notElemCons $ rewrite isEq in Here
     
 -- Dada una prueba que un elemento no pertenece a una lista, y no es igual a otro, se obtiene la prueba de que no pertenece al Cons
 -- Es isomorfo al lemma anterior
-notElemLemma2 : Not (Elem x xs) -> Not (x = y) -> Not (Elem x (y :: xs))
-notElemLemma2 notElem notEq Here = notEq Refl
-notElemLemma2 notElem notEq (There isElem) = notElem isElem 
+notElem_Lemma2 : Not (Elem x xs) -> Not (x = y) -> Not (Elem x (y :: xs))
+notElem_Lemma2 notElem notEq Here = notEq Refl
+notElem_Lemma2 notElem notEq (There isElem) = notElem isElem 
     
 -- Prueba de que una proyeccion por la derecha, si un label no pertenece a la lista inicial, entonces tampoco pertenece al resultante    
 hProjectByLabelsRightIsSet_Lemma1 : DecEq lty => {ls : List lty} -> {ts1 : LabelList lty} -> {ts2 : LabelList lty} ->
@@ -234,14 +233,14 @@ hProjectByLabelsRightIsSet_Lemma1 IPR_EmptyLabels notElem = notElem
 hProjectByLabelsRightIsSet_Lemma1 IPR_EmptyVect notElem = notElem
 hProjectByLabelsRightIsSet_Lemma1 (IPR_ProjLabelElem isElem delLs subPrjRight) notElem = 
   let
-    (notElemSub, notEq) = notElemLemma1 notElem
+    (notElemSub, notEq) = notElem_Lemma1 notElem
     isNotElemRec = hProjectByLabelsRightIsSet_Lemma1 subPrjRight notElemSub
   in isNotElemRec
 hProjectByLabelsRightIsSet_Lemma1 (IPR_ProjLabelNotElem subNotElem subPrjRight) notElem = 
   let
-    (notElemSub, notEq) = notElemLemma1 notElem
+    (notElemSub, notEq) = notElem_Lemma1 notElem
     isNotElemRec = hProjectByLabelsRightIsSet_Lemma1 subPrjRight notElemSub
-  in notElemLemma2 isNotElemRec notEq
+  in notElem_Lemma2 isNotElemRec notEq
 
 -- Dada una proyeccion por la izquierda, si un label no pertenece a la lista inicial, tampoco pertenece al resultante      
 hProjectByLabelsLeftIsSet_Lemma1 : DecEq lty => {ls : List lty} -> {ts1 : LabelList lty} -> {ts2 : LabelList lty} ->
@@ -250,12 +249,12 @@ hProjectByLabelsLeftIsSet_Lemma1 IPL_EmptyLabels notElem = noEmptyElem
 hProjectByLabelsLeftIsSet_Lemma1 IPL_EmptyVect notElem = notElem
 hProjectByLabelsLeftIsSet_Lemma1 (IPL_ProjLabelElem isElem delElem subPrjLeft) notElem = 
   let
-    (notElemSub, notEq) = notElemLemma1 notElem
+    (notElemSub, notEq) = notElem_Lemma1 notElem
     isNotElemRec = hProjectByLabelsLeftIsSet_Lemma1 subPrjLeft notElemSub
-  in notElemLemma2 isNotElemRec notEq  
+  in notElem_Lemma2 isNotElemRec notEq  
 hProjectByLabelsLeftIsSet_Lemma1 (IPL_ProjLabelNotElem subNotElem subPrjLeft) notElem =
   let
-    (notElemSub, notEq) = notElemLemma1 notElem
+    (notElemSub, notEq) = notElem_Lemma1 notElem
     isNotElemRec = hProjectByLabelsLeftIsSet_Lemma1 subPrjLeft notElemSub
   in isNotElemRec
 

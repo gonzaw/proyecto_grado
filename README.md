@@ -1,8 +1,8 @@
 # Proyecto de Grado
-Gonzalo Waszczuk, Facultad de Ingenieria, UDELAR, 2015
+Gonzalo Waszczuk, Facultad de Ingeniería, UDELAR, 2015
 
-## Introduccion
-Este repositorio contiene código y archivos relacionados a mi proyecto de grado. El proyecto es "Desarrollo de DSLs en lenguajes con tipos dependientes" y se puede visualizar aqui: [Proyecto](https://eva.fing.edu.uy/mod/data/view.php?d=72&rid=822)
+## Introducción
+Este repositorio contiene código y archivos relacionados a mi proyecto de grado. El proyecto es "Desarrollo de DSLs en lenguajes con tipos dependientes" y se puede visualizar aquí: [Proyecto](https://eva.fing.edu.uy/mod/data/view.php?d=72&rid=822)
 
 ## Estructura
 
@@ -11,7 +11,7 @@ Código relacionado a la investigación de records extensibles en Idris
 
 * **Extensible_Records.idr:** Implementación de records extensibles similar a la de HList de Haskell vista [aquí](https://hackage.haskell.org/package/HList), y en el paper *"Strongly Typed Heterogeneous Collections"*.
 * **Extensible_Records_Vect.idr:** Implementación de records extensibles vieja, utilizando "Vect n" en vez de "List".
-* **Extensible_Records_Examples.idr:** Ejemplos de funcionalidades de extensible records.
+* **Extensible_Records_Examples.idr:** Ejemplos de funcionalidades de records extensibles.
 
 ### HList
 Código relacionado a la investigación de listas hereogéneas en Idris
