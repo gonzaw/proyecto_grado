@@ -43,14 +43,12 @@ recEx4 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
 recEx4 = hListToRecAuto [("Apellido", String), ("Nombre", String), ("Edad", Nat)] ["Sanchez", "Juan", 10]
 
 -- *** hProjectByLabels ***
--- TODO: Cuando este implementada hRearrange usar este test de nuevo
---recEx5 : Record [("Edad", Nat), ("Apellido", String)]
---recEx5 = fst . getProof $ hProjectByLabels ["Edad", "Apellido"] recEx4
+recEx5 : ?recEx5_ty
+recEx5 = fst . getProof $ hProjectByLabels ["Edad", "Apellido"] recEx4
 
 -- *** hDeleteAtLabel ***
--- TODO: No compila por problema de unificacion de "ls" y el tipo
---recEx6 : Record [("Apellido", String), ("Edad", Nat)]
---recEx6 = fst . getProof $ hDeleteAtLabel "Nombre" recEx4
+recEx6 : ?recEx6_ty
+recEx6 = fst . getProof $ hDeleteAtLabel "Nombre" recEx4
 
 -- *** hAppend ***
 recEx7 : Record [("Calle", String)]
@@ -67,9 +65,9 @@ recEx10 : Record [("Calle", String), ("Apto", Nat)]
 recEx10 = hAppendAuto recEx7 recEx8
 
 -- *** hDeleteLabels ***
--- TODO: No compila por problema de unificacion de "ls" y el tipo
---recEx11 : Record [("Nombre", String)]
---recEx11 = fst . getProof $ hDeleteLabels ["Apellido","Edad"] recEx4
--- TODO: Ver si es puede inferir este tipo de abajo
---recEx11 : ?recEx11Type
---recEx11 = fst . getProof $ hDeleteLabels ["Apellido","Edad"] recEx4
+recEx11 : ?recEx11_ty
+recEx11 = fst . getProof $ hDeleteLabels ["Apellido","Edad"] recEx4
+
+-- *** hLeftUnion ***
+recEx12 : ?recEx12_ty
+recEx12 = fst . getProof $ hLeftUnion recEx10 (hListToRecAuto [("Calle", String), ("Nombre", String)] ["Av Brasil", "Juan"])
