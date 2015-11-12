@@ -14,8 +14,11 @@ import Data.List
 
 %default total
 
+consNotEqNil : {xs : List t} -> Not (x :: xs = [])
+consNotEqNil Refl impossible
+
 -- Nada puede pertenecer a una lista vacia
-noEmptyElem : Elem x [] -> Void
+noEmptyElem : Not (Elem x [])
 noEmptyElem Here impossible
 
 -- Si un elemento no pertenece a una lista, no pertenece al tail de esa lista tampoco
@@ -596,15 +599,19 @@ hDeleteLabels ls rec =
 
 -- *** hLeftUnion ***
 
--- Predicado que indica que la union de dos LabelList que son un set es equivalente a la tercera
-data IsSetUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty -> Type where
-  LeftIsEmpty : DecEq lty => IsLabelSet ts2 -> IsSetUnion {lty=lty} [] ts2 ts2
-  IsInRight : DecEq lty => ElemLabel lbl ts2 -> Not (ElemLabel lbl ts1) ->  IsSetUnion ts1 ts2 tsRes -> 
-    IsSetUnion {lty=lty} ((lbl,ty) :: ts1) ts2 tsRes
-  IsNotInRight : DecEq lty => Not (ElemLabel lbl ts2) -> Not (ElemLabel lbl ts1) -> IsSetUnion ts1 ts2 tsRes -> 
-    IsSetUnion {lty=lty} ((lbl,ty) :: ts1) ts2 ((lbl,ty) :: tsRes)
+-- Predicado que indica que la union por la izquierda de dos LabelList que son un set es equivalente a la tercera
+{-data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty -> Type where
+  RightIsEmpty : DecEq lty => IsLabelSet ts1 -> IsLeftUnion {lty=lty} ts1 [] ts1
+  IsInLeft : DecEq lty => ElemLabel l ts1 -> Not (ElemLabel l ts2) -> IsLeftUnion ts1 ts2 tsRes ->
+    IsLeftUnion {lty=lty} ts1 ((l,ty) :: ts2) tsRes
+  IsNotInLeft : DecEq lty => Not (ElemLabel l ts1) -> Not (ElemLabel l ts2) -> IsLeftUnion ts1 ts2 tsRes ->
+    IsLeftUnion {lty=lty} ts1 ((l,ty) :: ts2) (tsRes ++ [(l,ty)])-}
+    
+data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty -> Type where
+  IsLeftUnionAppend : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> IsLabelSet ts1 -> IsLabelSet ts2 -> 
+  DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> IsLeftUnion ts1 ts2 (ts1 ++ ts3)
 
--- Lemmas necesarios
+-- Lemas necesarios
 ifDeleteLabelsThenAppendIsSetLemma_1_1 : DecEq lty => {ts1, ts2 : LabelList lty} -> {t : (lty,Type)} ->
   IsLabelSet (ts1 ++ (t :: ts2)) -> IsLabelSet (ts1 ++ ts2)
 ifDeleteLabelsThenAppendIsSetLemma_1_1 {ts1=[]} (IsSetCons notElem isSet) = isSet
@@ -647,7 +654,6 @@ ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1=l1} {l2=l2} {ts1=(l3,ty3)::ts1} {ts
   let subPrf = ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1=l1} {l2=l2} {ts1=ts1} {ts2=ts2} {ty2=ty2} notEqual (notElemInCons notInAppend)
   in subPrf isThere
 
-
 ifDeleteLabelsThenAppendIsSetLemma_1_4 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} -> {ty : Type} ->
   IsLabelSet (ts1 ++ ts2) -> Not (ElemLabel l ts1) -> Not (ElemLabel l ts2) -> IsLabelSet (ts1 ++ ((l,ty) :: ts2))
 ifDeleteLabelsThenAppendIsSetLemma_1_4 {ts1=[]} isSet notInTs1 notInTs2 = IsSetCons notInTs2 isSet
@@ -656,7 +662,6 @@ ifDeleteLabelsThenAppendIsSetLemma_1_4 {l=l2} {ty=ty2} {ts1=(l1,ty1) :: ts1} {ts
       notEqual = symNot $ ifNotElemThenNotEqual notInTs1
       notElemCons = ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l2=l2} {ty2=ty2} {l1=l1} {ts1=ts1} {ts2=ts2} notEqual notElem
   in IsSetCons notElemCons subPrf
-
 
 ifDeleteLabelsThenAppendIsSetLemma_1 : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> {l : lty} -> DeleteLabelAtPred l ts2 ts3 ->
   IsLabelSet (ts1 ++ ts2) -> IsLabelSet (ts1 ++ ts3)
@@ -673,7 +678,6 @@ ifDeleteLabelsThenAppendIsSetLemma_1 {ts1=ts1} {ts2=((l2,ty2) :: ts2)} {ts3=((l2
       (notInTs1, notInTs2) = ifDeleteLabelsThenAppendIsSetLemma_1_2 isSet {l=l2} {ty=ty2} {ts1=ts1} {ts2=ts2}
       notInTs3 = ifDeleteLabelsThenAppendIsSetLemma_1_3 delAt notInTs2
   in ifDeleteLabelsThenAppendIsSetLemma_1_4 subPrf notInTs1 notInTs3
-
 
 ifDeleteLabelsThenAppendIsSetLemma_2 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   IsLabelSet ts1 -> DeleteLabelAtPred l ts1 ts2 -> Not (ElemLabel l ts2)
@@ -696,9 +700,124 @@ ifDeleteLabelsThenAppendIsSetLemma {ts1=((l1,ty1) :: ts1)} {tsDel=tsDel} (IsSetC
     isNotInTsDel = ifDeleteLabelsThenAppendIsSetLemma_2 isSet3 subDelAt
     isNotInAppend = ifNotInEitherThenNotInAppend notElem isNotInTsDel
   in IsSetCons isNotInAppend resIsSet
+  
+{-ifDeleteLabelsThenItIsLeftUnion_Lemma_1 : DecEq lty => {ts : LabelList lty} -> IsLabelSet ts -> IsLeftUnion [] ts ts 
+ifDeleteLabelsThenItIsLeftUnion_Lemma_1 {ts=[]} isSet = RightIsEmpty IsSetNil
+ifDeleteLabelsThenItIsLeftUnion_Lemma_1 {ts=(l,ty)::ts} (IsSetCons notLInTs isSet) = 
+  let subPrf = ifDeleteLabelsThenItIsLeftUnion_Lemma_1 isSet
+  in ?wadawdawdawd
+  --in IsNotInLeft noEmptyElem notLInTs subPrf
+-}
 
+{-ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l1, l2 : lty} -> DeleteLabelAtPred l2 ts1 ts2 ->
+  ElemLabel l1 ts2 -> Not (l1 = l2) -> ElemLabel l1 ts1
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 EmptyRecord inTs2 l1NotEqL2 = inTs2
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 IsElem inTs2 l1NotEqL2 = There inTs2
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 (IsNotElem {tup=(l3,ty3)} l2NotEqL3 delAt) Here l1NotEqL2 = Here
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 (IsNotElem {tup=(l3,ty3)} l2NotEqL3 delAt) (There inTs2) l1NotEqL2 = 
+  let subPrf = ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 delAt inTs2 l1NotEqL2
+  in (There subPrf)
 
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1 : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> {l : lty} -> DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> Not (ElemLabel l ts1) -> ElemLabel l ts3 -> ElemLabel l ts2
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1 {ts1=[]} EmptyLabelList notInTs1 inTs3 = inTs3
+ifDeleteLabelsThenItIsSetUnion_Lemma_2_1 {l=l1} {ts1=(l2,ty2)::ts1} (DeleteFirstOfLabelList delAt delLabels) notInConsTs1 inTs3 =
+  let notInTs1 = notElemInCons notInConsTs1
+      l1NotEqL2 = ifNotElemThenNotEqual notInConsTs1
+      inTsAux = ifDeleteLabelsThenItIsSetUnion_Lemma_2_1_1 delAt inTs3 l1NotEqL2
+      subPrf = ifDeleteLabelsThenItIsSetUnion_Lemma_2_1 delLabels notInTs1 inTsAux
+  in subPrf -}
 
+{-ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> DeleteLabelsPred (labelsOf ts1) [] ts2 ->
+  DeleteLabelAtPred l ts2 ts3 -> ts3 = []
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=[]} EmptyLabelList EmptyRecord = Refl
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=[]} EmptyLabelList IsElem impossible
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=[]} EmptyLabelList (IsNotElem _ _) impossible
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=(l1,ty1)::ts1} {ts2=[]} (DeleteFirstOfLabelList _ _) EmptyRecord = Refl 
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=(l1,ty1)::ts1} {ts2=[]} (DeleteFirstOfLabelList _ _) IsElem impossible
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=(l1,ty1)::ts1} {ts2=[]} (DeleteFirstOfLabelList _ _) (IsNotElem _ _) impossible
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 {ts1=(l1,ty1)::ts1} {ts2=(l2,ty2)::ts2} (DeleteFirstOfLabelList subDelAt delLabels) delAt = 
+  let subPrf = ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 delLabels subDelAt
+  in absurd $ consNotEqNil subPrf
+
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_2 : DecEq lty => {ts1, ts2 : LabelList lty} -> ts2 = [] -> ts1 ++ [] = ts1 -> ts1 ++ ts2 = ts1
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2_2 {ts2=[]} Refl prf = prf
+
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2 : DecEq lty => {ts1, ts2, tsDel, tsAux : LabelList lty} -> {l1 : lty} -> Not (ElemLabel l1 ts1) ->
+  IsLabelSet ts1 -> IsLabelSet ts2 -> DeleteLabelAtPred l1 tsAux tsDel -> DeleteLabelsPred (labelsOf ts1) ts2 tsAux ->
+  IsLeftUnion ts1 ts2 (ts1 ++ tsAux) -> ElemLabel l1 tsAux -> IsLeftUnion ((l1, ty1) :: ts1) ts2 ((l1,ty1) :: (ts1 ++ tsDel))
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2 {ts1=ts1} {ts2=[]} notL1InTs1 isSet1 IsSetNil delAt delLabels isUnion l1InTsAux = 
+  let tsDelIsNil = ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 delLabels delAt
+      ts1AppendIsNil = appendNilRightNeutral ts1
+      ts1AppendTsDelNeutral = ifDeleteLabelsThenItIsLeftUnion_Lemma_2_2 tsDelIsNil ts1AppendIsNil
+  in rewrite ts1AppendTsDelNeutral in (RightIsEmpty (IsSetCons notL1InTs1 isSet1))
+ifDeleteLabelsThenItIsLeftUnion_Lemma_2 {ts2=(l2,ty2)::ts2} notL1InTs1 isSet1 (IsSetCons notL2InTs2 isSet2) delAt delLabels isUnion l1InTsAux = 
+  --IsInLeft ?Lemma_2_inTs1 ?Lemma_2_notInTs2 ?Lemma_2_isUnion
+  ?ifDeleteLabelsThenItIsLeftUnion_Lemma_2_rhs
+-}
+{-ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l1, l2 : lty} -> DeleteLabelAtPred l2 ts1 ts2 ->
+  Not (ElemLabel l1 ts2) -> Not (l1 = l2) -> Not (ElemLabel l1 ts1)
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 EmptyRecord notInTs2 l1NotEqL2 inTs1 = noEmptyElem inTs1
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 IsElem notInTs2 l1NotEqL2 Here = l1NotEqL2 Refl
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 IsElem notInTs2 l1NotEqL2 (There inTs2) = notInTs2 inTs2
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 (IsNotElem {tup=(l3,ty3)} l2NotEqL3 delAt) notInConsTs2 l1NotEqL2 Here = 
+  let l1NotEqL3 = ifNotElemThenNotEqual notInConsTs2
+  in l1NotEqL3 Refl
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 (IsNotElem {tup=(l3,ty3)} l2NotEqL3 delAt) notInConsTs2 l1NotEqL2 (There inTs1) = 
+  let notInTs2 = notElemInCons notInConsTs2
+      notInTs1 = ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 delAt notInTs2 l1NotEqL2
+  in notInTs1 inTs1
+
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1 : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> {l : lty} -> DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> Not (ElemLabel l ts1) -> Not (ElemLabel l ts3) -> Not (ElemLabel l ts2)
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1 {ts1=[]} EmptyLabelList notInTs1 notInTs3 inTs2 = notInTs3 inTs2
+ifDeleteLabelsThenItIsSetUnion_Lemma_3_1 {l=l1} {ts1=(l2,ty2)::ts1} (DeleteFirstOfLabelList delAt delLabels) notInConsTs1 notInTs3 inTs2 = 
+  let notInTs1 = notElemInCons notInConsTs1
+      l1NotEqL2 = ifNotElemThenNotEqual notInConsTs1
+      notInTsAux = ifDeleteLabelsThenItIsSetUnion_Lemma_3_1_1 delAt notInTs3 l1NotEqL2
+      subPrf = ifDeleteLabelsThenItIsSetUnion_Lemma_3_1 delLabels notInTs1 notInTsAux
+  in subPrf inTs2 -}
+
+{-ifDeleteLabelsThenItIsLeftUnion_Lemma_3 : DecEq lty => {ts1, ts2, tsDel, tsAux : LabelList lty} -> {l1 : lty} -> Not (ElemLabel l1 ts1) ->
+  IsLabelSet ts1 -> IsLabelSet ts2 -> DeleteLabelAtPred l1 tsAux tsDel -> DeleteLabelsPred (labelsOf ts1) ts2 tsAux ->
+  IsLeftUnion ts1 ts2 (ts1 ++ tsAux) -> Not (ElemLabel l1 tsAux) -> IsLeftUnion ((l1, ty1) :: ts1) ts2 ((l1,ty1) :: (ts1 ++ tsDel))
+ifDeleteLabelsThenItIsLeftUnion_Lemma_3 {ts1=ts1} {ts2=[]} notL1InTs1 isSet1 IsSetNil delAt delLabels isUnion notL1InTsAux = 
+  let tsDelIsNil = ifDeleteLabelsThenItIsLeftUnion_Lemma_2_1 delLabels delAt
+      ts1AppendIsNil = appendNilRightNeutral ts1
+      ts1AppendTsDelNeutral = ifDeleteLabelsThenItIsLeftUnion_Lemma_2_2 tsDelIsNil ts1AppendIsNil
+  in rewrite ts1AppendTsDelNeutral in (RightIsEmpty (IsSetCons notL1InTs1 isSet1))
+ifDeleteLabelsThenItIsLeftUnion_Lemma_3 {ts2=(l2,ty2)::ts2} notL1InTs1 isSet1 (IsSetCons notL2InTs2 isSet2) delAt delLabels isUnion notL1InTsAux = 
+  --IsNotInLeft ?Lemma_3_notInTs1 ?Lemma_3_notInTs2 ?Lemma_3_isUnion
+  ?ifDeleteLabelsThenItIsLeftUnion_Lemma_3_rhs
+-}
+-- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero equivale a la union de
+-- ambos por la izquierda
+{-ifDeleteLabelsThenItIsLeftUnion : DecEq lty => {ts1, ts2, tsDel : LabelList lty} -> IsLabelSet ts1 -> IsLabelSet ts2 -> 
+  DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsLeftUnion ts1 ts2 (ts1 ++ tsDel)
+ifDeleteLabelsThenItIsLeftUnion {ts1=[]} isSet1 isSet2 EmptyLabelList = ifDeleteLabelsThenItIsLeftUnion_Lemma_1 isSet2
+ifDeleteLabelsThenItIsLeftUnion {ts1=(l1,ty1)::ts1} {ts2=ts2} (IsSetCons notL1InTs1 isSet1) isSet2 (DeleteFirstOfLabelList {tsAux=tsAux} delAt delLabels) with (isElemLabel l1 tsAux)
+  ifDeleteLabelsThenItIsLeftUnion {ts1=(l1,ty1)::ts1} {ts2=ts2} (IsSetCons notL1InTs1 isSet1) isSet2 (DeleteFirstOfLabelList {tsAux=tsAux} delAt delLabels) | Yes l1InTsAux =
+    let subPrf = ifDeleteLabelsThenItIsLeftUnion {ts1=ts1} {ts2=ts2} {tsDel=tsAux} isSet1 isSet2 delLabels
+    in ifDeleteLabelsThenItIsLeftUnion_Lemma_2 notL1InTs1 isSet1 isSet2 delAt delLabels subPrf l1InTsAux
+  ifDeleteLabelsThenItIsLeftUnion {ts1=(l1,ty1)::ts1} {ts2=ts2} (IsSetCons notL1InTs1 isSet1) isSet2 (DeleteFirstOfLabelList {tsAux=tsAux} delAt delLabels) | No notL1InTsAux = 
+    let subPrf = ifDeleteLabelsThenItIsLeftUnion {ts1=ts1} {ts2=ts2} {tsDel=tsAux} isSet1 isSet2 delLabels
+    in ifDeleteLabelsThenItIsLeftUnion_Lemma_3 notL1InTs1 isSet1 isSet2 delAt delLabels subPrf notL1InTsAux-}
+  
+ 
+-- *-* Definicion de "hLeftUnion" de hackage *-*
+hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> 
+   (tsRes : LabelList lty ** (Record tsRes, IsLeftUnion ts1 ts2 tsRes))
+hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 = 
+  let
+    isSet1 = recLblIsSet rec1
+    isSet2 = recLblIsSet rec2
+    (tsDel ** (recDel, prfDel)) = hDeleteLabels (labelsOf ts1) rec2
+    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isSet1 isSet2 prfDel)
+   in
+    (ts1 ++ tsDel ** (recRes, IsLeftUnionAppend isSet1 isSet2 prfDel))
+--    (ts1 ++ tsDel ** (recRes, ifDeleteLabelsThenItIsLeftUnion {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel))
+      
+
+-- *** VIejo ***  
+{-
 ifDeleteLabelsThenItIsSetUnion_Lemma_1_1_1 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l1, l2 : lty} -> DeleteLabelAtPred l2 ts1 ts2 ->
   ElemLabel l1 ts2 -> Not (l1 = l2) -> ElemLabel l1 ts1
 ifDeleteLabelsThenItIsSetUnion_Lemma_1_1_1 EmptyRecord inTs2 l1NotEqL2 = inTs2
@@ -784,69 +903,4 @@ ifDeleteLabelsThenItIsSetUnion {ts1=((l1,ty1) :: ts1)} {ts2=ts2} {tsDel=tsDel} (
   ifDeleteLabelsThenItIsSetUnion {ts1=((l1,ty1) :: ts1)} {ts2=ts2} {tsDel=tsDel} (IsSetCons notElem isSet1) isSet2 (DeleteFirstOfLabelList {tsAux=tsAux} delAt delLabels) | No notL1InTsAux = 
     let subPrf = ifDeleteLabelsThenItIsSetUnion {ts1=ts1} {ts2=ts2} {tsDel=tsAux} isSet1 isSet2 delLabels
     in ifDeleteLabelsThenItIsSetUnion_Lemma_2 notElem isSet1 isSet2 delAt delLabels subPrf notL1InTsAux
-
-
--- *-* Definicion de "hLeftUnion" de hackage *-*
-hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> 
-   (tsRes : LabelList lty ** (Record tsRes, IsSetUnion ts1 ts2 tsRes))
-hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 = 
-  let
-    isLblSet1 = recLblIsSet rec1
-    isLblSet2 = recLblIsSet rec2
-    (tsDel ** (recDel, prfDel)) = hDeleteLabels (labelsOf ts1) rec2
-    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel)
-   in
-    (ts1 ++ tsDel ** (recRes, ifDeleteLabelsThenItIsSetUnion {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel))
-
--- *** Viejo ***
-{-
--- Lemmas necesarios
-ifAppendEmptyIsLabelSetLemma : IsLabelSet ts -> IsLabelSet (ts ++ [])
-ifAppendEmptyIsLabelSetLemma {ts=ts} isLblSet = rewrite (appendNilRightNeutral ts) in isLblSet
-
-ifDeleteLabelsThenAppendIsSetLemma_1 : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> {t : (lty, Type)} ->
-  IsLabelSet (ts1 ++ ts2) -> Not (ElemLabel (fst t) ts1) -> IsLabelSet (ts1 ++ (t :: ts2))
-ifDeleteLabelsThenAppendIsSetLemma_1 lblSetAppend notElem = ?ifDeleteLabelsThenAppendIsSetLemma_1_rhs
-
--- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero es un labelset
-ifDeleteLabelsThenAppendIsSetLemma : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> {tsDel : LabelList lty} ->
-  IsLabelSet ts1 -> IsLabelSet ts2 -> DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsLabelSet (ts1 ++ tsDel)
-ifDeleteLabelsThenAppendIsSetLemma {ts1=[]} isLblSet1 isLblSet2 IPR_EmptyLabels = isLblSet2
-ifDeleteLabelsThenAppendIsSetLemma isLblSet1 isLblSet2 IPR_EmptyVect = ifAppendEmptyIsLabelSetLemma isLblSet1
-ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=(t :: tsSub)} isLblSet1 isLblSet2 (IPR_ProjLabelElem isElem delElem subPrjRight) = ?ifDeleteLabelsThenAppendIsSetLemma_rhs_2
-ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=(t :: tsSub)} isLblSet1 isLblSet2 (IPR_ProjLabelNotElem {res1=subTsDel} notElem subPrjRight) = 
-  let
-    subLabelSet = ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=tsSub} {tsDel=subTsDel} isLblSet1 (ifSetThenRestIsSet isLblSet2) subPrjRight
-  in ifDeleteLabelsThenAppendIsSetLemma_1 {ts1=ts1} {ts2=subTsDel} {t=t} subLabelSet notElem
-    
--- Lemma que indica que una lista es la union de si misma (por la izquierda)
-leftListIsSetUnion : DecEq lty => {ts : LabelList lty} -> IsLabelSet ts -> IsSetUnion ts [] ts
-leftListIsSetUnion {ts=[]} IsSetNil = LeftIsEmpty IsSetNil
-leftListIsSetUnion {ts=(t :: ts)} (IsSetCons notElem subLblSet) = 
-  let subSetUnion = leftListIsSetUnion {ts=ts} subLblSet
-  in IsNotInRight noEmptyElem notElem subSetUnion
-
--- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero equivale a la union de
--- ambos
-ifDeleteLabelsThenItIsSetUnion : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> {tsDel : LabelList lty} ->
-  IsLabelSet ts1 -> IsLabelSet ts2 -> DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsSetUnion ts1 ts2 (ts1 ++ tsDel)
-ifDeleteLabelsThenItIsSetUnion {ts1=[]} isLblSet1 isLblSet2 IPR_EmptyLabels = LeftIsEmpty isLblSet2
-ifDeleteLabelsThenItIsSetUnion {ts1=ts1} isLblSet1 isLblSet2 IPR_EmptyVect = 
-  rewrite (appendNilRightNeutral ts1) in leftListIsSetUnion isLblSet1
-ifDeleteLabelsThenItIsSetUnion {ts2=(t::ts2)} isLblSet1 isLblSet2 (IPR_ProjLabelElem isElem delElem subPrjRight) = ?ifDeleteLabelsThenItIsSetUnion_rhs_2
-ifDeleteLabelsThenItIsSetUnion {ts2=(t::ts2)} isLblSet1 isLblSet2 (IPR_ProjLabelNotElem notElem subPrjRight) = ?ifDeleteLabelsThenItIsSetUnion_rhs_3
-
--- *-* Definicion de "hLeftUnion" de hackage *-*
-hLeftUnion : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> 
-   (tsRes : LabelList lty ** (Record tsRes, IsSetUnion ts1 ts2 tsRes))
-hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 = 
-  let
-    isLblSet1 = recLblIsSet rec1
-    isLblSet2 = recLblIsSet rec2
-    (tsDel ** (recDel, prfDel)) = hDeleteLabels (labelsOf ts1) rec2
-    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel)
-   in
-    (ts1 ++ tsDel ** (recRes, ifDeleteLabelsThenItIsSetUnion {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isLblSet1 isLblSet2 prfDel))
-    
-  
 -}
