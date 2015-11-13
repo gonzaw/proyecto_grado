@@ -601,8 +601,8 @@ hDeleteLabels ls rec =
 
 -- Predicado que indica que la union por la izquierda de dos LabelList que son un set es equivalente a la tercera
 data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty -> Type where
-  IsLeftUnionAppend : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> IsLabelSet ts1 -> IsLabelSet ts2 -> 
-  DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> IsLeftUnion ts1 ts2 (ts1 ++ ts3)
+  IsLeftUnionAppend : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> 
+    IsLeftUnion ts1 ts2 (ts1 ++ ts3)
 
 -- Lemas necesarios
 ifDeleteLabelsThenAppendIsSetLemma_1_1 : DecEq lty => {ts1, ts2 : LabelList lty} -> {t : (lty,Type)} ->
@@ -702,6 +702,6 @@ hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 =
     isSet1 = recLblIsSet rec1
     isSet2 = recLblIsSet rec2
     (tsDel ** (recDel, prfDel)) = hDeleteLabels (labelsOf ts1) rec2
-    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isSet1 isSet2 prfDel)
+    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} prfDel)
    in
     (ts1 ++ tsDel ** (recRes, IsLeftUnionAppend isSet1 isSet2 prfDel))
