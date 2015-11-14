@@ -173,8 +173,52 @@ hListToRecAuto ts hs with (isLabelSet ts)
 -- DeleteElem es el predicado que indica que una lista es el resultado de eliminar un elemento de otra lista
 data DeleteElem : (xs : List t) -> Elem x xs -> List t -> Type where
   DeleteElemHere : DeleteElem (x :: xs) Here xs
-  DeleteElemThere : DeleteElem xs isThere ys -> DeleteElem (x :: xs) (There isThere) (x :: ys)
+  DeleteElemThere : {isThere : Elem y xs} -> DeleteElem xs isThere ys -> DeleteElem (x :: xs) (There isThere) (x :: ys)
 
+areEqualLists_Lemma_1 : {xs1, xs2 : List t} -> Not (x1 = x2) -> Not (x1 :: xs1 = x2 :: xs2)
+areEqualLists_Lemma_1 notEq Refl = notEq Refl
+
+areEqualLists_Lemma_2 : {xs1, xs2 : List t} -> Not (xs1 = xs2) -> Not (x1 :: xs1 = x2 :: xs2)
+areEqualLists_Lemma_2 notEq Refl = notEq Refl
+
+-- Funcion de decision de si dos listas son iguales
+areEqualLists : DecEq t => (xs1 : List t) -> (xs2 : List t) -> Dec (xs1 = xs2)
+areEqualLists [] [] = Yes Refl
+areEqualLists (x1::xs1) [] = No consNotEqNil
+areEqualLists [] (x2::xs2) = No (symNot consNotEqNil)
+areEqualLists (x1::xs1) (x2::xs2) with (decEq x1 x2)
+  areEqualLists (x1::xs1) (x2::xs2) | No notX1EqX2 = No (areEqualLists_Lemma_1 notX1EqX2)
+  areEqualLists (x1::xs1) (x1::xs2) | Yes Refl with (areEqualLists xs1 xs2)
+    areEqualLists (x1::xs1) (x1::xs1) | Yes Refl | Yes Refl = Yes Refl
+    areEqualLists (x1::xs1) (x1::xs2) | Yes Refl | No notXs1EqXs2 = No (areEqualLists_Lemma_2 notXs1EqXs2)
+
+isDeleteElem_Lemma_1 : DecEq t => {xs, res : List t} -> Not (xs = res) -> Not (DeleteElem (x :: xs) Here res)
+isDeleteElem_Lemma_1 notEq DeleteElemHere = notEq Refl
+
+isDeleteElem_Lemma_2 : DecEq t => {xs : List t} -> {isThere : Elem y xs} -> Not (DeleteElem (x :: xs) (There isThere) [])
+isDeleteElem_Lemma_2 (DeleteElemThere _) impossible
+
+isDeleteElem_Lemma_3 : DecEq t => {xs1, xs2 : List t} -> {isThere : Elem y xs1} -> Not (x1 = x2) ->
+  Not (DeleteElem (x1 :: xs1) (There isThere) (x2 :: xs2))
+isDeleteElem_Lemma_3 notEq (DeleteElemThere _) = notEq Refl
+
+isDeleteElem_Lemma_4 : DecEq t => {xs, ys : List t} -> {isThere : Elem y xs} -> Not (DeleteElem xs isThere ys) ->
+  Not (DeleteElem (x :: xs) (There isThere) (x :: ys))
+isDeleteElem_Lemma_4 notSubDel (DeleteElemThere subDel) = notSubDel subDel
+
+-- Funcion de decision
+isDeleteElem : DecEq t => (xs : List t) -> (isElem : Elem x xs) -> (res : List t) -> Dec (DeleteElem xs isElem res)
+isDeleteElem [] isElem res = absurd $ noEmptyElem isElem
+isDeleteElem (x::xs) Here res with (areEqualLists xs res)
+  isDeleteElem (x::xs) Here xs | Yes Refl = Yes DeleteElemHere
+  isDeleteElem (x::xs) Here res | No notXsEqRes = No (isDeleteElem_Lemma_1 notXsEqRes)
+isDeleteElem (x1::xs) (There {x=x2} isThere) [] = No (isDeleteElem_Lemma_2 {isThere=isThere} {x=x1} {xs=xs} {y=x2})
+isDeleteElem (x1::xs) (There {x=x2} isThere) (y::ys) with (decEq x1 y)
+  isDeleteElem (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl with (isDeleteElem xs isThere ys)
+    isDeleteElem (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | Yes subDel = Yes (DeleteElemThere subDel)
+    isDeleteElem (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | No notSubDel = No (isDeleteElem_Lemma_4 notSubDel)
+  isDeleteElem (x1::xs) (There {x=x2} isThere) (y::ys) | No notX1EqY = No (isDeleteElem_Lemma_3 notX1EqY)
+  
 -- Predicado que la proyeccion izquierda de un hProjectByLabels es efectivamente tal proyeccion    
 data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
   IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty=lty} [] ts []
@@ -702,6 +746,6 @@ hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 =
     isSet1 = recLblIsSet rec1
     isSet2 = recLblIsSet rec2
     (tsDel ** (recDel, prfDel)) = hDeleteLabels (labelsOf ts1) rec2
-    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} prfDel)
+    recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isSet1 isSet2 prfDel)
    in
-    (ts1 ++ tsDel ** (recRes, IsLeftUnionAppend isSet1 isSet2 prfDel))
+    (ts1 ++ tsDel ** (recRes, IsLeftUnionAppend prfDel))
