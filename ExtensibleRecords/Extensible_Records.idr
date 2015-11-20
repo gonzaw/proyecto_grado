@@ -14,6 +14,7 @@ import Data.List
 
 %default total
 
+-- Una lista vacia no puede ser igual a una lista con un elemento
 consNotEqNil : {xs : List t} -> Not (x :: xs = [])
 consNotEqNil Refl impossible
 
@@ -74,7 +75,6 @@ data HList : LabelList lty -> Type where
   Nil : HList []
   (::) : {lbl : lty} -> (val : t) -> HList ts -> HList ((lbl,t) :: ts)
  
- 
 -- Obtiene los labels de una lista de tal HList
 labelsOf : LabelList lty -> List lty
 labelsOf = map fst
@@ -125,18 +125,19 @@ consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} ->
 consRec lbl val (MkRecord subLabelSet hs) {notElem=notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
 
 
--- *** PENDIENTE ***
+-- Tipo que representa un tipo o top ("()") segun si se cumple una condicion o no
+TypeOrUnit : Dec p -> Type -> Type
+TypeOrUnit (Yes prf) res = res
+TypeOrUnit (No _) _ = ()
 
---XOrUnit : Dec p -> (p -> Type) -> Type
---XOrUnit d maker 
+-- Dada una condicion construye un tipo, o si falla la condicion retorna top ("()")
+mkTypeOrUnit : (d : Dec p) -> (cnst : p -> res) -> TypeOrUnit d res
+mkTypeOrUnit (Yes prf) cnst = cnst prf
+mkTypeOrUnit (No _) _ = ()
 
--- *** FinPendiente
-
--- Tipo que representa un Record o () (i.e una falla)    
-RecordOrUnit : DecEq lty => (ts : LabelList lty) -> Type
-RecordOrUnit ts with (isLabelSet ts)
-  RecordOrUnit ts | Yes _ = Record ts
-  RecordOrUnit ts | No _ = ()
+-- Tipo que representa un Record o () (i.e una falla)
+RecordOrUnit : DecEq lty => LabelList lty -> Type
+RecordOrUnit ts = TypeOrUnit (isLabelSet ts) (Record ts)
  
 -- Dada una prueba de que labels no son un conjunto, retorna ()
 mkRecordOrUnitFromUnit : DecEq lty => (ts : LabelList lty) -> Not (IsLabelSet ts) -> RecordOrUnit ts
@@ -149,7 +150,7 @@ mkRecordOrUnitFromRecord : DecEq lty => (ts : LabelList lty) -> Record ts -> IsL
 mkRecordOrUnitFromRecord ts rec tsIsSet with (isLabelSet ts)
   mkRecordOrUnitFromRecord ts rec tsIsSet | Yes _ = rec
   mkRecordOrUnitFromRecord ts rec tsIsSet | No notTsIsSet = absurd $ notTsIsSet tsIsSet
- 
+  
 -- "consRec" donde la prueba de labels no repetidos es calculada automaticamente  
 consRecAuto : DecEq lty => {ts : LabelList lty} -> {t : Type} -> (lbl : lty) -> (val : t) -> Record ts -> 
   RecordOrUnit ((lbl,t) :: ts)
@@ -163,10 +164,8 @@ consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) with (isElemLabel lb
   
 -- "hListToRecAuto" donde la prueba de labels no repetidos es calculada automaticamente
 hListToRecAuto : DecEq lty => (ts : LabelList lty) -> HList ts -> RecordOrUnit ts
-hListToRecAuto ts hs with (isLabelSet ts)
-  hListToRecAuto ts hs | No notTsIsSet = ()
-  hListToRecAuto ts hs | Yes tsIsSet = MkRecord tsIsSet hs
-
+hListToRecAuto ts hs = mkTypeOrUnit (isLabelSet ts) (\tsIsSet => MkRecord tsIsSet hs) 
+        
         
 -- *** hProjectByLabels ***                     
                                     
@@ -470,10 +469,7 @@ hAppend rec1 rec2 isLabelSet =
     
 -- "hAppendAuto" donde la prueba de labels no repetidos es calculada automaticamente
 hAppendAuto : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> RecordOrUnit (ts1 ++ ts2)
-hAppendAuto {ts1=ts1} {ts2=ts2} rec1 rec2 with (isLabelSet (ts1 ++ ts2))
-  hAppendAuto {ts1=ts1} {ts2=ts2} rec1 rec2 | No notIsSet = ()
-  hAppendAuto {ts1=ts1} {ts2=ts2} rec1 rec2 | Yes isSet = hAppend rec1 rec2 isSet
-
+hAppendAuto {ts1} {ts2} rec1 rec2 = mkTypeOrUnit (isLabelSet (ts1 ++ ts2)) (\isSet => hAppend rec1 rec2 isSet)
 
 -- *** hDeleteLabels ***
 
