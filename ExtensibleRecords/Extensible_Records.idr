@@ -774,10 +774,9 @@ hasField l [] ty = No (noEmptyHasField)
 -- TODO: Como se compara ty2 con ty1?
 hasField l1 ((l2,ty2) :: ts) ty1 = ?hasField_rhs_2
 
-
 hLookupByLabel_HList : DecEq lty => {ts : LabelList lty} -> (l : lty) -> HList ts -> HasField l ts ty -> ty
 hLookupByLabel_HList _ (val :: _) HasFieldHere = val
-hLookupByLabel_HList l (_ :: ts) (HasFieldThere fieldInThere) = hLookupByLabel_HList l ts fieldInThere
+hLookupByLabel_HList l (_ :: ts) (HasFieldThere hasFieldThere) = hLookupByLabel_HList l ts hasFieldThere
 
 -- *-* Definicion de "hLookupByLabel" de hackage *-*
 hLookupByLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> HasField l ts ty -> ty
@@ -785,3 +784,21 @@ hLookupByLabel {ts=ts} {ty=ty} l rec hasField = hLookupByLabel_HList {ts=ts} {ty
 
 hLookupByLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> {auto hasField : HasField l ts ty} -> ty
 hLookupByLabelAuto {ts=ts} {ty=ty} l rec {hasField=hasField} = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
+
+-- *** hUpdateAtLabel ***
+
+hUpdateAtLabel_HList : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> HList ts -> HasField l ts ty -> HList ts
+hUpdateAtLabel_HList l val1 (val2 :: hs) HasFieldHere = val1 :: hs
+hUpdateAtLabel_HList l val1 (val2 :: hs) (HasFieldThere hasFieldThere) = val2 :: (hUpdateAtLabel_HList l val1 hs hasFieldThere)
+
+-- *-* Definicion de "hUpdateAtLabel" de hackage *-*
+hUpdateAtLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> HasField l ts ty -> Record ts
+hUpdateAtLabel {ts=ts} l val rec hasField =
+  let
+    isLabelSet = recLblIsSet rec
+    hs = recToHList rec
+  in
+    hListToRec {prf=isLabelSet} (hUpdateAtLabel_HList {ts=ts} l val hs hasField)
+    
+hUpdateAtLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> {auto hasField : HasField l ts ty} -> Record ts
+hUpdateAtLabelAuto {ts=ts} l val rec {hasField=hasField} = hUpdateAtLabel {ts=ts} l val rec hasField

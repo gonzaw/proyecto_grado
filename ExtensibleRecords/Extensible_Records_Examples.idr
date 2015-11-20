@@ -76,5 +76,12 @@ recEx12 = fst . getProof $ hLeftUnion recEx10 (hListToRecAuto [("Calle", String)
 val1 : Nat
 val1 = hLookupByLabel "Edad" recEx1 (HasFieldThere HasFieldHere)
 
-val2 : Nat
-val2 = hLookupByLabelAuto "Edad" recEx1
+val2 : String
+val2 = hLookupByLabelAuto "Nombre" recEx1
+
+-- *** hUpdateAtLabel ***
+recEx13 : Record [("Nombre", String), ("Edad", Nat)]
+recEx13 = hUpdateAtLabel "Edad" 100 recEx1 (HasFieldThere HasFieldHere)
+
+recEx14 : Record [("Nombre", String), ("Edad", Nat)]
+recEx14 = hUpdateAtLabelAuto "Nombre" "Pedro" recEx1
