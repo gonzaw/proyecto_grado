@@ -66,8 +66,15 @@ recEx10 = hAppendAuto recEx7 recEx8
 
 -- *** hDeleteLabels ***
 recEx11 : ?recEx11_ty
-recEx11 = fst . getProof $ hDeleteLabels ["Apellido","Edad"] recEx4
+recEx11 = fst . getProof $ hDeleteLabels ["Apellido", "Edad"] recEx4
 
 -- *** hLeftUnion ***
 recEx12 : ?recEx12_ty
 recEx12 = fst . getProof $ hLeftUnion recEx10 (hListToRecAuto [("Calle", String), ("Nombre", String)] ["Av Brasil", "Juan"])
+
+-- *** hLookupByLabel ***
+val1 : Nat
+val1 = hLookupByLabel "Edad" recEx1 (HasFieldThere HasFieldHere)
+
+val2 : Nat
+val2 = hLookupByLabelAuto "Edad" recEx1
