@@ -43,8 +43,22 @@ recEx4 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
 recEx4 = hListToRecAuto [("Apellido", String), ("Nombre", String), ("Edad", Nat)] ["Sanchez", "Juan", 10]
 
 -- *** hProjectByLabels ***
-recEx5 : ?recEx5_ty
-recEx5 = fst . getProof $ hProjectByLabels ["Edad", "Apellido"] recEx4
+recEx5_1 : ?recEx5_1_ty
+recEx5_1 = fst . getProof $ hProjectByLabels ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
+
+-- *** hProjectByLabelsAuto ***
+recEx5_2 : ?recEx2_2_ty
+recEx5_2 = fst . getProof $ hProjectByLabelsAuto ["Apellido", "Edad"] recEx4
+
+-- *** hProjectByLabels_comp ***
+recEx5_3 : ?recEx5_3_ty
+--recEx5_3 : Record [("Apellido", String), ("Edad", Nat)]
+recEx5_3 = hProjectByLabels_comp ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
+
+-- *** hProjectByLabels_compAuto ***
+recEx5_4 : ?recEx5_4_ty
+--recEx5_4 : Record [("Apellido", String), ("Edad", Nat)]
+recEx5_4 = hProjectByLabels_compAuto ["Apellido", "Edad"] recEx4
 
 -- *** hDeleteAtLabel ***
 recEx6 : ?recEx6_ty
@@ -65,8 +79,12 @@ recEx10 : Record [("Calle", String), ("Apto", Nat)]
 recEx10 = hAppendAuto recEx7 recEx8
 
 -- *** hDeleteLabels ***
-recEx11 : ?recEx11_ty
-recEx11 = fst . getProof $ hDeleteLabels ["Apellido", "Edad"] recEx4
+recEx11_1 : ?recEx11_1_ty
+recEx11_1 = fst . getProof $ hDeleteLabels ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
+
+-- *** hDeleteLabelsAuto ***
+recEx11_2 : ?recEx11_2_ty
+recEx11_2 = fst . getProof $ hDeleteLabelsAuto ["Apellido", "Edad"] recEx4
 
 -- *** hLeftUnion ***
 recEx12 : ?recEx12_ty
