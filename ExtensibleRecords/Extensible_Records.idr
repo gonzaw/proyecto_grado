@@ -448,42 +448,6 @@ fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem
   let subPrf = fromIsProjectLeftToComp isProjLeft lsIsSet
       resEq = fromIsProjectLeftToComp_Lemma_2 notIsElem {ls=ls} {ts=ts1} {l=l1} {ty=ty1}
   in rewrite subPrf in (rewrite resEq in Refl)
-
-{-fromIsProjectLeftToComp_Lemma_1 : DecEq lty => {ls : List lty} -> [] = projectLeft ls []
-fromIsProjectLeftToComp_Lemma_1 {ls=[]} = Refl
-fromIsProjectLeftToComp_Lemma_1 {ls=(l::ls)} = Refl
-
-fromIsProjectLeftToComp_Lemma_2 : DecEq lty => {ls : List lty} -> {ts : LabelList lty} -> (lInLs : Elem l ls) -> IsLabelSet ts ->
-  projectLeft ls ((l, ty) :: ts) = (l, ty) :: (projectLeft (deleteElem ls lInLs) ts) 
-
--- TODO: Analizar y ver si es posible
--- Ver si es posible con ElemStrict sino
-fromIsProjectLeftToComp_Lemma_3 : DecEq lty => {ls : List lty} -> {ts : LabelList lty} ->
-  projectLeft ls ts = projectLeft ls ((l, ty) :: ts)
-fromIsProjectLeftToComp_Lemma_3 {ls=[]} = Refl
-fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} with (isElem l1 (l2 :: ls))
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l1::ls)} {ts} | Yes Here with (isElem l1 ls)
-    fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l1::ls)} {ts} | Yes Here | Yes l1IsInLs = ?fromIsProjectLeftToComp_Lemma_3_rhs_1_1
-    fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l1::ls)} {ts} | Yes Here | No notL1IsInLs = ?fromIsProjectLeftToComp_Lemma_3_rhs_1_2
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} | Yes (There isThere) with (isElem l2 ls)
-    fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} | Yes (There isThere) | Yes l2IsInLs = ?fromIsProjectLeftToComp_Lemma_3_rhs_2_1
-    fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} | Yes (There isThere) | No notL2IsInLs = ?fromIsProjectLeftToComp_Lemma_3_rhs_2_2
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} | No _ = Refl
-    
--- Dada una prueba de "IsProjectLeft" se puede computar "projectLeft"
-fromIsProjectLeftToComp : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> IsProjectLeft ls ts1 ts2 -> IsLabelSet ts1 -> ts2 = projectLeft ls ts1
-fromIsProjectLeftToComp IPL_EmptyLabels _ = Refl
-fromIsProjectLeftToComp {ls} {ts1=[]} {ts2=[]} IPL_EmptyVect _ = fromIsProjectLeftToComp_Lemma_1 {ls=ls}
-fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelElem l1InLs isDelElem isProjLeft) (IsSetCons notL1InTs1 isSet1) =
-  let subPrf = fromIsProjectLeftToComp isProjLeft isSet1
-      delElemEq = fromDeleteElemPredToComp isDelElem
-      resEq = fromIsProjectLeftToComp_Lemma_2 l1InLs isSet1
-  in rewrite subPrf in (rewrite delElemEq in sym resEq)
-fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem isProjLeft) (IsSetCons notL1InTs1 isSet1) =
-  let subPrf = fromIsProjectLeftToComp isProjLeft isSet1
-      resEq = fromIsProjectLeftToComp_Lemma_3 {l=l1} {ts=ts1} {ls=ls}
-  in rewrite subPrf in (rewrite resEq in Refl)
-  --in ?fromIsProjectLeftToComp_rhs_2 -}
   
 -- Dada la computacion de "projectLeft" se puede crear una prueba de "IsProjectLeft"
 fromCompToIsProjectLeft : DecEq lty => (ls : List lty) -> (ts : LabelList lty) -> IsProjectLeft ls ts (projectLeft ls ts) 
