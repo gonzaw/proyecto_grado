@@ -386,8 +386,7 @@ projectLeft ls ((l,ty) :: ts) with (isElem l ls)
     in (l,ty) :: rest
   projectLeft ls ((l,ty) :: ts) | No _ = projectLeft ls ts
 
--- VIEJO
-{-fromIsProjectLeftToComp_Lemma_1 : DecEq lty => {ls : List lty} -> [] = projectLeft ls []
+fromIsProjectLeftToComp_Lemma_1 : DecEq lty => {ls : List lty} -> [] = projectLeft ls []
 fromIsProjectLeftToComp_Lemma_1 {ls=[]} = Refl
 fromIsProjectLeftToComp_Lemma_1 {ls=(l::ls)} = Refl
 
@@ -448,9 +447,9 @@ fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelElem l1InLs isDel
 fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem isProjLeft) lsIsSet =
   let subPrf = fromIsProjectLeftToComp isProjLeft lsIsSet
       resEq = fromIsProjectLeftToComp_Lemma_2 notIsElem {ls=ls} {ts=ts1} {l=l1} {ty=ty1}
-  in rewrite subPrf in (rewrite resEq in Refl)-}
+  in rewrite subPrf in (rewrite resEq in Refl)
 
-fromIsProjectLeftToComp_Lemma_1 : DecEq lty => {ls : List lty} -> [] = projectLeft ls []
+{-fromIsProjectLeftToComp_Lemma_1 : DecEq lty => {ls : List lty} -> [] = projectLeft ls []
 fromIsProjectLeftToComp_Lemma_1 {ls=[]} = Refl
 fromIsProjectLeftToComp_Lemma_1 {ls=(l::ls)} = Refl
 
@@ -484,7 +483,7 @@ fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem
   let subPrf = fromIsProjectLeftToComp isProjLeft isSet1
       resEq = fromIsProjectLeftToComp_Lemma_3 {l=l1} {ts=ts1} {ls=ls}
   in rewrite subPrf in (rewrite resEq in Refl)
-  --in ?fromIsProjectLeftToComp_rhs_2 
+  --in ?fromIsProjectLeftToComp_rhs_2 -}
   
 -- Dada la computacion de "projectLeft" se puede crear una prueba de "IsProjectLeft"
 fromCompToIsProjectLeft : DecEq lty => (ls : List lty) -> (ts : LabelList lty) -> IsProjectLeft ls ts (projectLeft ls ts) 
@@ -500,20 +499,20 @@ fromCompToIsProjectLeft (l1::ls) ((l2,ty) :: ts) with (isElem l2 (l1::ls))
     in IPL_ProjLabelNotElem notL2InLs subPrf
     
 -- hProjectByLabels que retorna la computacion de la proyeccion en el tipo
-hProjectByLabels_comp : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> Record (projectLeft ls ts)
-hProjectByLabels_comp {ts} ls rec =
+hProjectByLabels_comp : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> IsSet ls -> Record (projectLeft ls ts)
+hProjectByLabels_comp {ts} ls rec lsIsSet =
   let 
     isLabelSet = recLblIsSet rec
     hs = recToHList rec
     (lsRes ** (hsRes, prjLeftRes)) = fst $ hProjectByLabelsHList ls hs
     isLabelSetRes = hProjectByLabelsLeftIsSet_Lemma2 prjLeftRes isLabelSet
-    resIsProjComp = fromIsProjectLeftToComp prjLeftRes isLabelSet
+    resIsProjComp = fromIsProjectLeftToComp prjLeftRes lsIsSet
     recRes = hListToRec {prf=isLabelSetRes} hsRes
   in rewrite (sym resIsProjComp) in recRes
   
 -- hProjectByLabels_comp que obtiene la prueba de "IsSet ls" de forma automatica
-{-hProjectByLabels_compAuto : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> TypeOrUnit (isSet ls) (Record (projectLeft ls ts))
-hProjectByLabels_compAuto {ts} ls rec = mkTypeOrUnit (isSet ls) (\lsIsSet => hProjectByLabels_comp {ts=ts} ls rec lsIsSet)  -}
+hProjectByLabels_compAuto : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> TypeOrUnit (isSet ls) (Record (projectLeft ls ts))
+hProjectByLabels_compAuto {ts} ls rec = mkTypeOrUnit (isSet ls) (\lsIsSet => hProjectByLabels_comp {ts=ts} ls rec lsIsSet)
   
 -- *** hDeleteByLabel *** 
   

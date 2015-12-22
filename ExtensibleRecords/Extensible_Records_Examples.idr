@@ -80,11 +80,12 @@ recEx10 = hAppendAuto recEx7 recEx8
 
 -- *** hDeleteLabels ***
 recEx11_1 : ?recEx11_1_ty
-recEx11_1 = fst . getProof $ hDeleteLabels ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
+recEx11_1 = fst . getProof $ hDeleteLabels ["Apellido", "Edad"] recEx4
+--recEx11_1 = fst . getProof $ hDeleteLabels ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
 
 -- *** hDeleteLabelsAuto ***
-recEx11_2 : ?recEx11_2_ty
-recEx11_2 = fst . getProof $ hDeleteLabelsAuto ["Apellido", "Edad"] recEx4
+--recEx11_2 : ?recEx11_2_ty
+--recEx11_2 = fst . getProof $ hDeleteLabelsAuto ["Apellido", "Edad"] recEx4
 
 -- *** hLeftUnion ***
 recEx12 : ?recEx12_ty
