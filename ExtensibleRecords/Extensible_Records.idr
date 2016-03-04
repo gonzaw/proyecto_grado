@@ -1,8 +1,8 @@
 {-
 
-  Definición de Records Extensibles.
+  Definición de Records Extensibles en Idris.
   
-  Se toma inspiración en HList de Haskell
+  Se toma inspiración de HList de Haskell
   Paper: http://okmij.org/ftp/Haskell/HList-ext.pdf
   Hackage: https://hackage.haskell.org/package/HList
   
@@ -14,48 +14,56 @@ import Data.List
 
 %default total
 
--- Una lista vacia no puede ser igual a una lista con un elemento
+-- *** Propiedades de igualdad ***
+
+-- Propiedad simétrica de la igualdad para el Not
+symNot : Not (x = y) -> Not (y = x)
+symNot notEqual Refl = notEqual Refl
+
+-- *** Propiedades de List ***
+
+-- Una lista vacía no puede ser igual a una lista con un elemento
 consNotEqNil : {xs : List t} -> Not (x :: xs = [])
 consNotEqNil Refl impossible
 
--- Nada puede pertenecer a una lista vacia
+-- Nada puede pertenecer a una lista vacía
 noEmptyElem : Not (Elem x [])
 noEmptyElem Here impossible
+
+-- *** Propiedades de Elem (de List) ***
 
 -- Si un elemento no pertenece a una lista, no pertenece al tail de esa lista tampoco
 notElemInCons : Not (Elem x (y :: ys)) -> Not (Elem x ys)
 notElemInCons notElemCons elemTail = notElemCons $ There elemTail
 
--- Si un elemento no pertenece a una lista, no es igual al primer elemento de esta
+-- Si un elemento no pertenece a una lista, no es igual al primer elemento de ésta
 ifNotElemThenNotEqual : Not (Elem x (y :: ys)) -> Not (x = y)
 ifNotElemThenNotEqual notElemCons equal = notElemCons $ rewrite equal in Here
 
--- Sym para Not
-symNot : Not (x = y) -> Not (y = x)
-symNot notEqual Refl = notEqual Refl
 
+-- *** IsSet - Predicado de conjunto ***
 -- Predicado que indica que una lista es un conjunto, i.e no tiene elementos repetidos
 data IsSet : List t -> Type where
   IsSetNil : IsSet []
   IsSetCons : Not (Elem x xs) -> IsSet xs -> IsSet (x :: xs)
     
--- Dada una prueba que una lista no tiene repetidos, retorna la prueba que su primer elemento no pertenece al resto.    
+-- Dada una prueba que una lista no tiene repetidos, retorna la prueba de que su primer elemento no pertenece al resto    
 ifSetThenNotElemFirst : IsSet (x :: xs) -> Not (Elem x xs)
 ifSetThenNotElemFirst (IsSetCons notXIsInXs  _) = notXIsInXs
   
--- Dada una prueba que un cons de una lista es un set, retorna la prueba de que el tail es un set.
+-- Dada una prueba que un cons de una lista es un conjunto, retorna la prueba de que el tail es un conjunto
 ifSetThenRestIsSet : IsSet (x :: xs) -> IsSet xs
 ifSetThenRestIsSet (IsSetCons _ xsIsSet) = xsIsSet
 
--- Dada una prueba de que una lista no es un set, retorna una prueba que cualquier cons de tal lista no es un set
+-- Dada una prueba de que una lista no es un conjunto, retorna una prueba que cualquier cons de tal lista no es un conjunto
 ifNotSetHereThenNeitherThere : Not (IsSet xs) -> Not (IsSet (x :: xs))
 ifNotSetHereThenNeitherThere notXsIsSet (IsSetCons xIsInXs xsIsSet) = notXsIsSet xsIsSet  
   
--- Dada una prueba de que un valor pertenece a una lista, entonces este elemento agregado a la lista no es un set.  
+-- Dada una prueba de que un valor pertenece a una lista, entonces este elemento agregado a la lista no es un conjunto
 ifIsElemThenConsIsNotSet : Elem x xs -> Not (IsSet (x :: xs))      
 ifIsElemThenConsIsNotSet xIsInXs (IsSetCons notXIsInXs xsIsSet) = notXIsInXs xIsInXs
   
--- Funcion de decision que indica si una lista es un set o no
+-- Función de decisión que indica si una lista es un conjunto o no
 isSet : DecEq t => (xs : List t) -> Dec (IsSet xs)
 isSet [] = Yes IsSetNil
 isSet (x :: xs) with (isSet xs)
@@ -65,17 +73,18 @@ isSet (x :: xs) with (isSet xs)
     isSet (x :: xs) | Yes xsIsSet | Yes xInXs = No $ ifIsElemThenConsIsNotSet xInXs
    
    
--- ** Listas heterogeneas con labels **
+-- ** Listas heterogéneas con labels **
 
--- Vector de listas y tipos
+-- Vector de labels y tipos
 LabelList : Type -> Type
 LabelList lty = List (lty, Type)
 
+-- Lista heterogénea
 data HList : LabelList lty -> Type where
   Nil : HList []
   (::) : {lbl : lty} -> (val : t) -> HList ts -> HList ((lbl,t) :: ts)
  
--- Obtiene los labels de una lista de tal HList
+-- Obtiene los labels de una LabelList
 labelsOf : LabelList lty -> List lty
 labelsOf = map fst
 
@@ -83,7 +92,7 @@ labelsOf = map fst
 IsLabelSet : LabelList lty -> Type
 IsLabelSet ts = IsSet (labelsOf ts)  
 
--- Alternativa de "isSet", para listas de labels+tipos
+-- Alternativa de isSet, para listas de labels+tipos
 isLabelSet : DecEq lty => (ts : LabelList lty) -> Dec (IsLabelSet ts)
 isLabelSet ts = isSet (labelsOf ts)
 
@@ -97,15 +106,15 @@ isElemLabel lbl ts = isElem lbl (labelsOf ts)
 
 -- *** Records extensibles ***
 
+-- Record que contiene una lista heterogénea, y una prueba de que sus labels no son repetidos
 data Record : LabelList lty -> Type where
   MkRecord : IsLabelSet ts -> HList ts -> Record ts
        
--- Transforma un record en una lista heterogenea
--- Es "unlabeled" en HList de Haskell
+-- Transforma un record en una lista heterogenea ("unlabeled" en HList de Haskell)
 recToHList : Record ts -> HList ts
 recToHList (MkRecord _ hs) = hs
 
--- Dado un record retorna la prueba de que sus labels son un set
+-- Dado un record retorna la prueba de que sus labels son un conjunto
 recLblIsSet : Record ts -> IsLabelSet ts
 recLblIsSet (MkRecord lsIsSet _ ) = lsIsSet       
        
@@ -113,24 +122,24 @@ recLblIsSet (MkRecord lsIsSet _ ) = lsIsSet
 emptyRec : Record []
 emptyRec = MkRecord IsSetNil {ts=[]} [] 
         
--- Dado una lista heterogenea y una prueba de que sus labels son un set, crea un record        
--- Es "hListRecord" en HList de Haskell
+-- Dado una lista heterogénea y una prueba de que sus labels son un conjunto, crea un record ("hListRecord" en HList de Haskell)
 hListToRec : DecEq lty => {ts : LabelList lty} -> {prf : IsLabelSet ts} -> HList ts -> Record ts
 hListToRec {prf=prf} hs = MkRecord prf hs
 
--- Dado un record, un label y un valor, extiende el record con ese valor.   
--- Es "hExtend" en HList de Haskell   
+-- Dado un record, un label y un valor, extiende el record con ese valor ("hExtend" en HList de Haskell)
 consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} -> 
   (lbl : lty) -> (val : t)->  Record ts -> {notElem : Not (ElemLabel lbl ts)} -> Record ((lbl,t) :: ts)
 consRec lbl val (MkRecord subLabelSet hs) {notElem=notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
 
 
 -- Tipo que representa un tipo o top ("()") segun si se cumple una condicion o no
+-- Es utilizado para forzar la unificación de ese tipo si la condición se cumple, o unificar contra top y crear un error de compilación
+-- en caso de que no se cumpla la condición
 TypeOrUnit : Dec p -> Type -> Type
 TypeOrUnit (Yes prf) res = res
 TypeOrUnit (No _) _ = ()
 
--- Dada una condicion construye un tipo, o si falla la condicion retorna top ("()")
+-- Dada una condición construye un tipo, o si falla la condición retorna top ("()")
 mkTypeOrUnit : (d : Dec p) -> (cnst : p -> res) -> TypeOrUnit d res
 mkTypeOrUnit (Yes prf) cnst = cnst prf
 mkTypeOrUnit (No _) _ = ()
@@ -139,39 +148,37 @@ mkTypeOrUnit (No _) _ = ()
 RecordOrUnit : DecEq lty => LabelList lty -> Type
 RecordOrUnit ts = TypeOrUnit (isLabelSet ts) (Record ts)
  
--- Dada una prueba de que labels no son un conjunto, retorna ()
+-- Dada una prueba de que la lista de labels no son un conjunto, retorna ()
 mkRecordOrUnitFromUnit : DecEq lty => (ts : LabelList lty) -> Not (IsLabelSet ts) -> RecordOrUnit ts
 mkRecordOrUnitFromUnit ts notTsIsSet with (isLabelSet ts)
   mkRecordOrUnitFromUnit ts notTsIsSet | Yes tsIsSet = absurd $ notTsIsSet tsIsSet 
   mkRecordOrUnitFromUnit ts notTsIsSet | No _ = ()
 
--- Dada una prueba de que labels son un conjunto, y un record, retorna ese record  
+-- Dada una prueba de que la lista de labels son un conjunto, y dado un record, retorna ese record  
 mkRecordOrUnitFromRecord : DecEq lty => (ts : LabelList lty) -> Record ts -> IsLabelSet ts -> RecordOrUnit ts
 mkRecordOrUnitFromRecord ts rec tsIsSet with (isLabelSet ts)
   mkRecordOrUnitFromRecord ts rec tsIsSet | Yes _ = rec
   mkRecordOrUnitFromRecord ts rec tsIsSet | No notTsIsSet = absurd $ notTsIsSet tsIsSet
   
--- "consRec" donde la prueba de labels no repetidos es calculada automaticamente  
+-- "consRec" donde la prueba de labels no repetidos es calculada automáticamente  
 consRecAuto : DecEq lty => {ts : LabelList lty} -> {t : Type} -> (lbl : lty) -> (val : t) -> Record ts -> 
   RecordOrUnit ((lbl,t) :: ts)
 consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) with (isElemLabel lbl ts)
   consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) | Yes lblIsInTs = 
     let notIsSet = ifIsElemThenConsIsNotSet lblIsInTs
-    --in mkTypeOrUnit {ts=(lbl,t)::ts} (No $ notIsSet) (\isSet => absurd $ notIsSet isSet)
     in mkRecordOrUnitFromUnit ((lbl,t) :: ts) notIsSet
   consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) | No notLblIsInTs =
     let isSet = IsSetCons notLblIsInTs subLabelSet
-    --in mkTypeOrUnit {ts=(lbl,t)::ts} (Yes $ isSet) (\isSet2 => MkRecord isSet2 (val :: hs))
     in mkRecordOrUnitFromRecord ((lbl,t) :: ts) (MkRecord isSet (val :: hs)) isSet
   
--- "hListToRecAuto" donde la prueba de labels no repetidos es calculada automaticamente
+-- "hListToRecAuto" donde la prueba de labels no repetidos es calculada automáticamente
 hListToRecAuto : DecEq lty => (ts : LabelList lty) -> HList ts -> RecordOrUnit ts
 hListToRecAuto ts hs = mkTypeOrUnit (isLabelSet ts) (\tsIsSet => MkRecord tsIsSet hs) 
         
         
 -- *** hProjectByLabels ***                     
                                     
--- DeleteElemPred es el predicado que indica que una lista es el resultado de eliminar un elemento de otra lista
+-- Predicado que indica que una lista es el resultado de eliminar un elemento de otra lista
 data DeleteElemPred : (xs : List t) -> Elem x xs -> List t -> Type where
   DeleteElemPredHere : DeleteElemPred (x :: xs) Here xs
   DeleteElemPredThere : {isThere : Elem y xs} -> DeleteElemPred xs isThere ys -> DeleteElemPred (x :: xs) (There isThere) (x :: ys)
@@ -190,7 +197,7 @@ isDeleteElemPred_Lemma_4 : DecEq t => {xs, ys : List t} -> {isThere : Elem y xs}
   Not (DeleteElemPred (x :: xs) (There isThere) (x :: ys))
 isDeleteElemPred_Lemma_4 notSubDel (DeleteElemPredThere subDel) = notSubDel subDel
 
--- Funcion de decision de DeleteElemPred
+-- Función de decisión de DeleteElemPred
 isDeleteElemPred : DecEq t => (xs : List t) -> (isElem : Elem x xs) -> (res : List t) -> Dec (DeleteElemPred xs isElem res)
 isDeleteElemPred [] isElem res = absurd $ noEmptyElem isElem
 isDeleteElemPred (x::xs) Here res with (decEq xs res)
@@ -203,7 +210,7 @@ isDeleteElemPred (x1::xs) (There {x=x2} isThere) (y::ys) with (decEq x1 y)
     isDeleteElemPred (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | No notSubDel = No (isDeleteElemPred_Lemma_4 notSubDel)
   isDeleteElemPred (x1::xs) (There {x=x2} isThere) (y::ys) | No notX1EqY = No (isDeleteElemPred_Lemma_3 notX1EqY)
   
--- Funcion que computa una lista eliminando un elemento de ella.
+-- Función que computa una lista eliminando un elemento de ella
 deleteElem : (xs : List t) -> Elem x xs -> List t
 deleteElem (x :: xs) Here = xs
 deleteElem (x :: xs) (There inThere) =
@@ -217,14 +224,14 @@ fromDeleteElemPredToComp (DeleteElemPredThere isDelElem) =
   let subPrf = fromDeleteElemPredToComp isDelElem
   in rewrite subPrf in Refl
 
--- Dada la computacion de "deleteElem" de puede crear una prueba de "DeleteElemPred"
+-- Dada la computación de "deleteElem" de puede crear una prueba de "DeleteElemPred"
 fromCompToDeleteElemPred : (xs : List t) -> (isElem : Elem x xs) -> DeleteElemPred xs isElem (deleteElem xs isElem)
 fromCompToDeleteElemPred (x :: xs) Here = DeleteElemPredHere
 fromCompToDeleteElemPred (x :: xs) (There inThere) =
   let subPrf = fromCompToDeleteElemPred xs inThere
   in DeleteElemPredThere subPrf
       
--- Predicado que la proyeccion izquierda de un hProjectByLabels es efectivamente tal proyeccion    
+-- Predicado que indica que la proyección izquierda de un hProjectByLabels es efectivamente tal proyección    
 data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
   IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty=lty} [] ts []
   IPL_EmptyVect : DecEq lty => IsProjectLeft {lty=lty} ls [] []
@@ -233,7 +240,7 @@ data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty -> 
   IPL_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectLeft {lty=lty} ls ts res1 -> 
                        IsProjectLeft ls (t :: ts) res1
 
--- Predicado que la proyeccion derecha de un hProjectByLabels es efectivamente tal proyeccion    
+-- Predicado que indica que la proyección derecha de un hProjectByLabels es efectivamente tal proyección    
 data IsProjectRight : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
   IPR_EmptyLabels : DecEq lty => IsProjectRight {lty=lty} [] ts ts
   IPR_EmptyVect : DecEq lty => IsProjectRight {lty=lty} ls [] []
@@ -242,15 +249,15 @@ data IsProjectRight : DecEq lty => List lty -> LabelList lty -> LabelList lty ->
   IPR_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectRight {lty=lty} ls ts res1 -> 
                        IsProjectRight ls (t :: ts) (t :: res1)
   
--- Funcion que dada una prueba que un elemento pertenece a una lista, retorna la lista sin el elemento y una prueba de que 
--- fue eliminado
+-- Función que dada una prueba de que un elemento pertenece a una lista, retorna la lista sin el elemento y una prueba de que 
+-- éste fue eliminado
 deleteElemPred : {x : t} -> (xs : List t) -> (elem : Elem x xs) -> (res : List t ** DeleteElemPred xs elem res)
 deleteElemPred (x :: xs) Here = (xs ** DeleteElemPredHere)
 deleteElemPred (x :: xs) (There xinthere) =
   let (subDel ** subPrf) = deleteElemPred xs xinthere
   in (x :: subDel ** DeleteElemPredThere subPrf)
           
--- hProjectByLabels que tambien devuelve una prueba de que los vectores son actualmente proyecciones izq y der para un HList
+-- hProjectByLabels que también devuelve una prueba de que los vectores son actualmente proyecciones izquierda y derecha para un HList
 -- Este hProjectByLabels retorna ambas listas: La de proyecciones y la resultante      
 hProjectByLabelsHList : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> HList ts ->     
   ((ls1 : LabelList lty ** (HList ls1, IsProjectLeft ls ts ls1)),
@@ -285,20 +292,21 @@ hProjectByLabelsHList {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =
       in
         (rLeft, rRight)
     
--- Dada una prueba que un elemento no pertenece a un Cons de una lista, divide tal prueba en sus dos componentes
+-- Dada una prueba de que un elemento no pertenece a un cons de una lista, divide tal prueba en sus dos componentes
 notElem_Lemma1 : Not (Elem x (y :: xs)) -> (Not (Elem x xs), Not (x = y))
 notElem_Lemma1 notElemCons = (notElem_prf, notEq_prf)
   where
     notElem_prf isElem = notElemCons $ There isElem
     notEq_prf isEq = notElemCons $ rewrite isEq in Here
     
--- Dada una prueba que un elemento no pertenece a una lista, y no es igual a otro, se obtiene la prueba de que no pertenece al Cons
+-- Dada una prueba de que un elemento no pertenece a una lista, y no es igual a otro, se obtiene la prueba de que éste no pertenece al cons
 -- Es isomorfo al lemma anterior
 notElem_Lemma2 : Not (Elem x xs) -> Not (x = y) -> Not (Elem x (y :: xs))
 notElem_Lemma2 notElem notEq Here = notEq Refl
 notElem_Lemma2 notElem notEq (There isElem) = notElem isElem 
     
--- Prueba de que una proyeccion por la derecha, si un label no pertenece a la lista inicial, entonces tampoco pertenece al resultante    
+-- Prueba de que dada una proyección por la derecha, si un label no pertenece a la lista inicial, entonces éste tampoco pertenece al
+-- resultante    
 hProjectByLabelsRightIsSet_Lemma1 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} ->
   IsProjectRight ls ts1 ts2 -> Not (ElemLabel lbl ts1) -> Not (ElemLabel lbl ts2)
 hProjectByLabelsRightIsSet_Lemma1 IPR_EmptyLabels notElem = notElem
@@ -314,7 +322,7 @@ hProjectByLabelsRightIsSet_Lemma1 (IPR_ProjLabelNotElem subNotElem subPrjRight) 
     isNotElemRec = hProjectByLabelsRightIsSet_Lemma1 subPrjRight notElemSub
   in notElem_Lemma2 isNotElemRec notEq
 
--- Dada una proyeccion por la izquierda, si un label no pertenece a la lista inicial, tampoco pertenece al resultante      
+-- Dada una proyección por la izquierda, si un label no pertenece a la lista inicial, tampoco pertenece al resultante      
 hProjectByLabelsLeftIsSet_Lemma1 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} ->
   IsProjectLeft ls ts1 ts2 -> Not (ElemLabel lbl ts1) -> Not (ElemLabel lbl ts2)
 hProjectByLabelsLeftIsSet_Lemma1 IPL_EmptyLabels notElem = noEmptyElem
@@ -330,7 +338,7 @@ hProjectByLabelsLeftIsSet_Lemma1 (IPL_ProjLabelNotElem subNotElem subPrjLeft) no
     isNotElemRec = hProjectByLabelsLeftIsSet_Lemma1 subPrjLeft notElemSub
   in isNotElemRec
 
--- Dada una proyeccion por la derecha, si la lista inicial es un set, entonces la resultante tambien lo es
+-- Dada una proyección por la derecha, si la lista inicial es un conjunto, entonces la resultante tambien lo es
 hProjectByLabelsRightIsSet_Lemma2 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
   IsProjectRight ls ts1 ts2 -> IsLabelSet ts1 -> IsLabelSet ts2
 hProjectByLabelsRightIsSet_Lemma2 IPR_EmptyLabels isLabelSet = isLabelSet         
@@ -343,7 +351,7 @@ hProjectByLabelsRightIsSet_Lemma2 (IPR_ProjLabelNotElem notElem subPrjRight) (Is
       notElemPrf = hProjectByLabelsRightIsSet_Lemma1 subPrjRight notMember 
   in IsSetCons notElemPrf isLabelSetRec
 
--- Dada una proyeccion por la izquierda, si la lista inicial es un set, entonces la resultante tambien lo es    
+-- Dada una proyección por la izquierda, si la lista inicial es un conjunto, entonces la resultante tambien lo es    
 hProjectByLabelsLeftIsSet_Lemma2 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
   IsProjectLeft ls ts1 ts2 -> IsLabelSet ts1 -> IsLabelSet ts2
 hProjectByLabelsLeftIsSet_Lemma2 IPL_EmptyLabels isLabelSet = IsSetNil
@@ -368,14 +376,14 @@ hProjectByLabels ls rec lsIsSet =
     isLabelSetRes = hProjectByLabelsLeftIsSet_Lemma2 prjLeftRes isLabelSet
   in (lsRes ** (hListToRec {prf=isLabelSetRes} hsRes, prjLeftRes)) 
   
--- Definicion de hProjectByLabels que obtiene la prueba de "IsSet ls" de forma automatica
+-- Definición de hProjectByLabels que obtiene la prueba de "IsSet ls" de forma automática
 hProjectByLabelsAuto : DecEq lty => {ts1 : LabelList lty} -> (ls : List lty) -> Record ts1 ->  
    TypeOrUnit (isSet ls) ((ts2 : LabelList lty ** (Record ts2, IsProjectLeft ls ts1 ts2)))
 hProjectByLabelsAuto ls rec = mkTypeOrUnit (isSet ls) (\isSet => hProjectByLabels ls rec isSet)
    
 -- *-* hProjectByLabels con tipo computado *-*
 
--- Funcion que computa la proyeccion por izquierda de una labellist dada una lista de labels.
+-- Función que computa la proyeccion por izquierda de una LabelList dada una lista de labels
 projectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty
 projectLeft [] ts = []
 projectLeft ls [] = []
@@ -449,7 +457,7 @@ fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem
       resEq = fromIsProjectLeftToComp_Lemma_2 notIsElem {ls=ls} {ts=ts1} {l=l1} {ty=ty1}
   in rewrite subPrf in (rewrite resEq in Refl)
   
--- Dada la computacion de "projectLeft" se puede crear una prueba de "IsProjectLeft"
+-- Dada la computación de "projectLeft" se puede crear una prueba de "IsProjectLeft"
 fromCompToIsProjectLeft : DecEq lty => (ls : List lty) -> (ts : LabelList lty) -> IsProjectLeft ls ts (projectLeft ls ts) 
 fromCompToIsProjectLeft [] ts = IPL_EmptyLabels
 fromCompToIsProjectLeft (l1::ls) [] = IPL_EmptyVect
@@ -462,7 +470,7 @@ fromCompToIsProjectLeft (l1::ls) ((l2,ty) :: ts) with (isElem l2 (l1::ls))
     let subPrf = fromCompToIsProjectLeft (l1::ls) ts
     in IPL_ProjLabelNotElem notL2InLs subPrf
     
--- hProjectByLabels que retorna la computacion de la proyeccion en el tipo
+-- hProjectByLabels que retorna la computación de la proyección en el tipo
 hProjectByLabels_comp : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> IsSet ls -> Record (projectLeft ls ts)
 hProjectByLabels_comp {ts} ls rec lsIsSet =
   let 
@@ -474,7 +482,7 @@ hProjectByLabels_comp {ts} ls rec lsIsSet =
     recRes = hListToRec {prf=isLabelSetRes} hsRes
   in rewrite (sym resIsProjComp) in recRes
   
--- hProjectByLabels_comp que obtiene la prueba de "IsSet ls" de forma automatica
+-- hProjectByLabels_comp que obtiene la prueba de "IsSet ls" de forma automática
 hProjectByLabels_compAuto : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> TypeOrUnit (isSet ls) (Record (projectLeft ls ts))
 hProjectByLabels_compAuto {ts} ls rec = mkTypeOrUnit (isSet ls) (\lsIsSet => hProjectByLabels_comp {ts=ts} ls rec lsIsSet)
   
@@ -486,7 +494,7 @@ data DeleteLabelAtPred : DecEq lty => lty -> LabelList lty -> LabelList lty -> T
   IsElem : DecEq lty => {lbl : lty} -> DeleteLabelAtPred lbl ((lbl,ty) :: ts) ts
   IsNotElem : DecEq lty => {lbl : lty} -> Not (lbl = fst tup) -> DeleteLabelAtPred lbl ts1 ts2 -> DeleteLabelAtPred lbl (tup :: ts1) (tup :: ts2)
                               
--- Transformo una prueba de que se proyecto una lista con un solo elemento a una prueba de que se elimino tal elemento
+-- Transformo una prueba de que se proyectó una lista con un solo elemento a una prueba de que se elimino tal elemento
 fromIsProjectRightToDeleteLabelAtPred : DecEq lty => {ts1, ts2 : LabelList lty} -> {lbl : lty} -> IsProjectRight [lbl] ts1 ts2 -> 
   DeleteLabelAtPred lbl ts1 ts2
 fromIsProjectRightToDeleteLabelAtPred IPR_EmptyVect = EmptyRecord
@@ -526,7 +534,7 @@ hDeleteAtLabelIsLabelSet {l=l1} (IsNotElem {tup=(l2,ty)} notL1EqL2 delAtPred) (I
       notL2InTs2 = hDeleteAtLabelIsNotElem delAtPred notL2InTs1
   in IsSetCons notL2InTs2 isSetTs2
 
--- *-* Definicion de "hDeleteAtLabel" de hackage *-*
+-- *-* Definición de "hDeleteAtLabel" de hackage *-*
 hDeleteAtLabel : DecEq lty => {ts1 : LabelList lty} -> (l : lty) -> Record ts1 ->
   (ts2 : LabelList lty ** (Record ts2, DeleteLabelAtPred l ts1 ts2))
 hDeleteAtLabel l rec =
@@ -545,6 +553,7 @@ hDeleteAtLabel l rec =
 (++) [] hs2 = hs2
 (++) (h1 :: hs1) hs2 = h1 :: (hs1 ++ hs2)
 
+-- Si un elemento está en la lista de la izquierda, entonces también está en el append de esa con otra lista
 ifIsElemThenIsInAppendLeft : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
     ElemLabel l ts1 -> ElemLabel l (ts1 ++ ts2)
 ifIsElemThenIsInAppendLeft {ts1=((l,ty) :: ts1)} Here = Here
@@ -552,6 +561,7 @@ ifIsElemThenIsInAppendLeft {ts1=((l,ty) :: ts1)} {ts2=ts2} (There isThere) =
   let subPrf = ifIsElemThenIsInAppendLeft {ts2=ts2} isThere
   in (There subPrf)
 
+-- Si un elemento está en la lista de la derecha, entonces también está en el append de esa con otra lista
 ifIsElemThenIsInAppendRight : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   ElemLabel l ts2 -> ElemLabel l (ts1 ++ ts2)
 ifIsElemThenIsInAppendRight {ts1=[]} isElem = isElem
@@ -566,7 +576,7 @@ ifIsInOneThenIsInAppend : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} -
 ifIsInOneThenIsInAppend (Left isElem) = ifIsElemThenIsInAppendLeft isElem    
 ifIsInOneThenIsInAppend {ts1=ts1} {ts2=ts2} {l=l} (Right isElem) = ifIsElemThenIsInAppendRight isElem     
 
--- Si el elemento pertenece a un append, pertenece a alguna de ambas listas
+-- Si un elemento pertenece a un append, entonces pertenece a alguna de ambas listas
 ifIsInAppendThenIsInOne : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   ElemLabel l (ts1 ++ ts2) -> Either (ElemLabel l ts1) (ElemLabel l ts2)
 ifIsInAppendThenIsInOne {ts1=[]} isElem = (Right isElem)
@@ -576,7 +586,7 @@ ifIsInAppendThenIsInOne {l=l} {ts1=((l1,ty) :: ts1)} (There isThere) =
     Left isElem => Left $ There isElem
     Right isElem => Right isElem
     
--- Si un elemento no pertenece a un append, entonces no pertenece a ninguno
+-- Si un elemento no pertenece a un append, entonces no pertenece a ninguna de las listas concatenadas
 ifNotInAppendThenNotInNeither : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   Not (ElemLabel l (ts1 ++ ts2)) -> (Not (ElemLabel l ts1), Not (ElemLabel l ts2))
 ifNotInAppendThenNotInNeither {ts1=[]} {ts2=ts2} {l=l} notInAppend = (notInTs1, notInTs2)
@@ -599,7 +609,7 @@ ifNotInAppendThenNotInNeither {ts1=((l2,ty)::ts1)} {ts2=ts2} {l=l} notInAppend =
       let isInAppend = ifIsInOneThenIsInAppend {ts1=ts1} {ts2=ts2} (Right inTs2)
       in notInAppend (There isInAppend)
 
--- Si un label no esta en ningun lado, no esta en el append
+-- Si un label no está en ninguna lista concatenada, entonces no está en el append
 ifNotInEitherThenNotInAppend : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   Not (ElemLabel l ts1) -> Not (ElemLabel l ts2) -> Not (ElemLabel l (ts1 ++ ts2))
 ifNotInEitherThenNotInAppend {ts1=[]} notInTs1 notInTs2 inAppend = notInTs2 inAppend
@@ -608,7 +618,7 @@ ifNotInEitherThenNotInAppend {ts1=((l1,ty1) :: ts1)} notInTs1 notInTs2 (There in
   let notInAppend = ifNotInEitherThenNotInAppend (notElemInCons notInTs1) notInTs2
   in notInAppend inThere
 
--- Si dos labellist concatenados son un set, cada uno es un set
+-- Si dos LabelList concatenados son un conjunto, entonces cada uno es un conjunto por separado
 ifAppendIsSetThenEachIsToo : DecEq lty => {ts1, ts2 : LabelList lty} -> IsLabelSet (ts1 ++ ts2) -> (IsLabelSet ts1, IsLabelSet ts2)
 ifAppendIsSetThenEachIsToo {ts1=[]} isSet = (IsSetNil, isSet)
 ifAppendIsSetThenEachIsToo {ts1=((l,ty)::ts1)} (IsSetCons notInAppend isSetAppend) =
@@ -617,7 +627,7 @@ ifAppendIsSetThenEachIsToo {ts1=((l,ty)::ts1)} (IsSetCons notInAppend isSetAppen
     notInTs1 = fst $ ifNotInAppendThenNotInNeither notInAppend
   in (IsSetCons notInTs1 (fst $ subPrf), snd subPrf)
 
--- *-* Definicion de "hAppend" de hackage *-*
+-- *-* Definición de "hAppend" de hackage *-*
 hAppend : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> IsLabelSet (ts1 ++ ts2) -> Record (ts1 ++ ts2)
 hAppend rec1 rec2 isLabelSet =
   let
@@ -625,7 +635,7 @@ hAppend rec1 rec2 isLabelSet =
     hs2 = recToHList rec2
   in hListToRec {prf=isLabelSet} (hs1 ++ hs2)
     
--- "hAppendAuto" donde la prueba de labels no repetidos es calculada automaticamente
+-- "hAppendAuto" donde la prueba de labels no repetidos es calculada automáticamente
 hAppendAuto : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 -> RecordOrUnit (ts1 ++ ts2)
 hAppendAuto {ts1} {ts2} rec1 rec2 = mkTypeOrUnit (isLabelSet (ts1 ++ ts2)) (\isSet => hAppend rec1 rec2 isSet)
 
@@ -645,6 +655,7 @@ hDeleteLabelsHList (l::ls) hs1 =
       (ts4 ** (hs3, delAtPred)) = hDeleteAtLabelHList l hs2
   in (ts4 ** (hs3, DeleteFirstOfLabelList delAtPred delLabelPred))
 
+-- Si un LabelList es un conjunto, y se eliminan cualquier cantidad de labels de ésta, entonces el resultado sigue siendo un conjunto 
 hDeleteLabelsIsLabelSet : DecEq lty => {ts1, ts2 : LabelList lty} -> {ls : List lty} -> DeleteLabelsPred ls ts1 ts2 ->
   IsLabelSet ts1 -> IsLabelSet ts2
 hDeleteLabelsIsLabelSet EmptyLabelList isSetTs1 = isSetTs1
@@ -653,7 +664,7 @@ hDeleteLabelsIsLabelSet (DeleteFirstOfLabelList {tsAux=ts3} delAtLabel delLabels
       isSetTs2 = hDeleteAtLabelIsLabelSet delAtLabel isSetTs3
   in isSetTs2
   
--- *-* Definicion de "hDeleteLabels" de hackage *-*
+-- *-* Definición de "hDeleteLabels" de hackage *-*
 hDeleteLabels : DecEq lty => {ts1 : LabelList lty} -> (ls : List lty) -> Record ts1 ->
   (ts2 : LabelList lty ** (Record ts2, DeleteLabelsPred ls ts1 ts2))
 hDeleteLabels ls rec =
@@ -667,7 +678,7 @@ hDeleteLabels ls rec =
 
 -- *** hLeftUnion ***
 
--- Predicado que indica que la union por la izquierda de dos LabelList que son un set es equivalente a la tercera
+-- Predicado que indica que la unión por la izquierda de dos LabelList que son un conjunto es equivalente a la tercera
 data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty -> Type where
   IsLeftUnionAppend : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> 
     IsLeftUnion ts1 ts2 (ts1 ++ ts3)
@@ -740,6 +751,7 @@ ifDeleteLabelsThenAppendIsSetLemma_1 {ts1=ts1} {ts2=((l2,ty2) :: ts2)} {ts3=((l2
       notInTs3 = ifDeleteLabelsThenAppendIsSetLemma_1_3 delAt notInTs2
   in ifDeleteLabelsThenAppendIsSetLemma_1_4 subPrf notInTs1 notInTs3
 
+-- Si un LabelList es un conjunto, y se elimina un label de tal, entonces ese label no pertenece a la lista resultante
 ifDeleteLabelsThenAppendIsSetLemma_2 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   IsLabelSet ts1 -> DeleteLabelAtPred l ts1 ts2 -> Not (ElemLabel l ts2)
 ifDeleteLabelsThenAppendIsSetLemma_2 isSet1 EmptyRecord elemLabel = noEmptyElem elemLabel
@@ -749,7 +761,7 @@ ifDeleteLabelsThenAppendIsSetLemma_2 {l=l} (IsSetCons notElem isSet) (IsNotElem 
   let subPrf = ifDeleteLabelsThenAppendIsSetLemma_2 {l=l} isSet subDelAt 
   in subPrf isThere
 
--- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero es un labelset
+-- Lemma que indica que si se eliminan del 2ndo record los labels del 1ero, entonces agregar la resta al 1ero crea un conjunto
 ifDeleteLabelsThenAppendIsSetLemma : DecEq lty => {ts1, ts2, tsDel : LabelList lty} -> IsLabelSet ts1 -> IsLabelSet ts2 -> 
   DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsLabelSet (ts1 ++ tsDel)
 ifDeleteLabelsThenAppendIsSetLemma {ts1=[]} isSet1 isSet2 EmptyLabelList = isSet2
@@ -762,7 +774,7 @@ ifDeleteLabelsThenAppendIsSetLemma {ts1=((l1,ty1) :: ts1)} {tsDel=tsDel} (IsSetC
     isNotInAppend = ifNotInEitherThenNotInAppend notElem isNotInTsDel
   in IsSetCons isNotInAppend resIsSet
    
--- *-* Definicion de "hLeftUnion" de hackage *-*
+-- *-* Definición de "hLeftUnion" de hackage *-*
 hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 ->
    (tsRes : LabelList lty ** (Record tsRes, IsLeftUnion ts1 ts2 tsRes))
 hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 = 
@@ -776,24 +788,27 @@ hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 =
 
 -- *** hLookupByLabel ***
 
--- Predicado que indica que una lista de labels tiene un tipo en particular
+-- Predicado que indica que un label en una lista de labels tiene un tipo en particular
 data HasField : (l : lty) -> LabelList lty -> Type -> Type where
   HasFieldHere : HasField l ((l,ty) :: ts) ty
   HasFieldThere : HasField l1 ts ty1 -> HasField l1 ((l2,ty2) :: ts) ty1
   
+-- Prueba de que no existe label que tenga un tipo en una lista vacía de labels
 noEmptyHasField : Not (HasField l [] ty)  
 noEmptyHasField HasFieldHere impossible
 noEmptyHasField (HasFieldThere _) impossible
 
+-- Dado un HList, si se tiene una prueba de que el label tiene un tipo en la lista de sus labels, retorna el valor correspondiente
+-- en el HList
 hLookupByLabel_HList : DecEq lty => {ts : LabelList lty} -> (l : lty) -> HList ts -> HasField l ts ty -> ty
 hLookupByLabel_HList _ (val :: _) HasFieldHere = val
 hLookupByLabel_HList l (_ :: ts) (HasFieldThere hasFieldThere) = hLookupByLabel_HList l ts hasFieldThere
 
--- *-* Definicion de "hLookupByLabel" de hackage *-*
+-- *-* Definición de "hLookupByLabel" de hackage *-*
 hLookupByLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> HasField l ts ty -> ty
 hLookupByLabel {ts=ts} {ty=ty} l rec hasField = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
 
--- hLookupByLabel que obtiene la prueba de HasField de forma automatica
+-- hLookupByLabel que obtiene la prueba de HasField de forma automática
 hLookupByLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> {auto hasField : HasField l ts ty} -> ty
 hLookupByLabelAuto {ts=ts} {ty=ty} l rec {hasField=hasField} = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
 
@@ -803,7 +818,7 @@ hUpdateAtLabel_HList : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> H
 hUpdateAtLabel_HList l val1 (val2 :: hs) HasFieldHere = val1 :: hs
 hUpdateAtLabel_HList l val1 (val2 :: hs) (HasFieldThere hasFieldThere) = val2 :: (hUpdateAtLabel_HList l val1 hs hasFieldThere)
 
--- *-* Definicion de "hUpdateAtLabel" de hackage *-*
+-- *-* Definición de "hUpdateAtLabel" de hackage *-*
 hUpdateAtLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> HasField l ts ty -> Record ts
 hUpdateAtLabel {ts=ts} l val rec hasField =
   let
@@ -812,6 +827,6 @@ hUpdateAtLabel {ts=ts} l val rec hasField =
   in
     hListToRec {prf=isLabelSet} (hUpdateAtLabel_HList {ts=ts} l val hs hasField)
     
--- hUpdateAtLabel que obtiene la prueba de "HasField" de forma automatica    
+-- hUpdateAtLabel que obtiene la prueba de "HasField" de forma automática    
 hUpdateAtLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> {auto hasField : HasField l ts ty} -> Record ts
 hUpdateAtLabelAuto {ts=ts} l val rec {hasField=hasField} = hUpdateAtLabel {ts=ts} l val rec hasField

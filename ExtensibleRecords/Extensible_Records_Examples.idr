@@ -9,7 +9,7 @@ import Data.List
 
 %default total
 
--- Auxiliares
+-- Funciones que permiten forzar la unificación con tipo o su negación, según si se quiere forzar que una proposición se cumpla o no
 getYes : (d : Dec p) -> case d of { No _ => (); Yes _ => p}
 getYes (No _ ) = ()
 getYes (Yes prf) = prf
