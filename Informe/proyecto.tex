@@ -2,8 +2,6 @@
 % Informe final - Proyecto de Grado - UDELAR - FING
 % Gonzalo Waszczuk - 2016
 %
-% Licence:
-% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
 %
 % Attribution:
 % Tufte-Style Book LaTex Template - (http://www.latextemplates.com/template/tufte-style-book)
@@ -11,13 +9,16 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Se utiliza la clase de tufte-book
-\documentclass[nobib,a4paper,oneside]{tufte-book}
+\documentclass[a4paper,oneside]{tufte-book}
 
 % Se realizan imports y configuraciones en otro archivo %
 \usepackage{proyecto_style}
 
+% Necesario para que no se creen páginas en blanco luego de cada capítulo
+\let\cleardoublepage\clearpage
+
 %------------------------------
-% Meta-Information
+% Meta-Información
 %------------------------------
 
 \title{Informe Proyecto de Grado}
@@ -29,7 +30,8 @@
 %------------------------------
 
 \begin{document}
-% \frontmatter
+
+\frontmatter
 
 % Muestra el título
 \begin{titlepage}
@@ -51,14 +53,15 @@
 	{\large \date{2016-03-06}\par}
 \end{titlepage}
 
-% \maketitle
-
 % Genera la tabla de contenidos
 \tableofcontents
 
 %------------------------------
 % Introduccion
 %------------------------------
+
+\mainmatter
+
 \cleardoublepage
 \chapter{Introducción}
 Pendiente: Ingresar introduccion
@@ -67,11 +70,10 @@ Pendiente: Ingresar introduccion
 %------------------------------
 
 \input{Capitulo3}
-%\subfile{./Capitulo3}
 
 %------------------------------
 
-% \backmatter
+\backmatter
 
 %------------------------------
 % Bibliografia
