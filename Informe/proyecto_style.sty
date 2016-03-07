@@ -1,0 +1,68 @@
+\ProvidesPackage{proyecto_style}
+
+
+% Utiliza subfiles para poder compilar capitulos por separado
+\RequirePackage{subfiles}
+
+% *** Estilos de idris-tutorial ***
+\RequirePackage[l2tabu,orthodox]{nag}
+\RequirePackage{fixltx2e}
+\RequirePackage[iso,english]{isodate}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[spanish,es-lcroman]{babel}
+\RequirePackage[T1]{fontenc}
+\RequirePackage[protrusion=true, expansion=true]{microtype}
+\RequirePackage[strict=true]{csquotes}
+\RequirePackage{xspace} % Para imprimir espacios mejor
+\RequirePackage{float}
+
+\RequirePackage{mathpazo}
+% Package "helvet" tiene problemas de compilacion
+%\RequirePackage[scaled=0.95]{helvet}
+\RequirePackage{courier}
+
+\RequirePackage{hyperref}
+\RequirePackage[missing=0.9.17]{gitinfo}
+
+\RequirePackage{multicol}
+\RequirePackage{enumitem}
+
+\RequirePackage{fpmacros}
+\RequirePackage{idrislang}
+\RequirePackage{comment}
+
+% *** Otros imports distintos ***
+\RequirePackage{microtype} % Improves character and word spacing
+
+\RequirePackage{lipsum} % Inserts dummy text
+
+\RequirePackage{booktabs} % Better horizontal rules in tables
+
+\RequirePackage{graphicx} % Needed to insert images into the document
+\graphicspath{{graphics/}} % Sets the default location of pictures
+\setkeys{Gin}{width=\linewidth,totalheight=\textheight,keepaspectratio} % Improves figure scaling
+
+\RequirePackage{fancyvrb} % Allows customization of verbatim environments
+\fvset{fontsize=\normalsize} % The font size of all verbatim text can be changed here
+
+% Links coloridos
+\hypersetup{colorlinks}
+
+
+% *** Otras configs de idris-tutorial ***
+\renewcommand\familydefault{\sfdefault}
+
+\lstdefinestyle{default}{%
+  basicstyle=\ttfamily\small,
+}
+
+\lstdefinestyle{stdout}{%
+  xleftmargin=\parindent,
+  tabsize=2,
+  basicstyle=\ttfamily\footnotesize,
+  showstringspaces=false,
+  escapechar=^
+}
+
+% Necesario para incluir bibliografia en Tufte-Book
+\usepackage{natbib}

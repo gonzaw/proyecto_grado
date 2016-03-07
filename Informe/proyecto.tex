@@ -1,0 +1,85 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Informe final - Proyecto de Grado - UDELAR - FING
+% Gonzalo Waszczuk - 2016
+%
+% Licence:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+% Attribution:
+% Tufte-Style Book LaTex Template - (http://www.latextemplates.com/template/tufte-style-book)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Se utiliza la clase de tufte-book
+\documentclass[nobib,a4paper,oneside]{tufte-book}
+
+% Se realizan imports y configuraciones en otro archivo %
+\usepackage{proyecto_style}
+
+%------------------------------
+% Meta-Information
+%------------------------------
+
+\title{Informe Proyecto de Grado}
+
+\author{Gonzalo Waszczuk}
+
+%------------------------------
+% Inicio Informe
+%------------------------------
+
+\begin{document}
+% \frontmatter
+
+% Muestra el título
+\begin{titlepage}
+	\centering
+	{\scshape\LARGE Universidad de la República, Uruguay \par}
+	\vspace{1cm}
+	{\scshape\Large Proyecto de Grado\par}
+	\vspace{1.5cm}
+	{\huge\bfseries Desarrollo de DSLs en lenguajes con tipos dependientes\par}
+	\vspace{2cm}
+	{\Large\itshape Gonzalo Waszczuk\par}
+	\vfill
+	Supervisado por\par
+	Marcos \textsc{Viera}\par
+        Alberto \textsc{Pardo}
+	\vfill
+
+        %TODO: Utilizar fecha correcta cuando se termine
+	{\large \date{2016-03-06}\par}
+\end{titlepage}
+
+% \maketitle
+
+% Genera la tabla de contenidos
+\tableofcontents
+
+%------------------------------
+% Introduccion
+%------------------------------
+\cleardoublepage
+\chapter{Introducción}
+Pendiente: Ingresar introduccion
+%------------------------------
+% Capitulos
+%------------------------------
+
+\input{Capitulo3}
+%\subfile{./Capitulo3}
+
+%------------------------------
+
+% \backmatter
+
+%------------------------------
+% Bibliografia
+%------------------------------
+
+\bibliography{bibliography}
+\bibliographystyle{plainnat}
+
+%------------------------------
+
+\end{document}
