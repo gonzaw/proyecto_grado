@@ -9,13 +9,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Se utiliza la clase de tufte-book
-\documentclass[a4paper,oneside]{tufte-book}
+\documentclass[a4paper,oneside,openany]{tufte-book}
 
 % Se realizan imports y configuraciones en otro archivo %
 \usepackage{proyecto_style}
 
-% Necesario para que no se creen páginas en blanco luego de cada capítulo
-\let\cleardoublepage\clearpage
+% Estilo de bibliografía
+\bibliographystyle{abbrvnat}
 
 %------------------------------
 % Meta-Información
@@ -71,6 +71,8 @@ Pendiente: Ingresar introduccion
 
 \input{Capitulo3}
 
+\input{Capitulo4}
+
 %------------------------------
 
 \backmatter
@@ -80,7 +82,7 @@ Pendiente: Ingresar introduccion
 %------------------------------
 
 \bibliography{bibliography}
-\bibliographystyle{plainnat}
+
 
 %------------------------------
 

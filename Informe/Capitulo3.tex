@@ -2,26 +2,171 @@
 % Capitulo 3 - HList
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\chapter{Listas heterogéneas}
+\chapter{Listas Heterogéneas}
 \label{ch:1}
 
-\section{Pendiente: Seccion 1}
-\begin{fullwidth}
+\section{Introducción}
 
-% Test texto
-Este es el capitulo de HList de Idris \cite{Kiselyov:2004:STH:1017472.1017488}
-\end{fullwidth}
+El concepto de listas heterogéneas (o \textit{HList}) surge en oposición al tipo de listas más utilizado en la programación con lenguajes tipados: listas homogéneas. Las listas homogéneas son las más comunes de utilizar en estos lenguajes, ya que son listas que pueden contener elementos de un solo tipo.
+Estos tipos de listas existen en todos o casi todos los lenguajes de programación que aceptan tipos parametrizables o genéricos, sea Java, C\#, Haskell y otros. Ejemplos comunes son \texttt{List<int>} en Java, o \texttt{[String]} en Haskell.
 
-% Test codigo
+Las listas heterogéneas, sin embargo, permiten almacenar elementos de cualquier tipo arbitrario. Estos tipos pueden o no tener una relación entre ellos, aunque en general se llama 'listas heterogéneas' a la estructura de datos que no impone ninguna relación entre los tipos de sus elementos.
+En lenguajes dinámicamente tipados (como lenguajes basados en LISP) este tipo de listas es fácil de construir, ya que no hay una imposición por parte del typechecker sobre qué tipo de elementos se pueden insertar o pueden existir en esta lista. Sin embargo en lenguajes tipados este tipo de lista es más dificil de construir. Para determinados lenguajes no es posible incluir la mayor cantidad de información posible en tales listas para poder trabajar con sus elementos, ya que sus sistemas de tipos no lo permiten. Esto se debe a que tales listas pueden tener elementos con tipos arbitrarios, por lo tanto los sistemas de tipos de estos lenguajes necesitan una forma de manejar tal conjunto arbitrario de tipos.
+
+En sistemas de tipos más avanzados, es posible incluir la mayor cantidad posible de información de tales tipos arbitrarios en el mismo tipo de la lista heterogénea. 
+A continuación se describe la forma de crear listas heterogéneas en Haskell, y luego la forma de crearlas en Idris, utilizando el poder de tipos dependientes de este lenguaje para llevarlo a cabo.
+
+\section{HList en Haskell}
+
+Esta forma de crear listas heterogéneas es presentada en el paper \citet{Kiselyov:2004:STH:1017472.1017488}, e implementada en el paquete \textit{hlist}, encontrado en Hackage \cite{HListHackage}.
+
+En esta libería, HList se define de la siguiente forma:
+
 \begin{code}
-main  ::  IO ()
-main  =   print 2
+data family HList (l::[*])
+
+data instance HList '[] = HNil
+data instance HList (x ': xs) = x `HCons` HList xs
 \end{code}
 
-Aca hay mas texto que pruebo. Blablabal porque no se blabla. Lorem Ipsum blablablablablabal.aawdawdawijoaiwjoijosijaowidjoidvjoaij. adwoijaowijdozijodj.awd aowidjoaiwjdoia . adoiwjaodiawjdoiajwdaw
+Se utilizan \textit{data families} para poder crear una familia de tipos \texttt{HList}, utilizando la estructura recursiva de las listas, definiendo un caso cuando una lista está vacía y otro caso cuando se quiere agregar un elemento a su cabeza.
+Esta definición hace uso de una forma de tipos dependientes, al utilizar una lista de tipos como parámetro de \texttt{HList}. La estructura recursiva de \texttt{HList} garantiza que es posible construir elementos de este tipo a la misma vez que se van construyendo elementos de la lista de tipos que se encuentra parametrizada en \texttt{HList}.
+Sin embargo, la capacidad de Haskell para usar tipos dependientes no es del todo avanzada, por lo cual no es posible, por ejemplo, definir \texttt{HList} como un tipo común, y no como un \textit{data family}. Esto fuerza a uno a crear funciones sobre este tipo de listas utilizando otros medios, como \textit{type families} como se muestra aquí:
 
 \begin{code}
-data Test : Type -> Nat -> Type where
-    Test1 : Test Nat 1
-    Test2 : Test String 2
+type family HLength (x :: [k]) :: HNat
+type instance HLength '[] = HZero
+type instance HLength (x ': xs) = HSucc (HLength xs)
 \end{code}
+
+Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. Esto evite que uno tenga que recurrir a este tipo de construcciones para poder manejar listas heterogéneas. Una de las metas es poder programar utilizando listas heterogéneas con la misma facilidad que uno programa con listas homogéneas, lo cual no sucede en el caso de HList de Haskell.
+
+\section{HList en Idris}
+
+A diferencia de Haskell, el lenguaje de programación Idris maneja tipos dependientes completos. Esto significa que cualquier tipo puede estar parametrizado por un valor, y este tipo es un \textit{first-class citizen} que puede ser utilizado como cualquier otro tipo del lenguaje. Esto significa que para Idris no hay diferencia en el trato de un tipo simple como \texttt{String} y en el de un tipo complejo con tipos dependientes como \texttt{Vect 2 Nat} (que representa un vector de naturales de 2 elementos).
+
+La definición de HList utilizada en Idris es la siguiente:
+
+\begin{code}
+LabelList : Type -> Type
+LabelList lty = List (lty, Type)
+
+data HList : LabelList lty -> Type where
+  Nil : HList []
+  (::) : {lbl : lty} -> (val : t) -> HList ts -> HList ((lbl,t) :: ts)
+\end{code}
+
+Esta definición es utilizada para poder definir los records extensibles más adelante, por lo que no solo permite tener una lista de elementos de cualquier tipo, sino que también permite asociarle una etiqueta a cada uno de esos tipos.
+
+El tipo \texttt{LabelList} representa una lista de tipos, junto a una etiqueta para cada uno de esos tipos. Las etiquetas pueden ser de cualquier tipo, pero generalmente se utiliza \texttt{String} para poder nombrarlas mejor. Un ejemplo de tal lista sería \texttt{[("1", Nat),("2", String)] : LabelList String}.
+El tipo \texttt{HList} se define como una función de tipo que toma un LabelList y retorna un tipo. Es decir, es un tipo parametrizado por un tipo \texttt{lty} (este tipo está implícito en la definición anterior y puede ser cualquiera), y un valor del tipo \texttt{LabelList lty}. La definición del tipo se realiza enumerando sus constructores, el cual, al ser una lista, se corresponde a los constructores generales de éstas: un constructor para la lista vacía y uno para agregar un elemento a su cabeza.
+El constructor \texttt{Nil} simplemente identifica una lista heterogénea vacía. Al estar vacía no existen tipos que pertenezcan a ella, por lo cual la LabelList en su tipo es vacía también.
+El constructor \texttt{(::)} es un constructor infijo que representa a \texttt{Cons}. Este constructor toma una etiqueta, un valor y una HList, y agrega ese valor a la lista. A su vez, agrega el tipo de ese valor, junto a su etiqueta asociada, a la LabelList del tipo de HList.
+
+Esta definición de HList permite construir listas heterogéneas con relativa facilidad, como por ejemplo 
+
+\begin{code}
+23 :: "Hello World" :: [1,2,3] :
+HList [("Etiqueta1",Nat), ("Etiqueta2", String), ("Etiqueta3", [Nat]]
+\end{code}
+
+A su vez, a diferencia de Haskell, la posición de \textit{first-class citizens} de los tipos dependientes en Idris permite definir funciones con pattern matching sobre HList.
+
+\begin{code}
+hLength : HList ls -> Nat
+hLength Nil = 0
+hLength (x :: xs) = 1 + (hLength xs)
+\end{code}
+
+Aquí surge una diferencia muy importante con la implementación de HList de Haskell, ya que en Idris \texttt{hLength} puede ser utilizada como cualquier otra función, y en especial opera sobre \textit{valores}, mientras que en Haskell \texttt{HLength} solo puede ser utilizada como type family, y solo opera sobre \textit{tipos}.
+Esto permite que el uso de HList en Idris no sea distinto del uso de listas comunes (\texttt{List}), y por lo tanto puedan tener el mismo trato de ellas para los creadores de librerías y los usuarios de tales, disminuyendo la dificultad de su uso para resolver problemas.
+
+\section{Otras alternativas}
+
+El sistema de tipos de Idris permite definir tipos de muchas maneras, por lo cual en su momento se investigaron otras formas distintas de implementar HList.
+A continuación se describen tales formas, indicando por qué no se optó por ellas.
+
+
+\subsection{HVect}
+
+\begin{code}
+data HVect : Vect k Type -> Type where
+  Nil : HVect []
+  (::) : t -> HVect ts -> HVect (t::ts)
+\end{code}
+
+HVect es un tipo que viene incluido en el Prelude de Idris, y es la implementación más sencilla y estándar de listas heterogéneas en Idris. El enfoque que se decidió utilizar se basa mucho en esta definición, con algunas diferencias:
+\begin{itemize}[noitemsep]
+\item Se utiliza el tipo \texttt{List} en vez de \texttt{Vect}, ya que no es necesario mantener la información del largo de la lista/vector.
+\item En vez de que la lista de tipos solo tenga el tipo, se decidió que también contenga una etiqueta asociada a tal, para poder ser utilizado para definir records extensibles.
+\end{itemize}
+
+Un ejemplo de su uso es 
+
+\begin{code}
+["Hello",[1,2,3],42,(0,10)] : 
+HVect [String, List Nat, Nat, (Nat, Nat)]
+\end{code}
+
+\subsection{Dinámico}
+
+\begin{code}
+data HValue : Type where
+	HVal: {A : Type} -> (x : A) -> HValue
+
+HList : Type
+HList = List HValue 
+\end{code}
+
+Este tipo se asemeja al tipo \texttt{Dynamic} utilizado a veces en Haskell, o a \texttt{Object} en Java/C\#. Esta HList mantiene valores de tipos arbitrarios dentro de ella, pero no proporciona ninguna información de ellos en su tipo. Cada valor es simplemente reconocido como \texttt{HValue}, y no es posible conocer su tipo u operar con él de ninguna forma. Solo es posible insertar elementos, y manipularlos en la lista (eliminarlos, reordenarlos, etc).
+
+Este enfoque se asemeja al uso de \texttt{List<Object>} de Java/C\# que fue usado incluso antes de que estos lenguajes tuvieran tipos parametrizables, pero sin la funcionalidad de poder realizar \textit{down-casting} (castear un elemento de una superclase a una subclase).
+
+Un ejemplo de su uso es 
+
+\begin{code}
+[HVal (1,2), HVal "Hello", HVal 42] : HList
+\end{code}
+
+\subsection{Existenciales}
+
+\begin{code}
+data HList : Type where
+    Nil : HList
+    (::) : {A : Type} -> (x : A) -> HList -> HList
+\end{code}
+
+Este enfoque se asemeja al uso de \textit{tipos existenciales} utilizado en Haskell. Básicamente el tipo \texttt{HList} se define como un tipo simple sin parámetros, pero sus constructores permiten utilizar valores de cualquier tipo.
+Esta definición es muy similar a la que utiliza tipos dinámicos, y tiene las mismas desventajas. Luego de creada una HList de esta forma, no es posible obtener ninguna información de los tipos de los valores que contiene, por lo que es imposible poder trabajar con tales valores.
+
+Un ejemplo de su uso es
+
+\begin{code}
+[1,"2"] : HList
+\end{code}
+
+\subsection{Estructurado}
+
+\begin{code}
+using (x : Type, P : x -> Type)        
+    data HList : (P : x -> Type) ->  Type where
+        Nil : HList P
+        (::) : {head : x} -> P head -> HList P -> HList P 
+\end{code}
+
+Esta definición es un punto medio (en términos de poder) entre la definición utilizada en este trabajo (y HVect) y las demás definiciones descritas en las secciones anteriores.
+
+Esta HList es parametrizada sobre un constructor de tipos. Es decir, toma como parámetro una función que toma un tipo y construye otro tipo a partir de éste. Esta definición permite imponer una estructura en común a todos los elementos de la lista, forzando que cada uno de ellos haya sido construido con tal constructor de tipo, sin importar el tipo base utilizado.
+La desventaja es que no es posible conocer nada de los tipos de cada elemento sin ser por la estructura que se impone en su tipo. Otras listas heterogéneas como \texttt{HVect} no imponen ninguna restricción, por lo que son más poderosas.
+
+Algunos ejemplos son los siguientes:
+
+\begin{code}
+hListTuple : HList (\x => (x, x))
+hListTuple = (1,1) :: ("1","2") :: Nil
+
+hListExample : HList id
+hListExample = 1 :: "1" :: (1,2) :: Nil
+\end{code}
+
+Como se ve en el último ejemplo, se puede reconstruir la definición de HList simple utilizando \texttt{HList id}

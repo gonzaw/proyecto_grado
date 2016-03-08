@@ -27,3 +27,6 @@ Código relacionado al desarrollo del compilador correcto descrito por el paper 
 
 * **Compiler.idr:** Implementación original del paper, traducida a Idris.
 * **Compiler_UpdatePruebas.idr:** Implementación modificada, donde la prueba del teorema del paper está codificada, "silenciosamente", en los tipos de cada estructura.
+
+### Informe
+Archivos LaTeX y otros utilizados para la creación del informe final.
