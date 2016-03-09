@@ -124,12 +124,12 @@ emptyRec = MkRecord IsSetNil {ts=[]} []
         
 -- Dado una lista heterogénea y una prueba de que sus labels son un conjunto, crea un record ("hListRecord" en HList de Haskell)
 hListToRec : DecEq lty => {ts : LabelList lty} -> {prf : IsLabelSet ts} -> HList ts -> Record ts
-hListToRec {prf=prf} hs = MkRecord prf hs
+hListToRec {prf} hs = MkRecord prf hs
 
 -- Dado un record, un label y un valor, extiende el record con ese valor ("hExtend" en HList de Haskell)
 consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} -> 
   (lbl : lty) -> (val : t)->  Record ts -> {notElem : Not (ElemLabel lbl ts)} -> Record ((lbl,t) :: ts)
-consRec lbl val (MkRecord subLabelSet hs) {notElem=notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
+consRec lbl val (MkRecord subLabelSet hs) {notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
 
 
 -- Tipo que representa un tipo o top ("()") segun si se cumple una condicion o no
@@ -163,11 +163,11 @@ mkRecordOrUnitFromRecord ts rec tsIsSet with (isLabelSet ts)
 -- "consRec" donde la prueba de labels no repetidos es calculada automáticamente  
 consRecAuto : DecEq lty => {ts : LabelList lty} -> {t : Type} -> (lbl : lty) -> (val : t) -> Record ts -> 
   RecordOrUnit ((lbl,t) :: ts)
-consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) with (isElemLabel lbl ts)
-  consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) | Yes lblIsInTs = 
+consRecAuto {ts} {t} lbl val (MkRecord subLabelSet hs) with (isElemLabel lbl ts)
+  consRecAuto {ts} {t} lbl val (MkRecord subLabelSet hs) | Yes lblIsInTs = 
     let notIsSet = ifIsElemThenConsIsNotSet lblIsInTs
     in mkRecordOrUnitFromUnit ((lbl,t) :: ts) notIsSet
-  consRecAuto {ts=ts} {t=t} lbl val (MkRecord subLabelSet hs) | No notLblIsInTs =
+  consRecAuto {ts} {t} lbl val (MkRecord subLabelSet hs) | No notLblIsInTs =
     let isSet = IsSetCons notLblIsInTs subLabelSet
     in mkRecordOrUnitFromRecord ((lbl,t) :: ts) (MkRecord isSet (val :: hs)) isSet
   
@@ -200,15 +200,15 @@ isDeleteElemPred_Lemma_4 notSubDel (DeleteElemPredThere subDel) = notSubDel subD
 -- Función de decisión de DeleteElemPred
 isDeleteElemPred : DecEq t => (xs : List t) -> (isElem : Elem x xs) -> (res : List t) -> Dec (DeleteElemPred xs isElem res)
 isDeleteElemPred [] isElem res = absurd $ noEmptyElem isElem
-isDeleteElemPred (x::xs) Here res with (decEq xs res)
-  isDeleteElemPred (x::xs) Here xs | Yes Refl = Yes DeleteElemPredHere
-  isDeleteElemPred (x::xs) Here res | No notXsEqRes = No (isDeleteElemPred_Lemma_1 notXsEqRes)
-isDeleteElemPred (x1::xs) (There {x=x2} isThere) [] = No (isDeleteElemPred_Lemma_2 {isThere=isThere} {x=x1} {xs=xs} {y=x2})
-isDeleteElemPred (x1::xs) (There {x=x2} isThere) (y::ys) with (decEq x1 y)
-  isDeleteElemPred (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl with (isDeleteElemPred xs isThere ys)
-    isDeleteElemPred (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | Yes subDel = Yes (DeleteElemPredThere subDel)
-    isDeleteElemPred (x1::xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | No notSubDel = No (isDeleteElemPred_Lemma_4 notSubDel)
-  isDeleteElemPred (x1::xs) (There {x=x2} isThere) (y::ys) | No notX1EqY = No (isDeleteElemPred_Lemma_3 notX1EqY)
+isDeleteElemPred (x :: xs) Here res with (decEq xs res)
+  isDeleteElemPred (x :: xs) Here xs | Yes Refl = Yes DeleteElemPredHere
+  isDeleteElemPred (x :: xs) Here res | No notXsEqRes = No (isDeleteElemPred_Lemma_1 notXsEqRes)
+isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) [] = No (isDeleteElemPred_Lemma_2 {isThere=isThere} {x=x1} {xs=xs} {y=x2})
+isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (y::ys) with (decEq x1 y)
+  isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (x1::ys) | Yes Refl with (isDeleteElemPred xs isThere ys)
+    isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | Yes subDel = Yes (DeleteElemPredThere subDel)
+    isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | No notSubDel = No (isDeleteElemPred_Lemma_4 notSubDel)
+  isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (y::ys) | No notX1EqY = No (isDeleteElemPred_Lemma_3 notX1EqY)
   
 -- Función que computa una lista eliminando un elemento de ella
 deleteElem : (xs : List t) -> Elem x xs -> List t
@@ -268,7 +268,7 @@ hProjectByLabelsHList [] {ts=ts} hs =
 hProjectByLabelsHList _ [] =
                    (([] ** ([], IPL_EmptyVect)),
                    ([] ** ([], IPR_EmptyVect)))
-hProjectByLabelsHList {lty=lty} ls ((::) {lbl=l2} {t=t} {ts=ts2} val hs) =
+hProjectByLabelsHList {lty} ls ((::) {lbl=l2} {t} {ts=ts2} val hs) =
   case (isElem l2 ls) of
     Yes l2inls =>
       let
@@ -401,35 +401,35 @@ fromIsProjectLeftToComp_Lemma_1 {ls=(l::ls)} = Refl
 fromIsProjectLeftToComp_Lemma_2 : DecEq lty => {ls : List lty} -> {ts : LabelList lty} -> Not (Elem l ls) -> 
   projectLeft ls ts = projectLeft ls ((l, ty) :: ts)
 fromIsProjectLeftToComp_Lemma_2 {l} {ls=[]} {ts} lInLs = Refl
-fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2::ls)} {ts} notLInLs with (isElem l1 (l2 :: ls))
-  fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2::ls)} {ts} notLInLs | Yes lInLs = absurd $ notLInLs lInLs
-  fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2::ls)} {ts} notLInLs | No _  = Refl
+fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2 :: ls)} {ts} notLInLs with (isElem l1 (l2 :: ls))
+  fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2 :: ls)} {ts} notLInLs | Yes lInLs = absurd $ notLInLs lInLs
+  fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2 :: ls)} {ts} notLInLs | No _  = Refl
 
 fromIsProjectLeftToComp_Lemma_3_1 : DecEq lty => {ls : List lty} -> {elm1, elm2 : Elem l ls} -> IsSet ls -> 
   deleteElem ls elm1 = deleteElem ls elm2
 fromIsProjectLeftToComp_Lemma_3_1 {ls=[]} {elm1} {elm2} _ = absurd $ noEmptyElem elm1
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l::ls)} {elm1=Here} {elm2=Here} (IsSetCons notLInLs lsIsSet) = Refl
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l::ls)} {elm1=(There elm1)} {elm2=Here} (IsSetCons notLInLs lsIsSet) = absurd $ notLInLs elm1
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l::ls)} {elm1=Here} {elm2=(There elm2)} (IsSetCons notLInLs lsIsSet) = absurd $ notLInLs elm2
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l::ls)} {elm1=(There elm1)} {elm2=(There elm2)} (IsSetCons notLInLs lsIsSet) = 
+fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=Here} {elm2=Here} (IsSetCons notLInLs lsIsSet) = Refl
+fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=(There elm1)} {elm2=Here} (IsSetCons notLInLs lsIsSet) = absurd $ notLInLs elm1
+fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=Here} {elm2=(There elm2)} (IsSetCons notLInLs lsIsSet) = absurd $ notLInLs elm2
+fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=(There elm1)} {elm2=(There elm2)} (IsSetCons notLInLs lsIsSet) = 
   let subPrf = fromIsProjectLeftToComp_Lemma_3_1 {elm1=elm1} {elm2=elm2} lsIsSet
   in cong subPrf
 
 fromIsProjectLeftToComp_Lemma_3 : DecEq lty => {ls : List lty} -> {ts : LabelList lty} -> (lInLs : Elem l ls) -> IsSet ls ->
   projectLeft ls ((l, ty) :: ts) = (l, ty) :: (projectLeft (deleteElem ls lInLs) ts)
 fromIsProjectLeftToComp_Lemma_3 {ls=[]} {ts} lInLs _ = absurd $ noEmptyElem lInLs
-fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} lInLs lsIsSet with (isElem l1 (l2::ls))
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} lInLs lsIsSet | Yes lInLsAux =
-    let delElemEq = fromIsProjectLeftToComp_Lemma_3_1 {ls=(l2::ls)} {elm1=lInLs} {elm2=lInLsAux} lsIsSet
+fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2 :: ls)} {ts} lInLs lsIsSet with (isElem l1 (l2::ls))
+  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2 :: ls)} {ts} lInLs lsIsSet | Yes lInLsAux =
+    let delElemEq = fromIsProjectLeftToComp_Lemma_3_1 {ls=(l2 :: ls)} {elm1=lInLs} {elm2=lInLsAux} lsIsSet
     in rewrite delElemEq in Refl
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2::ls)} {ts} lInLs lsIsSet | No notLInLs = absurd $ notLInLs lInLs
+  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2 :: ls)} {ts} lInLs lsIsSet | No notLInLs = absurd $ notLInLs lInLs
 
 fromIsProjectLeftToComp_Lemma_4_1 : {elm : Elem l ls1} -> DeleteElemPred ls1 elm ls2 -> Not (Elem x ls1) -> Not (Elem x ls2)
 fromIsProjectLeftToComp_Lemma_4_1 DeleteElemPredHere notXInLs1 xInLs2 = notElemInCons notXInLs1 xInLs2
 fromIsProjectLeftToComp_Lemma_4_1 (DeleteElemPredThere delElemPred) notX1InLs1Cons Here = 
   let notX1EqX2 = ifNotElemThenNotEqual notX1InLs1Cons
   in notX1EqX2 Refl
-fromIsProjectLeftToComp_Lemma_4_1 {x=x1} {ls1=(x2::ls1)} {ls2=(x2::ls2)} (DeleteElemPredThere delElemPred) notX1InLs1Cons (There x1InLs2) =
+fromIsProjectLeftToComp_Lemma_4_1 {x=x1} {ls1=(x2 :: ls1)} {ls2=(x2 :: ls2)} (DeleteElemPredThere delElemPred) notX1InLs1Cons (There x1InLs2) =
   let notX1InLs1 = notElemInCons notX1InLs1Cons
       notX1EqX2 = ifNotElemThenNotEqual notX1InLs1Cons
       subPrf = fromIsProjectLeftToComp_Lemma_4_1 delElemPred notX1InLs1
@@ -446,13 +446,13 @@ fromIsProjectLeftToComp_Lemma_4 (DeleteElemPredThere delElemPred) (IsSetCons not
 fromIsProjectLeftToComp : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> IsProjectLeft ls ts1 ts2 -> IsSet ls -> ts2 = projectLeft ls ts1
 fromIsProjectLeftToComp IPL_EmptyLabels _ = Refl
 fromIsProjectLeftToComp {ls} {ts1=[]} {ts2=[]} IPL_EmptyVect _ = fromIsProjectLeftToComp_Lemma_1 {ls=ls}
-fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelElem l1InLs isDelElem isProjLeft) lsIsSet =
+fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelElem l1InLs isDelElem isProjLeft) lsIsSet =
   let lsNewIsSet = fromIsProjectLeftToComp_Lemma_4 isDelElem lsIsSet
       subPrf = fromIsProjectLeftToComp isProjLeft lsNewIsSet
       delElemEq = fromDeleteElemPredToComp isDelElem
       resEq = fromIsProjectLeftToComp_Lemma_3 {ls=ls} {ts=ts1} {l=l1} {ty=ty1} l1InLs lsIsSet
   in rewrite subPrf in (rewrite delElemEq in sym resEq)
-fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem isProjLeft) lsIsSet =
+fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelNotElem notIsElem isProjLeft) lsIsSet =
   let subPrf = fromIsProjectLeftToComp isProjLeft lsIsSet
       resEq = fromIsProjectLeftToComp_Lemma_2 notIsElem {ls=ls} {ts=ts1} {l=l1} {ty=ty1}
   in rewrite subPrf in (rewrite resEq in Refl)
@@ -460,14 +460,14 @@ fromIsProjectLeftToComp {ls} {ts1=(l1,ty1)::ts1} (IPL_ProjLabelNotElem notIsElem
 -- Dada la computación de "projectLeft" se puede crear una prueba de "IsProjectLeft"
 fromCompToIsProjectLeft : DecEq lty => (ls : List lty) -> (ts : LabelList lty) -> IsProjectLeft ls ts (projectLeft ls ts) 
 fromCompToIsProjectLeft [] ts = IPL_EmptyLabels
-fromCompToIsProjectLeft (l1::ls) [] = IPL_EmptyVect
-fromCompToIsProjectLeft (l1::ls) ((l2,ty) :: ts) with (isElem l2 (l1::ls))
-  fromCompToIsProjectLeft (l1::ls) ((l2,ty) :: ts) | Yes l2InLs = 
-    let delElemPred = fromCompToDeleteElemPred (l1::ls) l2InLs        
-        subPrf = fromCompToIsProjectLeft (deleteElem (l1::ls) l2InLs) ts
+fromCompToIsProjectLeft (l1 :: ls) [] = IPL_EmptyVect
+fromCompToIsProjectLeft (l1 :: ls) ((l2,ty) :: ts) with (isElem l2 (l1::ls))
+  fromCompToIsProjectLeft (l1 :: ls) ((l2,ty) :: ts) | Yes l2InLs = 
+    let delElemPred = fromCompToDeleteElemPred (l1 :: ls) l2InLs        
+        subPrf = fromCompToIsProjectLeft (deleteElem (l1 :: ls) l2InLs) ts
     in IPL_ProjLabelElem l2InLs delElemPred subPrf
-  fromCompToIsProjectLeft (l1::ls) ((l2,ty) :: ts) | No notL2InLs = 
-    let subPrf = fromCompToIsProjectLeft (l1::ls) ts
+  fromCompToIsProjectLeft (l1 :: ls) ((l2,ty) :: ts) | No notL2InLs = 
+    let subPrf = fromCompToIsProjectLeft (l1 :: ls) ts
     in IPL_ProjLabelNotElem notL2InLs subPrf
     
 -- hProjectByLabels que retorna la computación de la proyección en el tipo
@@ -557,7 +557,7 @@ hDeleteAtLabel l rec =
 ifIsElemThenIsInAppendLeft : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
     ElemLabel l ts1 -> ElemLabel l (ts1 ++ ts2)
 ifIsElemThenIsInAppendLeft {ts1=((l,ty) :: ts1)} Here = Here
-ifIsElemThenIsInAppendLeft {ts1=((l,ty) :: ts1)} {ts2=ts2} (There isThere) = 
+ifIsElemThenIsInAppendLeft {ts1=((l,ty) :: ts1)} {ts2} (There isThere) = 
   let subPrf = ifIsElemThenIsInAppendLeft {ts2=ts2} isThere
   in (There subPrf)
 
@@ -566,7 +566,7 @@ ifIsElemThenIsInAppendRight : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lt
   ElemLabel l ts2 -> ElemLabel l (ts1 ++ ts2)
 ifIsElemThenIsInAppendRight {ts1=[]} isElem = isElem
 ifIsElemThenIsInAppendRight {ts1=((l1,ty1) :: ts1)} {ts2=[]} isElem = absurd $ noEmptyElem isElem
-ifIsElemThenIsInAppendRight {l=l} {ts1=((l1,ty1) :: ts1)} {ts2=((l2,ty2) :: ts2)} isElem = 
+ifIsElemThenIsInAppendRight {l} {ts1=((l1,ty1) :: ts1)} {ts2=((l2,ty2) :: ts2)} isElem = 
   let subPrf = ifIsElemThenIsInAppendRight {ts1=ts1} {ts2=((l2,ty2)::ts2)} {l=l} isElem
   in There subPrf
 
@@ -574,14 +574,14 @@ ifIsElemThenIsInAppendRight {l=l} {ts1=((l1,ty1) :: ts1)} {ts2=((l2,ty2) :: ts2)
 ifIsInOneThenIsInAppend : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   Either (ElemLabel l ts1) (ElemLabel l ts2) -> ElemLabel l (ts1 ++ ts2)
 ifIsInOneThenIsInAppend (Left isElem) = ifIsElemThenIsInAppendLeft isElem    
-ifIsInOneThenIsInAppend {ts1=ts1} {ts2=ts2} {l=l} (Right isElem) = ifIsElemThenIsInAppendRight isElem     
+ifIsInOneThenIsInAppend {ts1} {ts2} {l} (Right isElem) = ifIsElemThenIsInAppendRight isElem     
 
 -- Si un elemento pertenece a un append, entonces pertenece a alguna de ambas listas
 ifIsInAppendThenIsInOne : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   ElemLabel l (ts1 ++ ts2) -> Either (ElemLabel l ts1) (ElemLabel l ts2)
 ifIsInAppendThenIsInOne {ts1=[]} isElem = (Right isElem)
 ifIsInAppendThenIsInOne {ts1=((l1,ty1) :: ts1)} Here = (Left Here)
-ifIsInAppendThenIsInOne {l=l} {ts1=((l1,ty) :: ts1)} (There isThere) =
+ifIsInAppendThenIsInOne {l} {ts1=((l1,ty) :: ts1)} (There isThere) =
   case (ifIsInAppendThenIsInOne isThere) of
     Left isElem => Left $ There isElem
     Right isElem => Right isElem
@@ -589,14 +589,14 @@ ifIsInAppendThenIsInOne {l=l} {ts1=((l1,ty) :: ts1)} (There isThere) =
 -- Si un elemento no pertenece a un append, entonces no pertenece a ninguna de las listas concatenadas
 ifNotInAppendThenNotInNeither : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} ->
   Not (ElemLabel l (ts1 ++ ts2)) -> (Not (ElemLabel l ts1), Not (ElemLabel l ts2))
-ifNotInAppendThenNotInNeither {ts1=[]} {ts2=ts2} {l=l} notInAppend = (notInTs1, notInTs2)
+ifNotInAppendThenNotInNeither {ts1=[]} {ts2=ts2} {l} notInAppend = (notInTs1, notInTs2)
    where
     notInTs1 : Not (ElemLabel l [])
     notInTs1 inTs1 = noEmptyElem inTs1
     
     notInTs2 : Not (ElemLabel l ts2)
     notInTs2 inTs2 = notInAppend inTs2
-ifNotInAppendThenNotInNeither {ts1=((l2,ty)::ts1)} {ts2=ts2} {l=l} notInAppend = (notInTs1, notInTs2)
+ifNotInAppendThenNotInNeither {ts1=((l2,ty) :: ts1)} {ts2} {l} notInAppend = (notInTs1, notInTs2)
   where    
     notInTs1 : Not (ElemLabel l ((l2,ty)::ts1))
     notInTs1 Here impossible
@@ -621,7 +621,7 @@ ifNotInEitherThenNotInAppend {ts1=((l1,ty1) :: ts1)} notInTs1 notInTs2 (There in
 -- Si dos LabelList concatenados son un conjunto, entonces cada uno es un conjunto por separado
 ifAppendIsSetThenEachIsToo : DecEq lty => {ts1, ts2 : LabelList lty} -> IsLabelSet (ts1 ++ ts2) -> (IsLabelSet ts1, IsLabelSet ts2)
 ifAppendIsSetThenEachIsToo {ts1=[]} isSet = (IsSetNil, isSet)
-ifAppendIsSetThenEachIsToo {ts1=((l,ty)::ts1)} (IsSetCons notInAppend isSetAppend) =
+ifAppendIsSetThenEachIsToo {ts1=((l,ty) :: ts1)} (IsSetCons notInAppend isSetAppend) =
   let 
     subPrf = ifAppendIsSetThenEachIsToo isSetAppend
     notInTs1 = fst $ ifNotInAppendThenNotInNeither notInAppend
@@ -650,7 +650,7 @@ data DeleteLabelsPred : DecEq lty => List lty -> LabelList lty -> LabelList lty 
 hDeleteLabelsHList : DecEq lty => {ts1 : LabelList lty} -> (ls : List lty) -> HList ts1 ->
   (ts2 : LabelList lty ** (HList ts2, DeleteLabelsPred ls ts1 ts2))
 hDeleteLabelsHList {ts1} [] hs = (ts1 ** (hs, EmptyLabelList))
-hDeleteLabelsHList (l::ls) hs1 = 
+hDeleteLabelsHList (l :: ls) hs1 = 
   let (ts3 ** (hs2, delLabelPred)) = hDeleteLabelsHList ls hs1
       (ts4 ** (hs3, delAtPred)) = hDeleteAtLabelHList l hs2
   in (ts4 ** (hs3, DeleteFirstOfLabelList delAtPred delLabelPred))
@@ -696,15 +696,15 @@ ifDeleteLabelsThenAppendIsSetLemma_1_1 {ts1=((l,ty) :: ts1)} (IsSetCons notElem 
 
 ifDeleteLabelsThenAppendIsSetLemma_1_2_1 : DecEq lty => {l1, l2 : lty} -> {ts1, ts2 : LabelList lty} -> 
   Not (ElemLabel l1 (ts1 ++ ((l2, ty2) :: ts2))) -> Not (ElemLabel l2 ts1) -> Not (Elem l2 (l1 :: labelsOf (ts1)))
-ifDeleteLabelsThenAppendIsSetLemma_1_2_1 {ts1=ts1} {ts2=ts2} {l1=l1} {l2=l1} {ty2=ty2} notElemCons notL2InTs1 Here =
-  let inCons = ifIsInOneThenIsInAppend {l=l1} {ts1=ts1} {ts2=(l1,ty2)::ts2} (Right Here)
+ifDeleteLabelsThenAppendIsSetLemma_1_2_1 {ts1} {ts2} {l1} {l2=l1} {ty2} notElemCons notL2InTs1 Here =
+  let inCons = ifIsInOneThenIsInAppend {l=l1} {ts1} {ts2=(l1,ty2) :: ts2} (Right Here)
   in notElemCons inCons
 ifDeleteLabelsThenAppendIsSetLemma_1_2_1 notElemCons notL2InTs1 (There isThere) = notL2InTs1 isThere
 
 ifDeleteLabelsThenAppendIsSetLemma_1_2 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} -> {ty : Type} ->
   IsLabelSet (ts1 ++ ((l,ty) :: ts2)) -> (Not (ElemLabel l ts1), Not (ElemLabel l ts2))  
-ifDeleteLabelsThenAppendIsSetLemma_1_2 {ts1=[]} {l=l} {ty=ty} {ts2=ts2} (IsSetCons notElem subIsSet) = (noEmptyElem, notElem)
-ifDeleteLabelsThenAppendIsSetLemma_1_2 {ts1=(l1,ty1) :: ts1} {l=l2} {ty=ty2} {ts2=ts2} (IsSetCons notElem subIsSet) = 
+ifDeleteLabelsThenAppendIsSetLemma_1_2 {ts1=[]} {l} {ty} {ts2} (IsSetCons notElem subIsSet) = (noEmptyElem, notElem)
+ifDeleteLabelsThenAppendIsSetLemma_1_2 {ts1=(l1,ty1) :: ts1} {l=l2} {ty=ty2} {ts2} (IsSetCons notElem subIsSet) = 
   let (notInTs1, notInTs2) = ifDeleteLabelsThenAppendIsSetLemma_1_2 subIsSet
   in (ifDeleteLabelsThenAppendIsSetLemma_1_2_1 notElem notInTs1, notInTs2)
 
@@ -713,7 +713,7 @@ ifDeleteLabelsThenAppendIsSetLemma_1_3 : DecEq lty => {ts1, ts2 : LabelList lty}
 ifDeleteLabelsThenAppendIsSetLemma_1_3 EmptyRecord notInTs1 inTs2 = notInTs1 inTs2
 ifDeleteLabelsThenAppendIsSetLemma_1_3 IsElem notInTs1 inTs2 = notInTs1 $ There inTs2
 ifDeleteLabelsThenAppendIsSetLemma_1_3 (IsNotElem notEqual subDelAt) notInTs1 Here = notInTs1 Here
-ifDeleteLabelsThenAppendIsSetLemma_1_3 {l1=l1} {l2=l2} {ts1=((l3,ty3) :: ts1)} {ts2=((l3,ty3) :: ts2)} (IsNotElem notEqual subDelAt) notInTs1 (There inTs2) =
+ifDeleteLabelsThenAppendIsSetLemma_1_3 {l1} {l2} {ts1=((l3,ty3) :: ts1)} {ts2=((l3,ty3) :: ts2)} (IsNotElem notEqual subDelAt) notInTs1 (There inTs2) =
   let subPrf = ifDeleteLabelsThenAppendIsSetLemma_1_3 {l1=l1} {ts1=ts1} {ts2=ts2} subDelAt (notElemInCons notInTs1)
   in subPrf inTs2
 
@@ -721,15 +721,15 @@ ifDeleteLabelsThenAppendIsSetLemma_1_4_1 : DecEq lty => {ts1, ts2 : LabelList lt
   Not (l1 = l2) -> Not (ElemLabel l1 (ts1 ++ ts2)) -> Not (ElemLabel l1 (ts1 ++ ((l2,ty2) :: ts2)))
 ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {ts1=[]} notEqual notInAppend Here = notEqual Refl
 ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {ts1=[]} notEqual notInAppend (There isThere) = notInAppend isThere
-ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1=l1} {l2=l2} {ts1=(l1,ty3)::ts1} notEqual notInAppend Here = notInAppend Here
-ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1=l1} {l2=l2} {ts1=(l3,ty3)::ts1} {ts2=ts2} {ty2=ty2} notEqual notInAppend (There isThere) = 
+ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1} {l2} {ts1=(l1,ty3) :: ts1} notEqual notInAppend Here = notInAppend Here
+ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1} {l2} {ts1=(l3,ty3) :: ts1} {ts2=ts2} {ty2=ty2} notEqual notInAppend (There isThere) = 
   let subPrf = ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l1=l1} {l2=l2} {ts1=ts1} {ts2=ts2} {ty2=ty2} notEqual (notElemInCons notInAppend)
   in subPrf isThere
 
 ifDeleteLabelsThenAppendIsSetLemma_1_4 : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} -> {ty : Type} ->
   IsLabelSet (ts1 ++ ts2) -> Not (ElemLabel l ts1) -> Not (ElemLabel l ts2) -> IsLabelSet (ts1 ++ ((l,ty) :: ts2))
 ifDeleteLabelsThenAppendIsSetLemma_1_4 {ts1=[]} isSet notInTs1 notInTs2 = IsSetCons notInTs2 isSet
-ifDeleteLabelsThenAppendIsSetLemma_1_4 {l=l2} {ty=ty2} {ts1=(l1,ty1) :: ts1} {ts2=ts2} (IsSetCons notElem isSet) notInTs1 notInTs2 = 
+ifDeleteLabelsThenAppendIsSetLemma_1_4 {l=l2} {ty=ty2} {ts1=(l1,ty1) :: ts1} {ts2} (IsSetCons notElem isSet) notInTs1 notInTs2 = 
   let subPrf = ifDeleteLabelsThenAppendIsSetLemma_1_4 {l=l2} {ty=ty2} isSet (notElemInCons notInTs1) notInTs2
       notEqual = symNot $ ifNotElemThenNotEqual notInTs1
       notElemCons = ifDeleteLabelsThenAppendIsSetLemma_1_4_1 {l2=l2} {ty2=ty2} {l1=l1} {ts1=ts1} {ts2=ts2} notEqual notElem
@@ -739,7 +739,7 @@ ifDeleteLabelsThenAppendIsSetLemma_1 : DecEq lty => {ts1, ts2, ts3 : LabelList l
   IsLabelSet (ts1 ++ ts2) -> IsLabelSet (ts1 ++ ts3)
 ifDeleteLabelsThenAppendIsSetLemma_1 EmptyRecord isSet = isSet
 ifDeleteLabelsThenAppendIsSetLemma_1 {ts1=[]} IsElem (IsSetCons notElem isSet) = isSet
-ifDeleteLabelsThenAppendIsSetLemma_1 {l=l} {ts1=((l1,ty1) :: ts1)} {ts3=ts3} IsElem (IsSetCons notElem isSet) =
+ifDeleteLabelsThenAppendIsSetLemma_1 {l} {ts1=((l1,ty1) :: ts1)} {ts3} IsElem (IsSetCons notElem isSet) =
   let (notInTs1, notInTs3Cons) = ifNotInAppendThenNotInNeither notElem
       notInTs3 = notElemInCons notInTs3Cons
       notInAppend = ifNotInEitherThenNotInAppend notInTs1 notInTs3
@@ -765,7 +765,7 @@ ifDeleteLabelsThenAppendIsSetLemma_2 {l=l} (IsSetCons notElem isSet) (IsNotElem 
 ifDeleteLabelsThenAppendIsSetLemma : DecEq lty => {ts1, ts2, tsDel : LabelList lty} -> IsLabelSet ts1 -> IsLabelSet ts2 -> 
   DeleteLabelsPred (labelsOf ts1) ts2 tsDel -> IsLabelSet (ts1 ++ tsDel)
 ifDeleteLabelsThenAppendIsSetLemma {ts1=[]} isSet1 isSet2 EmptyLabelList = isSet2
-ifDeleteLabelsThenAppendIsSetLemma {ts1=((l1,ty1) :: ts1)} {tsDel=tsDel} (IsSetCons notElem subIsSet1) isSet2 (DeleteFirstOfLabelList {tsAux=ts3} subDelAt subDel) =
+ifDeleteLabelsThenAppendIsSetLemma {ts1=((l1,ty1) :: ts1)} {tsDel} (IsSetCons notElem subIsSet1) isSet2 (DeleteFirstOfLabelList {tsAux=ts3} subDelAt subDel) =
   let
     subPrf = ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} subIsSet1 isSet2 subDel
     resIsSet = ifDeleteLabelsThenAppendIsSetLemma_1 {ts1=ts1} {ts2=ts3} {ts3=tsDel} subDelAt subPrf
@@ -777,7 +777,7 @@ ifDeleteLabelsThenAppendIsSetLemma {ts1=((l1,ty1) :: ts1)} {tsDel=tsDel} (IsSetC
 -- *-* Definición de "hLeftUnion" de hackage *-*
 hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 ->
    (tsRes : LabelList lty ** (Record tsRes, IsLeftUnion ts1 ts2 tsRes))
-hLeftUnion {ts1=ts1} {ts2=ts2} rec1 rec2 = 
+hLeftUnion {ts1} {ts2} rec1 rec2 = 
   let
     isSet1 = recLblIsSet rec1
     isSet2 = recLblIsSet rec2
@@ -806,11 +806,11 @@ hLookupByLabel_HList l (_ :: ts) (HasFieldThere hasFieldThere) = hLookupByLabel_
 
 -- *-* Definición de "hLookupByLabel" de hackage *-*
 hLookupByLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> HasField l ts ty -> ty
-hLookupByLabel {ts=ts} {ty=ty} l rec hasField = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
+hLookupByLabel {ts} {ty} l rec hasField = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
 
 -- hLookupByLabel que obtiene la prueba de HasField de forma automática
 hLookupByLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> {auto hasField : HasField l ts ty} -> ty
-hLookupByLabelAuto {ts=ts} {ty=ty} l rec {hasField=hasField} = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
+hLookupByLabelAuto {ts} {ty} l rec {hasField} = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
 
 -- *** hUpdateAtLabel ***
 
@@ -820,7 +820,7 @@ hUpdateAtLabel_HList l val1 (val2 :: hs) (HasFieldThere hasFieldThere) = val2 ::
 
 -- *-* Definición de "hUpdateAtLabel" de hackage *-*
 hUpdateAtLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> HasField l ts ty -> Record ts
-hUpdateAtLabel {ts=ts} l val rec hasField =
+hUpdateAtLabel {ts} l val rec hasField =
   let
     isLabelSet = recLblIsSet rec
     hs = recToHList rec
@@ -829,4 +829,4 @@ hUpdateAtLabel {ts=ts} l val rec hasField =
     
 -- hUpdateAtLabel que obtiene la prueba de "HasField" de forma automática    
 hUpdateAtLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> {auto hasField : HasField l ts ty} -> Record ts
-hUpdateAtLabelAuto {ts=ts} l val rec {hasField=hasField} = hUpdateAtLabel {ts=ts} l val rec hasField
+hUpdateAtLabelAuto {ts} l val rec {hasField} = hUpdateAtLabel {ts=ts} l val rec hasField

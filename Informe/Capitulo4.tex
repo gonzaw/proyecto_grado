@@ -7,4 +7,119 @@
 
 \section{Introducción}
 
-PENDIENTE
+Para analizar la capacidad para definir DSLs de un lenguaje con tipos dependientes como Idris se decidió investigar la implementación de records extensibles en Idris.
+
+La necesidad de tener records extensibles ocurre de un problema que tienen otros lenguajes estáticos en relación a records: ¿Cómo puedo modificar la estructura de un record ya definido?
+
+En varios lenguajes de programación con un sistema de tipos estáticos, es posible definir una estructura estática llamada 'record'. Un record permite agrupar varios valores en un único conjunto, asociando una etiqueta o nombre a cada uno de esos valores.
+Un ejemplo de un record en Haskell sería el siguiente
+
+\begin{code}
+data Persona = Persona { edad :: Int, nombre :: String}
+\end{code}
+
+Una desventaja que tienen los records es que una vez definidos, no es posible modificar su estructura de forma dinámica. Tomando el ejemplo anterior, si uno quisiera tener un nuevo record con los mismos campos de \texttt{Persona} pero con un nuevo campo adicional, como \texttt{apellido}, entonces uno solo podría definirlo de una de estas dos formas:
+\begin{itemize}[noitemsep]
+\item Definir un nuevo record con esos 3 campos
+\item Crear un nuevo record que contenga el campo \texttt{apellido} y contenga un campo de tipo \texttt{Persona}
+\end{itemize}
+
+En ninguno de ambos enfoques es posible obtener el nuevo record de manera dinámica. Es decir, siempre es necesario definir un nuevo record de manera estática, indicando su tipo, su nombre, etc.
+
+Los records extensibles intentan resolver ese problema. Si \texttt{Persona} fuera un record extensible, entonces definir un nuevo record idéntico a él, pero con un campo adicional, sería tan fácil como tomar un record de \texttt{Persona} existente, y simplemente agregarle el nuevo campo \texttt{apellido} con su valor correspondiente. El tipo del nuevo record debería reflejar el hecho de que es una copia de \texttt{Persona} pero con el campo adicional utilizado. Uno debería poder, por ejemplo, acceder al campo \texttt{apellido} del nuevo record como uno lo haría con cualquier otro record arbitrario.
+
+Poder implementar records extensibles en un lenguaje no es trivial, y en algunos casos implica incluir esta funcionalidad a nivel de lenguaje, agregando construcciones específicas al lenguaje que permitan definir este tipo de records, como es en el caso de Elm \cite{ElmRecords} y otros lenguajes.
+En este trabajo se va a mostrar cómo poder definir records extensibles utilizando las construcciones y funcionalidades que Idris ya tiene, y poder definirlas como una librería, haciendo uso de tipos dependientes.
+
+\section{Records Extensibles en Idris}
+
+Un record necesita ser una estructura de datos que permita tener una cantidad arbitraria de valores. Como se indicó anteriormente, también  es necesario que estos valores tengan una etiqueta o nombre asociado para poder referenciarlos fuera del record. También es necesario conocer el tipo de tal valor, tal que cuando se referencie tal valor (utilizando su etiqueta), es posible conocer su tipo para saber cómo operar sobre él.
+El tipo \texttt{HList} definido en el capítulo anterior cumple con todas estas características. Al ser una lista heterogénea, HList permite agrupar una cantidad arbitraria de valores con tipos distintos, el cual es el requerimiento principal de un record. A su vez, cada tipo tiene asociado una etiqueta, por lo que uno puede referenciar la posición en la lista que ocupa un valor (y por lo tanto obtener el valor mismo), y su tipo, solo referenciando su etiqueta.
+Por lo tanto una lista heterogénea, con la definición de \texttt{HList}, es un candidato para poder representar records extensibles en Idris.
+
+Sin embargo surgen dos problemas. Primero, las etiquetas no pueden ser cualquier tipo arbitrario (como lo son en \texttt{HList}), sino que éstas deben tener un tipo que permita compararlas. Para poder referenciar las etiquetas fuera del record, es necesario poder comparar con igualdad cada etiqueta del record con la que se intenta referenciar, para poder saber cuál valor se quiere obtener o manipular. Segundo, para poder referenciar un valor dada su etiqueta, es necesario que tal etiqueta sea única en el record. De forma contraria, cada vez que se intenta acceder a un valor se introduce ambigüedad, al no saber cuál de las etiquetas idénticas utilizar.
+
+El primer problema tiene dos potenciales soluciones. Una de ellas es forzar a que el tipo de etiquetas sea \texttt{String}. \texttt{String} es un tipo que es posible comparar con igualdad, y a su vez es el tipo estándar para definir etiquetas y nombres.
+Sin embargo, aquí se decidió utilizar un enfoque más general. Se decidió utilizar un tipo genérico \texttt{lty} como etiqueta, pero con la restricción de que pertenezca a la typeclass \texttt{DecEq lty}. Esta typeclass se caracteriza por definir la siguiente operación
+
+\begin{code}
+decEq : (x1 : t) -> (x2 : t) -> Dec (x1 = x2)
+\end{code}
+
+Esta operación permite verificar la igualdad de dos valores de tal tipo.
+El tipo resultante \texttt{Dec (x1 = x2)} indica que es posible encontrar una prueba de que x1 es idéntico a x2, o es posible encontrar una prueba de que no son idénticos (llamado tipo de \textit{decisión}). Al aplicar la restricción \texttt{DecEq lty} es posible realizar chequeos de igualdad (a nivel de tipos) de las etiquetas.
+
+Para resolver el segundo problema es necesario poder afirmar que la lista de etiquetas de un record es efectivamente un conjunto, es decir que no tiene repetidos.
+En Idris es posible codificar esta propiedad en un tipo de datos:
+
+\begin{code}
+data IsSet : List t -> Type where
+  IsSetNil : IsSet []
+  IsSetCons : Not (Elem x xs) -> IsSet xs -> IsSet (x :: xs)
+\end{code}
+
+La correspondencia de Curry-Howard nos permite asegurar que un tipo se corresponde a un teorema o proposición lógica, y valores que instancian ese tipo se corresponden a pruebas de ese teorema.
+Para el caso de conjuntos, se puede ver a la propiedad de no tener elementos repetidos como un predicado sobre una lista de tales elementos, donde \texttt{IsSet ls} indica que la lista \texttt{ls} no tiene elementos repetidos.
+
+Las pruebas de este predicado se construyen de forma constructiva. Primero se prueba que la lista vacía no contiene repetidos, y luego para el caso recursivo si se agrega un elemento a una lista, la lista resultante no va a tener repetidos solamente si el elemento a agregar no se encuentra en la lista original.
+
+Como para el caso de records extensibles se manejan listas de pares de etiquetas y tipos, se definen los siguientes tipos y funciones útiles para manejarlos:
+
+\begin{code}
+labelsOf : LabelList lty -> List lty
+labelsOf = map fst
+
+IsLabelSet : LabelList lty -> Type
+IsLabelSet ts = IsSet (labelsOf ts)  
+\end{code}
+
+El predicado \texttt{IsLabelSet ls} indica que para la lista de etiquetas y tipos \texttt{ls} no existen etiquetas repetidas.
+
+% NOTA: Si se agregan los 2 tildes no compila LaTeX
+Obtener una definicion de record extensible es simplemente necesitar una lista heterogenea etiquetada, y una prueba de que las etiquetas no son repetidas.
+
+\begin{code}
+data Record : LabelList lty -> Type where
+    MkRecord : IsLabelSet ts -> HList ts -> Record ts
+\end{code}
+
+\section{Funcionalidades de records}
+
+Dada esta definición de records es posible definir varias funcionalidades de éstos.
+
+Como caso inicial es posible definir un record vacío
+
+\begin{code}
+emptyRec : Record []
+emptyRec = MkRecord IsSetNil {ts=[]} [] 
+\end{code}
+
+A su vez se pueden crear funciones que proyectan sobre los campos del constructor del record. En particular, se puede convertir un record a un HList, y dado un record se puede obtener la prueba de que sus etiquetas forman un conjunto.
+
+\begin{code}
+recToHList : Record ts -> HList ts
+recToHList (MkRecord _ hs) = hs
+
+recLblIsSet : Record ts -> IsLabelSet ts
+recLblIsSet (MkRecord lsIsSet _ ) = lsIsSet  
+\end{code}
+
+Sin embargo, la funcionalidad más importante es la de poder extender tal record con un nuevo campo. Esta funcionalidad puede definirse de esta forma
+
+\begin{code}
+consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} ->
+    (lbl : lty) -> (val : t) ->  Record ts -> 
+    {notElem : Not (ElemLabel lbl ts)} -> Record ((lbl,t) :: ts)
+consRec lbl val (MkRecord subLabelSet hs) {notElem} = 
+    MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
+\end{code}
+
+Antes que nada se necesita que el tipo de etiquetas admita igualdad, utilizando la restricción \texttt{DecEq lty}. Luego, se necesita un record ya existente \texttt{Record ts}, el nuevo valor \texttt{val} y la etiqueta del nuevo campo \texttt{lbl}. A su vez es necesaria una prueba de que la etiqueta nueva no esté repetida en las etiquetas ya existentes del record, representado por el tipo \texttt{Not (ElemLabel lbl ts)}. Si se cumplen estas condiciones entonces es posible crear un nuevo record con el nuevo campo, el cual es reflejado en el tipo \texttt{Record ((lbl,t) :: ts)}, donde se agrega el par con la nueva etiqueta y el tipo del valor a la lista de tipos y etiquetas original.
+
+PENDIENTE: hLookupByLabel
+
+PENDIENTE: hProjectByLabels
+
+PENDIENTE: Truco de TypeOrUnit
+
+PENDIENTE: Diferencia de hProjectByLabels con 'projectLeft' y 'IsProjectLeft'

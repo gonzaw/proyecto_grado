@@ -67,8 +67,10 @@ Esta definición de HList permite construir listas heterogéneas con relativa fa
 
 \begin{code}
 23 :: "Hello World" :: [1,2,3] :
-HList [("Etiqueta1",Nat), ("Etiqueta2", String), ("Etiqueta3", [Nat]]
+    HList [("Etiqueta1",Nat), ("Etiqueta2", String), ("Etiqueta3", [Nat]]
 \end{code}
+
+Otra de las ventajas de esta definición es el hecho de que los tipos de los elementos de la lista están presentes en el tipo mismo. Esto permite que uno pueda siempre recuperar uno de estos tipos si uno quiere utilizarlo luego.
 
 A su vez, a diferencia de Haskell, la posición de \textit{first-class citizens} de los tipos dependientes en Idris permite definir funciones con pattern matching sobre HList.
 
@@ -105,14 +107,14 @@ Un ejemplo de su uso es
 
 \begin{code}
 ["Hello",[1,2,3],42,(0,10)] : 
-HVect [String, List Nat, Nat, (Nat, Nat)]
+    HVect [String, List Nat, Nat, (Nat, Nat)]
 \end{code}
 
 \subsection{Dinámico}
 
 \begin{code}
 data HValue : Type where
-	HVal: {A : Type} -> (x : A) -> HValue
+    HVal: {A : Type} -> (x : A) -> HValue
 
 HList : Type
 HList = List HValue 
