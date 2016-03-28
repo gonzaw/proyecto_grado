@@ -9,13 +9,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Se utiliza la clase de tufte-book
-\documentclass[a4paper,oneside,openany]{tufte-book}
+\documentclass[a4paper,oneside,openany]{book}
 
 % Se realizan imports y configuraciones en otro archivo %
 \usepackage{proyecto_style}
-
-% Estilo de bibliografía
-\bibliographystyle{abbrvnat}
 
 %------------------------------
 % Meta-Información
@@ -53,6 +50,11 @@
 	{\large \date{2016-03-06}\par}
 \end{titlepage}
 
+% Resumen
+\chapter*{Resumen}
+
+Pendiente: Resumen
+
 % Genera la tabla de contenidos
 \tableofcontents
 
@@ -63,8 +65,11 @@
 \mainmatter
 
 \cleardoublepage
+
 \chapter{Introducción}
+
 Pendiente: Ingresar introduccion
+
 %------------------------------
 % Capitulos
 %------------------------------
@@ -72,6 +77,10 @@ Pendiente: Ingresar introduccion
 \input{Capitulo3}
 
 \input{Capitulo4}
+
+% TODO: Caso de estudio
+
+% TODO: Conclusiones + Trabajo a Futuro
 
 %------------------------------
 
@@ -81,8 +90,7 @@ Pendiente: Ingresar introduccion
 % Bibliografia
 %------------------------------
 
-\bibliography{bibliography}
-
+\printbibliography
 
 %------------------------------
 
