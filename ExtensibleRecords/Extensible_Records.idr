@@ -714,8 +714,8 @@ data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty 
 hLeftUnion_List : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty
 hLeftUnion_List ts1 ts2 = ts1 ++ (deleteLabels (labelsOf ts1) ts2)
 
-fromHLeftUnionFuncToPred : DecEq lty => (ts1 : LabelList lty) -> (ts2 : LabelList lty) -> IsLeftUnion ts1 ts2 (hLeftUnion_List ts1 ts2)    
-fromHLeftUnionFuncToPred ts1 ts2 = 
+fromHLeftUnionFuncToPred : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> IsLeftUnion ts1 ts2 (hLeftUnion_List ts1 ts2)    
+fromHLeftUnionFuncToPred {ts1} {ts2} = 
   let delLabelsPred = fromDeleteLabelsFuncToPred {ls=labelsOf ts1} {ts=ts2}
   in IsLeftUnionAppend delLabelsPred
   

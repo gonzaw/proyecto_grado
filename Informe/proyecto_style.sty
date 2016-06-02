@@ -4,9 +4,9 @@
 \RequirePackage[l2tabu,orthodox]{nag}
 \RequirePackage{fixltx2e}
 \RequirePackage[iso,english]{isodate}
+\RequirePackage[T1]{fontenc}
 \RequirePackage[utf8]{inputenc}
 \RequirePackage[spanish,es-lcroman]{babel}
-\RequirePackage[T1]{fontenc}
 \RequirePackage[protrusion=true, expansion=true]{microtype}
 \RequirePackage[strict=true]{csquotes}
 \RequirePackage{xspace} % Para imprimir espacios mejor
@@ -45,7 +45,7 @@
 \hypersetup{colorlinks}
 
 % Interfaz simple de enumeración en listas
-\usepackage{enumitem}
+\RequirePackage{enumitem}
 
 % *** Otras configs de idris-tutorial ***
 \renewcommand\familydefault{\sfdefault}
@@ -63,5 +63,8 @@
 }
 
 % Package con utilidades de bibliografía
-\usepackage[backend=bibtex]{biblatex}
+\RequirePackage[backend=bibtex]{biblatex}
 \addbibresource{bibliography.bib} 
+
+% Necesario para poder compilar la bibliografía
+\lccode`~=0
