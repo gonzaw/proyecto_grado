@@ -1,0 +1,193 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Records Extensibles - Estado del arte
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Estado del arte}
+\label{ch:2}
+
+
+\section{Records Extensibles como parte del lenguaje}
+
+Algunos lenguaje de programación funcionales permiten el manejo de records extensibles como funcionalidad del lenguaje.
+
+Uno de ellos es \textit{Elm}. Uno de los ejemplos que se muestra en su documentación (\cite{ElmRecords}) es el siguiente:
+
+\begin{code}
+type alias Positioned a =
+  { a | x : Float, y : Float }
+
+type alias Named a =
+  { a | name : String }
+
+type alias Moving a =
+  { a | velocity : Float, angle : Float }
+
+lady : Named { age:Int }
+lady =
+  { name = "Lois Lane"
+  , age = 31
+  }
+
+dude : Named (Moving (Positioned {}))
+dude =
+  { x = 0
+  , y = 0
+  , name = "Clark Kent"
+  , velocity = 42
+  , angle = degrees 30
+  }
+\end{code}
+
+Elm permite definir tipos que equivalen a records, pero agregándole campos adicionales, como es el caso de los tipos descritos arriba. Este tipo de record extensible hace uso de \textit{row polymorphism}. Básicamente, al definir un record, éste se hace polimórfico sobre el resto de los campos. Es decir, se puede definir un record que traiga como mínimo unos determinados campos, pero el resto de éstos puede variar. En el ejemplo de arriba, el record \texttt{lady} es definido extendiendo \texttt{Named} con otro campo adicional, sin necesidad de definir un tipo nuevo. 
+
+Una desventaja es que por el poco uso de records extensibles en la versión 0.16 se decidió eliminar la funcionalidad de agregar y eliminar campos a records de forma dinámica \cite{ElmReducedRecordSyntax}.
+
+Otro lenguaje con esta particularidad es \textit{Purescript}. A continuación se muestra uno de los ejemplos de su documentación (\cite{PurescriptRecords}):
+
+\begin{code}
+fullname :: forall t. { firstName :: String, 
+  lastName :: String | t } -> String 
+fullName person = person.firstName ++ " " ++ person.lastName
+\end{code}
+
+Purescript permite definir records con determinados campos, y luego definir funciones que solo actúan sobre los campos necesarios. Utiliza \textit{row polymorphism} al igual que Elm.
+
+Ambos lenguajes basan su implementación de records extensibles, aunque sea parcialmente, en el paper \cite{Leijen:scopedlabels}.
+
+También existen otras propuestas de sistemas de tipos con soporte para records extensibles. Algunas de ellas son \cite{Leijen:fclabels}, \cite{Jeltsch:2010:GRC:1836089.1836108}, y \cite{Gaster96apolymorphic}.
+
+Todas estas propuestas tienen en común la necesidad de extender el lenguaje para poder soportar records extensibles. Esto tiene el problema de que los records extensibles no tienen el soporte \textit{first-class} de otros tipos del lenguaje. Esta falta de soporte limita la expresividad de tales records, ya que cualquier manipulación de ellos debe ser proporcionada por el lenguaje, cuando podrían ser proporcionadas por librerías de usuario.
+
+Para poder definir records extensibles con la propiedad de \textit{first-class citizens}, generalmente se utilizan listas heterogéneas para hacerlo.
+
+\section{Listas heterogéneas}
+
+El concepto de listas heterogéneas (o \textit{HList}) surge en oposición al tipo de listas más utilizado en la programación con lenguajes tipados: listas homogéneas. Las listas homogéneas son las más comunes de utilizar en estos lenguajes, ya que son listas que pueden contener elementos de un solo tipo.
+Estos tipos de listas existen en todos o casi todos los lenguajes de programación que aceptan tipos parametrizables o genéricos, sea Java, C\#, Haskell y otros. Ejemplos comunes son \texttt{List<int>} en Java, o \texttt{[String]} en Haskell.
+
+Las listas heterogéneas, sin embargo, permiten almacenar elementos de cualquier tipo arbitrario. Estos tipos pueden o no tener una relación entre ellos, aunque en general se llama 'listas heterogénea' a la estructura de datos que no impone ninguna relación entre los tipos de sus elementos.
+
+En lenguajes dinámicamente tipados (como lenguajes basados en LISP) este tipo de listas es fácil de construir, ya que no hay una imposición por parte del typechecker sobre qué tipo de elementos se pueden insertar o pueden existir en esta lista. El siguiente es un ejemplo de lista heterogénea en un lenguaje LISP como Clojure o Scheme.
+
+\begin{code}
+'(1 0.2 "Text")
+\end{code}
+
+Sin embargo, en lenguajes tipados este tipo de lista es más dificil de construir. Para determinados lenguajes no es posible incluir la mayor cantidad de información posible en tales listas para poder trabajar con sus elementos, ya que sus sistemas de tipos no lo permiten. Esto se debe a que tales listas pueden tener elementos con tipos arbitrarios, por lo tanto los sistemas de tipos de estos lenguajes necesitan una forma de manejar tal conjunto arbitrario de tipos.
+
+En sistemas de tipos más avanzados, es posible incluir la mayor cantidad posible de información de tales tipos arbitrarios en el mismo tipo de la lista heterogénea. 
+A continuación se describe la forma de crear listas heterogéneas en Haskell, y luego la forma de crearlas en Idris, utilizando el poder de tipos dependientes de este lenguaje para llevarlo a cabo.
+
+\subsection{HList en Haskell}
+
+Para definir listas heterogéneas en Haskell nos basaremos en la propuesta presentada en \cite{Kiselyov:2004:STH:1017472.1017488}, e implementada en el paquete \textit{hlist}, encontrado en Hackage \cite{HListHackage}. 
+
+Esta librería define HList de la siguiente forma:
+
+\begin{code}
+data family HList (l::[*])
+
+data instance HList '[] = HNil
+data instance HList (x ': xs) = x `HCons` HList xs
+\end{code}
+
+Se utilizan \textit{data families} para poder crear una familia de tipos \texttt{HList}, utilizando la estructura recursiva de las listas, definiendo un caso cuando una lista está vacía y otro caso cuando se quiere agregar un elemento a su cabeza.
+Esta definición representa una secuencia de tipos separados por \texttt{HCons} y terminados por \texttt{HNil}. 
+Esto permite, por ejemplo, construir el siguiente valor
+
+\begin{code}
+10 `HCons` ('Text' `HCons` HNil) :: HList '[Int, String]
+\end{code}
+
+Esta definición hace uso de una forma de tipos dependientes, al utilizar una lista de tipos como parámetro de \texttt{HList}. La estructura recursiva de \texttt{HList} garantiza que es posible construir elementos de este tipo a la misma vez que se van construyendo elementos de la lista de tipos que se encuentra parametrizada en \texttt{HList}.
+
+Para poder definir funciones sobre este tipo de listas, es necesario utilizar \textit{type families}, como muestra el siguiente ejemplo
+
+\begin{code}
+type family HLength (x :: [k]) :: HNat
+type instance HLength '[] = HZero
+type instance HLength (x ': xs) = HSucc (HLength xs)
+\end{code}
+
+\subsection{HList en Idris}
+
+Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. Esto evita que uno tenga que recurrir a este tipo de construcciones para poder manejar listas heterogéneas. Una de las metas es poder programar utilizando listas heterogéneas con la misma facilidad que uno programa con listas homogéneas.
+Esto último no ocurre en el caso de HList en Haskell, ya que el tipo de HList es definido con data families, y funciones sobre HList son definidas con type families. Esta definición se contrasta con las listas homogéneas, cuyo tipo se define como un tipo común, y funciones sobre tales se definen como funciones normales también.
+
+A diferencia de Haskell, el lenguaje de programación Idris maneja tipos dependientes completos. Esto significa que cualquier tipo puede estar parametrizado por un valor, y este tipo es un \textit{first-class citizen} que puede ser utilizado como cualquier otro tipo del lenguaje. Esto significa que para Idris no hay diferencia en el trato de un tipo simple como \texttt{String} y en el de un tipo complejo con tipos dependientes como \texttt{Vect 2 Nat}.
+
+La definición de HList utilizada en Idris es la siguiente:
+
+\begin{code}
+data HList : List Type -> Type where
+  Nil : HList []
+  (::) : t -> HList ts -> HList (t :: ts)
+\end{code}
+
+El tipo \texttt{HList} se define como una función de tipo que toma una lista de tipos y retorna un tipo. Éste se construye definiendo una lista vacía que no tiene tipos, o definiendo un operador de \textit{cons} que tome un valor, una lista previa, y agregue ese valor a la lista. En el caso de \textit{cons}, no solo agrega el valor a la lista, sino que agrega el tipo de tal valor a la lista de tipos que mantiene \texttt{HList} en su tipo.
+
+Esta definición de HList permite construir listas heterogéneas con relativa facilidad, como por ejemplo 
+
+\begin{code}
+23 :: "Hello World" :: [1,2,3] :
+    HList [Nat, String, [Nat]]
+\end{code}
+
+Otra de las ventajas de esta definición es el hecho de que los tipos de los elementos de la lista están presentes en el tipo mismo. Esto permite que uno pueda siempre recuperar uno de estos tipos si uno quiere utilizarlo luego.
+
+A su vez, a diferencia de Haskell, la posición de \textit{first-class citizens} de los tipos dependientes en Idris permite definir funciones con pattern matching sobre HList.
+
+\begin{code}
+hLength : HList ls -> Nat
+hLength Nil = 0
+hLength (x :: xs) = 1 + (hLength xs)
+\end{code}
+
+Aquí surge una diferencia muy importante con la implementación de HList de Haskell, ya que en Idris \texttt{hLength} puede ser utilizada como cualquier otra función, y en especial opera sobre \textit{valores}, mientras que en Haskell \texttt{HLength} solo puede ser utilizada como type family, y solo opera sobre \textit{tipos}.
+Esto permite que el uso de HList en Idris no sea distinto del uso de listas comunes (\texttt{List}), y por lo tanto puedan tener el mismo trato de ellas para los creadores de librerías y los usuarios de tales, disminuyendo la dificultad de su uso para resolver problemas.
+
+\section{Records Extensibles en Haskell}
+
+Algunas de las propuestas de records extensibles en Haskell, utilizando listas heterogéneas, son \cite{Martinez:2013:JWC:2426890.2426908} y \cite{Kiselyov:2004:STH:1017472.1017488}.
+
+Para este trabajo nos basaremos en la propuesta de \cite{Kiselyov:2004:STH:1017472.1017488} que ya utilizamos para definir listas heterogéneas anteriormente.
+
+En este enfoque, se tiene un tipo \texttt{Tagged s b} que se define de la siguiente forma:
+
+\begin{code}
+data Tagged s b = Tagged b
+\end{code}
+
+Este tipo permite tener un \textit{phantom type} en el tipo \texttt{s}. Esto significa que un valor de tipo \texttt{Tagged s b} va a contener solamente un valor de tipo \texttt{b}, pero en tiempo de compilación se va a tener el tipo \texttt{s} para manipular.
+
+Luego esta librería define la siguiente clase
+\begin{code}
+class (HLabelSet (LabelsOf ps), HAllTaggedLV ps) => 
+  HRLabelSet (ps :: [*])
+\end{code}
+
+Dado un tipo \texttt{ps} que se corresponde a un \texttt{HList} que contiene solamente valores del tipo \texttt{Tagged s b}, esta clase indica que esa lista heterogénea se corresponde a un conjunto de etiquetas.
+El tipo \texttt{LabelsOf ps} retorna los \textit{phantom types} de un valor tagueado, considerados como 'etiquetas'. La clase \texttt{HLabelSet (LabelsOf ps)} indica que esas etiquetas son un conjunto, es decir, no tienen valores repeditos. Finalmente la clase \texttt{HAllTaggedLV ps} indica que \texttt{ps} es compuesto solamente por valores del tipo \texttt{Tagged s b}.
+\texttt{HLabelSet} fuerza a que cada tipo \texttt{s} pueda igualarse con los demás, pero el tipo \texttt{b} es arbitrario y puede ser cualquiera.
+
+Dada esta clase, esta libería define un record de esta forma:
+
+\begin{code}
+newtype Record (r :: [*]) = Record (HList r)
+
+mkRecord :: HRLabelSet r => HList r -> Record r
+mkRecord = Record
+\end{code}
+
+Un record es simplemente una lista heterogénea de valores de tipo \texttt{Tagged s b}, tal que \texttt{s} se puede chequear por igualdad, y tal que todos esos tipos \texttt{s} sean distintos y formen un conjunto de etiquetas.
+
+Todas las funciones sobre records extensibles se definen utilizando typeclasses para realizar la computación en los tipos.
+Un ejemplo de ello es la función que obtiene un elemento de un record dada su etiqueta:
+
+\begin{code}
+class HasField (l::k) r v | l r -> v where
+  hLookupByLabel:: Label l -> r -> v
+
+(.!.) :: (HasField l r v) => r -> Label l -> v
+r .!. l =  hLookupByLabel l r
+\end{code}
