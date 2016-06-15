@@ -147,30 +147,11 @@ mkTypeOrUnit (No _) _ = ()
 -- Tipo que representa un Record o top ("()") (i.e una falla)
 RecordOrUnit : DecEq lty => LabelList lty -> Type
 RecordOrUnit ts = TypeOrUnit (isLabelSet ts) (Record ts)
- 
--- Dada una prueba de que la lista de labels no son un conjunto, retorna ()
-mkRecordOrUnitFromUnit : DecEq lty => (ts : LabelList lty) -> Not (IsLabelSet ts) -> RecordOrUnit ts
-mkRecordOrUnitFromUnit ts notTsIsSet with (isLabelSet ts)
-  mkRecordOrUnitFromUnit ts notTsIsSet | Yes tsIsSet = absurd $ notTsIsSet tsIsSet 
-  mkRecordOrUnitFromUnit ts notTsIsSet | No _ = ()
-
--- Dada una prueba de que la lista de labels son un conjunto, y dado un record, retorna ese record  
-mkRecordOrUnitFromRecord : DecEq lty => (ts : LabelList lty) -> Record ts -> IsLabelSet ts -> RecordOrUnit ts
-mkRecordOrUnitFromRecord ts rec tsIsSet with (isLabelSet ts)
-  mkRecordOrUnitFromRecord ts rec tsIsSet | Yes _ = rec
-  mkRecordOrUnitFromRecord ts rec tsIsSet | No notTsIsSet = absurd $ notTsIsSet tsIsSet
-  
--- "consRec" donde la prueba de labels no repetidos es calculada automáticamente  
-consRecAuto : DecEq lty => {ts : LabelList lty} -> {t : Type} -> (lbl : lty) -> (val : t) -> Record ts -> 
-  RecordOrUnit ((lbl,t) :: ts)
-consRecAuto {ts} {t} lbl val (MkRecord subLabelSet hs) with (isElemLabel lbl ts)
-  consRecAuto {ts} {t} lbl val (MkRecord subLabelSet hs) | Yes lblIsInTs = 
-    let notIsSet = ifIsElemThenConsIsNotSet lblIsInTs
-    in mkRecordOrUnitFromUnit ((lbl,t) :: ts) notIsSet
-  consRecAuto {ts} {t} lbl val (MkRecord subLabelSet hs) | No notLblIsInTs =
-    let isSet = IsSetCons notLblIsInTs subLabelSet
-    in mkRecordOrUnitFromRecord ((lbl,t) :: ts) (MkRecord isSet (val :: hs)) isSet
-  
+   
+-- "consRec" donde la prueba de labels no repetidos es calculada automáticamente      
+consRecAuto : DecEq lty => {ts : LabelList lty} -> {t : Type} -> (l : lty) -> (val : t) -> Record ts -> RecordOrUnit ((l,t) :: ts)
+consRecAuto {ts} {t} l val (MkRecord tsIsLabelSet hs) = mkTypeOrUnit (isLabelSet ((l, t) :: ts)) (\isLabelSet => MkRecord isLabelSet (val :: hs))
+    
 -- "hListToRecAuto" donde la prueba de labels no repetidos es calculada automáticamente
 hListToRecAuto : DecEq lty => (ts : LabelList lty) -> HList ts -> RecordOrUnit ts
 hListToRecAuto ts hs = mkTypeOrUnit (isLabelSet ts) (\tsIsSet => MkRecord tsIsSet hs) 
