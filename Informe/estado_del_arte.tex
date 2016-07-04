@@ -67,7 +67,7 @@ Estos tipos de listas existen en todos o casi todos los lenguajes de programaci�
 
 Las listas heterogéneas, sin embargo, permiten almacenar elementos de cualquier tipo arbitrario. Estos tipos pueden o no tener una relación entre ellos, aunque en general se llama 'listas heterogénea' a la estructura de datos que no impone ninguna relación entre los tipos de sus elementos.
 
-En lenguajes dinámicamente tipados (como lenguajes basados en LISP) este tipo de listas es fácil de construir, ya que no hay una imposición por parte del typechecker sobre qué tipo de elementos se pueden insertar o pueden existir en esta lista. El siguiente es un ejemplo de lista heterogénea en un lenguaje LISP como Clojure o Scheme.
+En lenguajes dinámicamente tipados (como lenguajes basados en LISP) este tipo de listas es fácil de construir, ya que no hay una imposición por parte del interprete sobre qué tipo de elementos se pueden insertar o pueden existir en esta lista. El siguiente es un ejemplo de lista heterogénea en un lenguaje LISP como Clojure o Scheme, donde a la lista se puede agregar un entero, un float y un texto.
 
 \begin{code}
 '(1 0.2 "Text")
@@ -109,9 +109,11 @@ type instance HLength '[] = HZero
 type instance HLength (x ': xs) = HSucc (HLength xs)
 \end{code}
 
+Type families como la anterior permiten que se tenga un tipo \texttt{HLength ls} en la definicion de una funcion y el typechecker decida cual de las instancias anteriores debe llamar, culminando en un valor del kind \texttt{HNat}.
+
 \subsection{HList en Idris}
 
-Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. Esto evita que uno tenga que recurrir a este tipo de construcciones para poder manejar listas heterogéneas. Una de las metas es poder programar utilizando listas heterogéneas con la misma facilidad que uno programa con listas homogéneas.
+Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. Esto evita que uno tenga que recurrir al tipo de construcciones de Haskell (type families, etc) para poder manejar listas heterogéneas. Una de las metas es poder programar utilizando listas heterogéneas con la misma facilidad que uno programa con listas homogéneas.
 Esto último no ocurre en el caso de HList en Haskell, ya que el tipo de HList es definido con data families, y funciones sobre HList son definidas con type families. Esta definición se contrasta con las listas homogéneas, cuyo tipo se define como un tipo común, y funciones sobre tales se definen como funciones normales también.
 
 A diferencia de Haskell, el lenguaje de programación Idris maneja tipos dependientes completos. Esto significa que cualquier tipo puede estar parametrizado por un valor, y este tipo es un \textit{first-class citizen} que puede ser utilizado como cualquier otro tipo del lenguaje. Esto significa que para Idris no hay diferencia en el trato de un tipo simple como \texttt{String} y en el de un tipo complejo con tipos dependientes como \texttt{Vect 2 Nat}.
@@ -133,7 +135,7 @@ Esta definición de HList permite construir listas heterogéneas con relativa fa
     HList [Nat, String, [Nat]]
 \end{code}
 
-Otra de las ventajas de esta definición es el hecho de que los tipos de los elementos de la lista están presentes en el tipo mismo. Esto permite que uno pueda siempre recuperar uno de estos tipos si uno quiere utilizarlo luego.
+Cada valor agregado a la lista tiene un tipo asociado que es almacenado en la lista del tipo. \texttt{23 : Nat} guarda \texttt{23} en la lista pero \texttt{Nat} en el tipo, de forma que uno siempre puede recuperar ya sea el tipo o el valor si se quieren utilizar luego.
 
 A su vez, a diferencia de Haskell, la posición de \textit{first-class citizens} de los tipos dependientes en Idris permite definir funciones con pattern matching sobre HList.
 

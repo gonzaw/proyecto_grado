@@ -23,6 +23,7 @@ recEx1 : Record [("Nombre", String), ("Edad", Nat)]
 recEx1 = hListToRec {prf=(getYes $ isLabelSet [("Nombre", String), ("Edad", Nat)])} ["Juan",10]
 
 -- *** consRec ***
+
 recEx2 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
 recEx2 = consRec "Apellido" "Sanchez" recEx1 {notElem=(getNo $ isElemLabel "Apellido" [("Nombre", String), ("Edad", Nat)])}
 
@@ -42,23 +43,23 @@ recEx3 = consRecAuto "Apellido" "Sanchez" recEx1
 recEx4 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
 recEx4 = hListToRecAuto [("Apellido", String), ("Nombre", String), ("Edad", Nat)] ["Sanchez", "Juan", 10]
 
--- *** hProjectByLabels ***
+-- *** hProjectByLabelsWithPred ***
 recEx5_1 : ?recEx5_1_ty
-recEx5_1 = fst . getProof $ hProjectByLabels ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
+recEx5_1 = fst . getProof $ hProjectByLabelsWithPred ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
 
--- *** hProjectByLabelsAuto ***
+-- *** hProjectByLabelsWithPredAuto ***
 recEx5_2 : ?recEx2_2_ty
-recEx5_2 = fst . getProof $ hProjectByLabelsAuto ["Apellido", "Edad"] recEx4
+recEx5_2 = fst . getProof $ hProjectByLabelsWithPredAuto ["Apellido", "Edad"] recEx4
 
--- *** hProjectByLabels_comp ***
+-- *** hProjectByLabel ***
 recEx5_3 : ?recEx5_3_ty
 --recEx5_3 : Record [("Apellido", String), ("Edad", Nat)]
-recEx5_3 = hProjectByLabels_comp ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
+recEx5_3 = hProjectByLabels ["Apellido", "Edad"] recEx4 (getYes $ isSet ["Apellido", "Edad"])
 
--- *** hProjectByLabels_compAuto ***
+-- *** hProjectByLabelsAuto ***
 recEx5_4 : ?recEx5_4_ty
 --recEx5_4 : Record [("Apellido", String), ("Edad", Nat)]
-recEx5_4 = hProjectByLabels_compAuto ["Apellido", "Edad"] recEx4
+recEx5_4 = hProjectByLabelsAuto ["Apellido", "Edad"] recEx4
 
 -- *** hDeleteAtLabel ***
 recEx6 : ?recEx6_ty
