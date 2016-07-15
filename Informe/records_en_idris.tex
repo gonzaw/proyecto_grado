@@ -773,6 +773,107 @@ projectedRec = hProjectByLabelsAuto
   ["Apellido", "Edad"] rec
 \end{code}
 
+\section{Busqueda de un elemento en un record}
+
+En la seccion anterior se definio la proyeccion de un record dada una lista de etiquetas. Sin embargo falta definir otra funcionalidad muy importante: Obtener el valor de un record dada una etiqueta.
+
+La funcionalidad de lookup se puede definir de forma muy similar a las anteriores. Primero se comienza con un predicado que indica que una lista de etiquetas contiene a otra etiqueta con un determinado tipo en particular
+
+\begin{code}
+data HasField : (l : lty) -> LabelList lty -> 
+  Type -> Type where
+  HasFieldHere : HasField l ((l,ty) :: ts) ty
+  HasFieldThere : HasField l1 ts ty1 -> 
+    HasField l1 ((l2,ty2) :: ts) ty1
+\end{code}
+
+\texttt{HasField l ts ty} indica que en la lista de etiquetas \texttt{ts} existe la etiqueta \texttt{l} que tiene asociado el tipo \texttt{ty}. Un ejemplo de tal tipo es \texttt{HasField 'Edad' [('Nombre', String), ('Edad', Nat)] Nat}. Su definicion es recursiva, donde \texttt{HasFieldHere} indica que la etiqueta se encuentra en la cabeza de la lista, y \texttt{HasFieldThere} indica que se encuentra en la cola de la lista.
+
+Una primera definicion es la de obtener el valor de una lista heterogenea:
+
+\begin{code}
+hLookupByLabel_HList : DecEq lty => {ts : LabelList lty} -> 
+  (l : lty) -> HList ts -> HasField l ts ty -> ty
+hLookupByLabel_HList _ (val :: _) HasFieldHere = val
+hLookupByLabel_HList l (_ :: ts) 
+  (HasFieldThere hasFieldThere) = 
+  hLookupByLabel_HList l ts hasFieldThere
+\end{code}
+
+Esta funcion toma una etiqueta \texttt{l : lty}, una lista heterogenea \texttt{HList ts}, y una prueba de que esa etiqueta pertenece a esa lista con \texttt{HasField l ts ty}. Con tales dato permite retornar un valor del tipo \texttt{ty}, el cual es el asociado a tal etiqueta.
+
+Su implementacion realiza pattern matching sobre el predicado, obteniendo el valor \texttt{val : ty} si la etiqueta esta en la cabeza de la lista o realizando un llamado recursivo sino.
+
+La funcion que obtiene un elemento de un record es sencilla
+
+\begin{code}
+hLookupByLabel : DecEq lty => {ts : LabelList lty} -> 
+  (l : lty) -> Record ts -> HasField l ts ty -> ty
+hLookupByLabel {ts} {ty} l rec hasField = 
+  hLookupByLabel_HList {ts} {ty} l (recToHList rec) hasField
+\end{code}
+
+Como la definicion de record de este trabajo contiene la lista heterogenea dentro de el, entonces esta funcion simplemente aplica la funcion definida anteriormente a tal lista heterogenea del record.
+
+Al igual que las funcionalidades anteriores, se puede definir una funcion que calcule el predicado de forma automatica en tiempo de compilacion. Sin embargo, con el caso de lookup ocurre un problema. Idealmente, uno quisiera tener la siguiente funcion:
+
+\begin{code}
+hasField : Deceq lty => (l : lty) -> 
+  (ts : LabelList lty) -> (ty : Type) -> 
+  Dec (HasField l ts ty)
+\end{code}
+
+Con esta funcion uno podria definir la funcion de calculo automatico de la siguiente forma
+
+\begin{code}
+hLookupByLabelAuto : DecEq lty => {ts : LabelList lty} ->
+  (l : lty) -> Record ts -> 
+  TypeOrUnit (hasField l ts ty) ty
+hLookupByLabelAuto {ts} {ty} l rec = 
+  mkTypeOrUnit (hasField l ts ty) 
+  (\tsHasL => hLookupByLabel {ts} {ty} l rec tsHasL)
+\end{code}
+
+El problema ocurre que no es posible definir \texttt{hasField}.
+
+Para implementar \texttt{hasField}, se tiene una variable \texttt{ty : Type} que puede ser cualquier tipo. A su vez, si la etiqueta \texttt{l : lty} pertenece a la lista, entonces en la lista la etiqueta va a tener asociado un tipo \texttt{ty2 : Type}, que puede ser cualquier otro. El problema ocurre en que no se puede verificar la igualdad de los tipos \texttt{ty} y \texttt{ty2}, ya que no existe forma de igualar valores de tipo \texttt{Type}.
+
+Por ejemplo, se puede tener \texttt{hasField 'Edad' [('Edad', Nat)] Nat} o \texttt{hasField 'Edad' [('Edad', Nat)] String}. El primer caso deberia retornar \texttt{Yes} con una prueba, mientras que el segundo deberia retornar \texttt{No} con una prueba de su opuesto, ya que el tipo \texttt{Nat} y \texttt{String} son distintos, por lo que el predicado falla. Sin embargo, no es posible realizar un chequeo \texttt{Nat = Nat} o \texttt{Not (Nat = String)}, ya que eso requeriria que existiese una instancia de \texttt{DecEq Type}, la cual no existe y no es posible definir.
+
+El hecho de que no existe una instancia \texttt{DecEq Type} en el lenguaje tiene varias razones:
+
+\begin{itemize}
+\item Dados dos tipos cualquiera en un lenguaje de tipos dependientes, verificar si son iguales no es decidible. Es decir, teoricamente, es imposible crear una instancia de \texttt{DecEq Type}
+\item Si existiera, no existiria el polimorfismo parametrico. El polimorfismo parametrico permite abstraerse de un tipo y trabajar con el sin saber especificamente cual es. Esto permite a uno deducir propiedades de la funcion solamente conociendo el tipo. Por ejemplo, si se tiene la funcion \texttt{id : a -> a}, se puede deducir que la unica posible implementacion es \texttt{id val = val}, ya que es imposible que la funcion pueda conocer informacion sobre el tipo \texttt{a : Type}.
+
+Sin embargo, si existiera una instancia de \texttt{DecEq Type}, entonces la siguiente funcion seria valida
+
+\begin{code}
+id2 : a -> a
+id2 {a=a} val with (decEq a Nat)
+  id2 {a=Nat} val | Yes aIsNat = 10
+  id2 {a=a} val | No notAIsNat = val
+\end{code}
+
+La funcion \texttt{id2 : a -> a} retorna el mismo valor para todos los tipos, menos para el tipo \texttt{Nat}, donde retorna siempre el valor 10. Esta funcion contradice las garantias de parametricidad del tipo \texttt{a -> a}.
+
+\end{itemize}
+
+A pesar de no poder utilizar \texttt{TypeOrUnit}, es posible definir una funcion que calcule el predicado de forma automatica utilizando la funcionalidad \texttt{auto} de Idris, de esta forma
+
+\begin{code}
+hLookupByLabelAuto : DecEq lty => {ts : LabelList lty} -> 
+  (l : lty) -> Record ts -> 
+  {auto hasField : HasField l ts ty} -> ty
+hLookupByLabelAuto {ts} {ty} l rec {hasField} = 
+  hLookupByLabel_HList {ts} {ty} l (recToHList rec) hasField
+\end{code}
+
+\texttt{auto hasField : HasField l ts ty} indica que el typechecker de Idris va a intentar generar el predicado \texttt{HasField l ts ty} de forma automatica. Idris se da cuenta de que la definicion de \texttt{HasField} es inductiva y tiene distintos constructores, por lo que intenta, mediante fuerza bruta, aplicar los constructores secuencialmente hasta encontrar un valor que tenga el tipo deseado.
+
+Por ejemplo, si se quisiera obtener una prueba de \texttt{HasField 'Edad' [('Nombre', String), ('Edad', Nat)] Nat}, Idris primero va a construir \texttt{HasFieldHere}. Como \texttt{HasFieldHere} no puede unificarse con el tipo deseado, sigue con el siguiente caso. Proximamente, Idris intenta construir \texttt{HasFieldThere HasFieldHere}. Idris consigue unificar el tipo de ese valor con el esperado, entonces proporciona el valor \texttt{HasFieldThere HasFieldHere} a la funcion \texttt{hLookupByLabelAuto}.
+
+Como conclusion, utilizar \texttt{TypeOrUnit} es muy util para definir estas funciones con calculo automatico, pero solo puede usarse si el predicado no depende de un valor \texttt{a : Type}. Si es asi, se deben utilizar funcionalidades propias del lenguaje como \texttt{auto}.
 
 \section{Alternativas de HList en Idris}
 
