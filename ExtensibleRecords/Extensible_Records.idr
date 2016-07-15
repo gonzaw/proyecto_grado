@@ -826,11 +826,11 @@ hLookupByLabel_HList l (_ :: ts) (HasFieldThere hasFieldThere) = hLookupByLabel_
 
 -- *-* Definición de "hLookupByLabel" de hackage *-*
 hLookupByLabel : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> HasField l ts ty -> ty
-hLookupByLabel {ts} {ty} l rec hasField = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
+hLookupByLabel {ts} {ty} l rec hasField = hLookupByLabel_HList {ts} {ty} l (recToHList rec) hasField
 
 -- hLookupByLabel que obtiene la prueba de HasField de forma automática
 hLookupByLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> {auto hasField : HasField l ts ty} -> ty
-hLookupByLabelAuto {ts} {ty} l rec {hasField} = hLookupByLabel_HList {ts=ts} {ty=ty} l (recToHList rec) hasField
+hLookupByLabelAuto {ts} {ty} l rec {hasField} = hLookupByLabel_HList {ts} {ty} l (recToHList rec) hasField
 
 -- *** hUpdateAtLabel ***
 
@@ -849,4 +849,4 @@ hUpdateAtLabel {ts} l val rec hasField =
     
 -- hUpdateAtLabel que obtiene la prueba de "HasField" de forma automática    
 hUpdateAtLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> {auto hasField : HasField l ts ty} -> Record ts
-hUpdateAtLabelAuto {ts} l val rec {hasField} = hUpdateAtLabel {ts=ts} l val rec hasField
+hUpdateAtLabelAuto {ts} l val rec {hasField} = hUpdateAtLabel {ts} l val rec hasField
