@@ -686,9 +686,9 @@ Su uso seria el siguiente
 rec : Record [("Nombre", String), ("Edad", Nat),
                ("Apellido", String)]
 rec = consRecAuto "Nombre" "Juan" $ 
-               consRecAuto "Edad" 24 $
-               consRecAuto "Apellido" "Sanchez" $
-               emptyRec
+      consRecAuto "Edad" 24 $
+      consRecAuto "Apellido" "Sanchez" $
+      emptyRec
 
 projRec : (ts2 : LabelList String ** 
   (Record ts2, IsProjectLeft ["Apellido", "Edad"] 
@@ -872,6 +872,22 @@ hLookupByLabelAuto {ts} {ty} l rec {hasField} =
 \texttt{auto hasField : HasField l ts ty} indica que el typechecker de Idris va a intentar generar el predicado \texttt{HasField l ts ty} de forma automatica. Idris se da cuenta de que la definicion de \texttt{HasField} es inductiva y tiene distintos constructores, por lo que intenta, mediante fuerza bruta, aplicar los constructores secuencialmente hasta encontrar un valor que tenga el tipo deseado.
 
 Por ejemplo, si se quisiera obtener una prueba de \texttt{HasField 'Edad' [('Nombre', String), ('Edad', Nat)] Nat}, Idris primero va a construir \texttt{HasFieldHere}. Como \texttt{HasFieldHere} no puede unificarse con el tipo deseado, sigue con el siguiente caso. Proximamente, Idris intenta construir \texttt{HasFieldThere HasFieldHere}. Idris consigue unificar el tipo de ese valor con el esperado, entonces proporciona el valor \texttt{HasFieldThere HasFieldHere} a la funcion \texttt{hLookupByLabelAuto}.
+
+Esta funcion \texttt{hLookupByLabel} se utiliza de la siguiente forma:
+
+\begin{code}
+rec : Record [("Nombre", String), ("Edad", Nat),
+               ("Apellido", String)]
+rec = consRecAuto "Nombre" "Juan" $ 
+      consRecAuto "Edad" 24 $
+      consRecAuto "Apellido" "Sanchez" $
+      emptyRec
+
+val : Nat
+val = hLookupByLabelAuto "Edad" rec
+\end{code}
+
+
 
 Como conclusion, utilizar \texttt{TypeOrUnit} es muy util para definir estas funciones con calculo automatico, pero solo puede usarse si el predicado no depende de un valor \texttt{a : Type}. Si es asi, se deben utilizar funcionalidades propias del lenguaje como \texttt{auto}.
 
