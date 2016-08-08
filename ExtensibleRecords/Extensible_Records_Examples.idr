@@ -9,15 +9,6 @@ import Data.List
 
 %default total
 
--- Funciones que permiten forzar la unificación con tipo o su negación, según si se quiere forzar que una proposición se cumpla o no
-getYes : (d : Dec p) -> case d of { No _ => (); Yes _ => p}
-getYes (No _ ) = ()
-getYes (Yes prf) = prf
-
-getNo : (d : Dec p) -> case d of { No _ => Not p; Yes _ => ()}
-getNo (No cnt) = cnt
-getNo (Yes _ ) = ()
-
 -- *** hListToRec ***
 recEx1 : Record [("Nombre", String), ("Edad", Nat)]
 recEx1 = hListToRec {prf=(getYes $ isLabelSet [("Nombre", String), ("Edad", Nat)])} ["Juan",10]

@@ -16,7 +16,7 @@ import Data.List
 %default total
 
 -- Se exportan todas las definiciones y funciones
-%access export
+%access public export
 
 -- *** Propiedades de igualdad ***
 
@@ -489,7 +489,7 @@ deleteLabelAt l1 ((l2,ty) :: ts) with (decEq l1 l2)
 fromDeleteLabelAtFuncToPred : DecEq lty => {l : lty} -> {ts : LabelList lty} -> DeleteLabelAtPred l ts (deleteLabelAt l ts)  
 fromDeleteLabelAtFuncToPred {l} {ts=[]} = EmptyRecord
 fromDeleteLabelAtFuncToPred {l=l1} {ts=((l2,ty) :: ts)} with (decEq l1 l2)
-  fromDeleteLabelAtFuncToPred {l=l1} {ts=((l2,ty) :: ts)} | Yes l1EqL2 = rewrite l1EqL2 in IsElem
+  fromDeleteLabelAtFuncToPred {l=l1} {ts=((l1,ty) :: ts)} | Yes Refl = IsElem
   fromDeleteLabelAtFuncToPred {l=l1} {ts=((l2,ty) :: ts)} | No notL1EqL2 = 
     let subDelPred = fromDeleteLabelAtFuncToPred {l=l1} {ts}
     in IsNotElem notL1EqL2 subDelPred
@@ -850,3 +850,14 @@ hUpdateAtLabel {ts} l val rec hasField =
 -- hUpdateAtLabel que obtiene la prueba de "HasField" de forma automática    
 hUpdateAtLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> {auto hasField : HasField l ts ty} -> Record ts
 hUpdateAtLabelAuto {ts} l val rec {hasField} = hUpdateAtLabel {ts} l val rec hasField
+
+
+-- *** Auxiliares ***
+-- Funciones que permiten forzar la unificación con tipo o su negación, según si se quiere forzar que una proposición se cumpla o no
+getYes : (d : Dec p) -> case d of { No _ => (); Yes _ => p}
+getYes (No _ ) = ()
+getYes (Yes prf) = prf
+
+getNo : (d : Dec p) -> case d of { No _ => Not p; Yes _ => ()}
+getNo (No cnt) = cnt
+getNo (Yes _ ) = ()
