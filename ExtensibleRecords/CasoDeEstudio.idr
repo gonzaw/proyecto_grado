@@ -158,6 +158,26 @@ isExcluyent (x1 :: xs1) xs2 with (isExcluyent xs1 xs2)
     isExcluyent (x1 :: xs1) xs2 | Yes xs1Excluyent | No notX1InXs2 = Yes $ ExcluyentCons notX1InXs2 xs1Excluyent
     isExcluyent (x1 :: xs1) xs2 | Yes xs1Excluyent | Yes x1InXs2 = No $ ifIsElemThenConsNotExcluyent xs1Excluyent x1InXs2
     
+
+-- Todos los valores de la lista 1 estan en la lista 2
+{-data Incluyent : List t -> List t -> Type where
+  IncluyentNil : Incluyent [] xs
+  IncluyentCons : Elem x1 xs2 -> Incluyent xs1 xs2 -> Incluyent (x1 :: xs1) xs2
+
+ifNotIncluyentThenConsIsnt : Not (Incluyent xs1 xs2) -> Not (Incluyent (x1 :: xs1) xs2)        
+ifNotIncluyentThenConsIsnt notXs1Incluyent (IncluyentCons _ xs1Incluyent) = notXs1Incluyent xs1Incluyent
+
+ifIsNotElemThenConsNotIncluyent : Incluyent xs1 xs2 -> Not (Elem x1 xs2) -> Not (Incluyent (x1 :: xs1) xs2)        
+ifIsNotElemThenConsNotIncluyent xs1Incluyent notX1InXs2 (IncluyentCons x1InXs2 _) = notX1InXs2 x1InXs2
+            
+isIncluyent : DecEq t => (xs1 : List t) -> (xs2 : List t) -> Dec (Incluyent xs1 xs2)
+isIncluyent [] xs2 = Yes IncluyentNil
+isIncluyent (x1 :: xs1) xs2 with (isIncluyent xs1 xs2)
+  isIncluyent (x1 :: xs1) xs2 | No notXs1Incluyent = No $ ifNotIncluyentThenConsIsnt notXs1Incluyent
+  isIncluyent (x1 :: xs1) xs2 | Yes xs1Incluyent with (isElem x1 xs2)
+    isIncluyent (x1 :: xs1) xs2 | Yes xs1Incluyent | No notX1InXs2 = No $ ifIsNotElemThenConsNotIncluyent xs1Incluyent notX1InXs2
+    isIncluyent (x1 :: xs1) xs2 | Yes xs1Incluyent | Yes x1InXs2 = Yes $ IncluyentCons x1InXs2 xs1Incluyent -}
+  
 -- Arbol sintactico del lenguaje de expresiones aritmeticas
 data VarDec : String -> Type where
   (:=) : (var : String) -> Nat -> VarDec var
@@ -206,6 +226,133 @@ local {localVars} {fvsInner} {cvsInner} vars innerExp =
         Local vars innerExp localIsSet localIsExcluyent (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner})))
     
 
+
+
+
+-- *** Interprete ***
+AllNats : List String -> LabelList String
+AllNats [] = []
+AllNats (x :: xs) = (x, Nat) :: AllNats xs
+
+data Ambiente : List String -> Type where
+--  MkAmbiente : Record {lty=String} (AllNats ls) -> Incluyent fvs ls -> Ambiente ls fvs
+  MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
+
+{-ifIncluyentInUnionThenIncluyentInBoth : IsLeftUnion_List xs1 xs2 xs3 -> Incluyent xs3 ys -> (Incluyent xs1 ys, Incluyent xs2 ys)
+ifIncluyentInUnionThenIncluyentInBoth {xs1 = []} (IsLeftUnionAppend_List EmptyLabelList_List) isInc = (IncluyentNil, isInc)
+ifIncluyentInUnionThenIncluyentInBoth {xs1 = x1 :: xs1} (IsLeftUnionAppend_List (DeleteFirstOfLabelList_List delAt delLabels)) (IncluyentCons x1InCons isInc) = ?incluyent_Union_rhs
+
+ifIsInIncluyentThenIsInOriginal : Incluyent xs1 xs2 -> Elem x xs1 -> Elem x xs2
+ifIsInIncluyentThenIsInOriginal IncluyentNil xInXs1 = absurd $ noEmptyElem xInXs1
+ifIsInIncluyentThenIsInOriginal {x=x1} (IncluyentCons x2InXs2 isInc) Here = x2InXs2
+ifIsInIncluyentThenIsInOriginal {x=x1} (IncluyentCons x2InXs2 isInc) (There x1InXs1) = ifIsInIncluyentThenIsInOriginal isInc x1InXs1
+
+ifIsInVariablesThenHasNatField : Elem l ls -> HasField l (AllNats ls) Nat
+ifIsInVariablesThenHasNatField Here = HasFieldHere
+ifIsInVariablesThenHasNatField (There inThere) = HasFieldThere (ifIsInVariablesThenHasNatField inThere) -}
+
+
+
+-- hProjectByLabelsWithPred : DecEq lty => {ts1 : LabelList lty} -> (ls : List lty) -> Record ts1 -> IsSet ls -> (ts2 : LabelList lty ** (Record ts2, IsProjectLeft ls ts1 ts2))
+
+ifNotElemThenNotElemNats : Not (Elem x xs) -> Not (ElemLabel x (AllNats xs))
+ifNotElemThenNotElemNats {xs = []} notXInXs xInLabelXs = absurd $ noEmptyElem xInLabelXs
+ifNotElemThenNotElemNats {xs = x1 :: xs} notXInXs Here = notXInXs Here
+ifNotElemThenNotElemNats {xs = x1 :: xs} notXInXs (There there) = 
+  let notInCons = notElemInCons notXInXs
+      subPrf = ifNotElemThenNotElemNats notInCons
+  in absurd $ subPrf there
+
+splitRecordByAppend : Record (AllNats (ls1 ++ ls2)) -> (Record (AllNats ls1), Record (AllNats ls2))
+
+splitRecordByUnionList : IsLeftUnion_List ls1 ls2 lsRes -> Record (AllNats lsRes) -> (Record (AllNats ls1), Record (AllNats ls2))
+splitRecordByUnionList {ls1 = []} (IsLeftUnionAppend_List EmptyLabelList_List) rec = (emptyRec, rec)
+splitRecordByUnionList {ls1 = l1 :: ls1} (IsLeftUnionAppend_List (DeleteFirstOfLabelList_List delAt delLabels)) rec =
+  let (recLs1, recLs2) = splitRecordByAppend rec
+  in ?splitRecordByUnionList
+ 
+-- MkRecord : IsLabelSet ts ->                         HList ts ->                         Record ts
+-- MkRecord : IsLabelSet (AllNats (ls1 ++ ls3)) ->     HList (AllNats (ls1 ++ ls3)) ->     Record (AllNats (ls1 ++ ls3))
+-- MkRecord : IsLabelSet ((l1, Nat) :: AllNats ls1) -> HList ((l1, Nat) :: AllNats ls1) -> Record ((l1, Nat) :: AllNats ls1)
+-- MkRecord : IsLabelSet (AllNats ls2) ->              HList (AllNats ls2) ->              Record (AllNats ls2)
+
+-- IsLeftUnionAppend_List : DeleteLabelsPred_List ls1 ls2 ls3 -> IsLeftUnion_List ls1 ls2 (ls1 ++ ls3)
+-- IsLeftUnionAppend_List : DeleteLabelsPred_List ls1 ls2 lsAux -> IsLeftUnion_List ls1 ls2 (ls1 ++ lsAux)
+
+ifNotElemThenInDeleteIsNotElem : DeleteElemPred ls1 isElem ls2 -> Not (Elem l ls1) -> Not (Elem l ls2)
+ifNotElemThenInDeleteIsNotElem DeleteElemPredHere notLInLs1 lInLs2 = notElemInCons notLInLs1 lInLs2
+ifNotElemThenInDeleteIsNotElem (DeleteElemPredThere delThere) notLInLs1 Here = notLInLs1 Here
+ifNotElemThenInDeleteIsNotElem (DeleteElemPredThere delThere) notLInLs1 (There there) = 
+  let subPrf = ifNotElemThenInDeleteIsNotElem delThere (notElemInCons notLInLs1)
+  in subPrf there
+
+ifNotElemThenInProjectRightIsNotElemWithNats : {ls1, ls2, lsRes : List String} -> 
+  IsProjectRight_List ls1 ls2 lsRes -> Not (ElemLabel l (AllNats lsRes)) -> Not (Elem l ls1) ->
+  Not (ElemLabel l (AllNats ls2))
+ifNotElemThenInProjectRightIsNotElemWithNats IPR_EmptyLabels_List notLInLsRes _ lInLs2 = notLInLsRes lInLs2  
+ifNotElemThenInProjectRightIsNotElemWithNats IPR_EmptyVect_List _ _ lInLs2 = noEmptyElem lInLs2
+ifNotElemThenInProjectRightIsNotElemWithNats (IPR_ProjLabelElem_List isElem delElem prjRight) notLInLsRes notLInLs1 Here = notLInLs1 isElem
+ifNotElemThenInProjectRightIsNotElemWithNats (IPR_ProjLabelElem_List isElem delElem prjRight) notLInLsRes notLInLs1 (There there) = 
+  let lNotInLsNew = ifNotElemThenInDeleteIsNotElem delElem notLInLs1
+      subPrf = ifNotElemThenInProjectRightIsNotElemWithNats prjRight notLInLsRes lNotInLsNew
+  in subPrf there
+ifNotElemThenInProjectRightIsNotElemWithNats (IPR_ProjLabelNotElem_List _ _) notLInLsRes _ Here = notLInLsRes Here
+ifNotElemThenInProjectRightIsNotElemWithNats (IPR_ProjLabelNotElem_List notElem prjRight) notLInLsResCons notLInLs1 (There there) = 
+  let notElemNats = ifNotElemThenNotElemNats notElem
+      notLInLsRes = notElemInCons notLInLsResCons
+      subPrf = ifNotElemThenInProjectRightIsNotElemWithNats prjRight notLInLsRes notLInLs1
+  in subPrf there
+  
+
+deleteElemFromLocalVariables : (isElem : Elem l ls1) -> DeleteElemPred ls1 isElem ls2 ->
+  LocalVariables ls1 -> LocalVariables ls2
+
+lookupInLocalVars : Elem l localVars -> LocalVariables localVars -> Nat
+
+expIsSet : {fvs, cvs : List String} -> Exp fvs cvs -> IsSet fvs
+
+
+
+
+-- NOTA: Este de abajo tira error de no-totalidad
+addLocalVarsToEnv : Ambiente fvs -> IsProjectRight_List localVars fvsInner fvs -> LocalVariables localVars -> IsSet fvsInner ->
+  Ambiente fvsInner
+addLocalVarsToEnv env IPR_EmptyLabels_List _ _ = env
+addLocalVarsToEnv env IPR_EmptyVect_List _ _ = env
+addLocalVarsToEnv env (IPR_ProjLabelElem_List {l} isElem delElem prjRight) vars (IsSetCons notLInInner isSet) = 
+  let subVars = deleteElemFromLocalVariables isElem delElem vars
+      natVal = lookupInLocalVars isElem vars
+      (MkAmbiente subRec) = addLocalVarsToEnv env prjRight subVars isSet
+      resRec = consRec l natVal subRec {notElem = ifNotElemThenNotElemNats notLInInner}
+  in (MkAmbiente resRec)
+addLocalVarsToEnv (MkAmbiente (MkRecord (IsSetCons notSetElem isSetRec) (n :: ns))) 
+  (IPR_ProjLabelNotElem_List {l} notIsElem prjRight) vars (IsSetCons notLInLs2 isSet) = 
+  let tailRec = MkRecord isSetRec ns
+      tailEnv = MkAmbiente tailRec  
+      (MkAmbiente subRec) = addLocalVarsToEnv tailEnv prjRight vars isSet 
+      resRec = consRec l n subRec {notElem = ifNotElemThenNotElemNats notLInLs2}
+  in (MkAmbiente resRec)
+
+-- Interpreta una expresion dado un ambiente con valores para cada variable
+interpEnv : Ambiente fvs -> Exp fvs cvs -> Nat
+interpEnv (MkAmbiente rec) (Add e1 e2 isUnionFvs _) = 
+  let (recE1, recE2) = splitRecordByUnionList isUnionFvs rec
+      interpE1 = interpEnv (MkAmbiente recE1) e1
+      interpE2 = interpEnv (MkAmbiente recE2) e2
+   in interpE1 + interpE2
+interpEnv (MkAmbiente rec) (Var l) = hLookupByLabel l rec HasFieldHere
+interpEnv env (Cons c) = c
+interpEnv env (Local vars subExp isSet isExcluyent prjRight) = 
+  let isSetInner = expIsSet subExp
+      newEnv = addLocalVarsToEnv env prjRight vars isSetInner
+  in interpEnv newEnv subExp
+  
+  
+interp : Exp [] cvs -> Nat
+interp = interpEnv (MkAmbiente {ls=[]} emptyRec)
+    
+
+
 -- *** Ejemplos ***
 expTest1 : Exp ["x", "y"] []
 expTest1 = add (var "x") (add (cons 1) (var "y"))
@@ -215,72 +362,3 @@ expTest2 = local ["x" := 10] $ cons 1
 
 expTest3 : Exp [] ["x", "y"]
 expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
-
-
--- VIEJO
-{-data Exp = 
-  Add Exp Exp -- Suma de expresiones
-  | Var String -- Definición de variables
-  | Const Nat -- Constantes numéricas
-  | Local (List (String, Nat)) Exp -- Definición de ambientes locales, con definiciones de variables con solo constantes -}
-
--- Predicado que indica que una lista de labels siempre tiene el mismo tipo
---data AllHaveType : LabelList lty -> Type -> Type where
---  AllHaveTypeNil : AllHaveType [] ty
---  AllHaveTypeCons : AllHaveType ts ty -> AllHaveType ((l, ty) :: ts) ty 
-  
--- Builder de expresiones parametrizado por la lista de variables libres de la expresión
---TODO: Ver como definir bien
-{-data ExpBuilder : LabelList String -> Exp -> Type where
-  AddBuilder : IsLeftUnion ts1 ts2 tsRes -> ExpBuilder ts1 e1 -> ExpBuilder ts2 e2 -> ExpBuilder tsRes (Add e1 e2)
-  VarBuilder : ExpBuilder [(l, Nat)] (Var l)
-  ConstBuilder : ExpBuilder [] (Const n)
-  LocalBuilder : 
-                 -- Las variables locales definidas no deben repetirse
-                 IsLabelSet lsRes -> 
-                 --
-                 IsProjectRight ts1 lsRes tsRes ->
-                 ExpBuilder ts1 eSub -> 
-                 ExpBuilder tsRes (Local lsRes eSub) -}
-
-{-data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
-  IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty=lty} [] ts []
-  IPL_EmptyVect : DecEq lty => IsProjectLeft {lty=lty} ls [] []
-  IPL_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElemPred ls isElem lsNew ->
-                      IsProjectLeft {lty=lty} lsNew ts res1 -> IsProjectLeft ls (t :: ts) (t :: res1)      
-  IPL_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectLeft {lty=lty} ls ts res1 -> 
-                       IsProjectLeft ls (t :: ts) res1
-
--- Predicado que indica que la proyección derecha de un hProjectByLabels es efectivamente tal proyección    
-data IsProjectRight : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
-  IPR_EmptyLabels : DecEq lty => IsProjectRight {lty=lty} [] ts ts
-  IPR_EmptyVect : DecEq lty => IsProjectRight {lty=lty} ls [] []
-  IPR_ProjLabelElem : DecEq lty => (isElem : Elem (fst t) ls) -> DeleteElemPred ls isElem lsNew ->
-                      IsProjectRight {lty=lty} lsNew ts res1 -> IsProjectRight ls (t :: ts) res1      
-  IPR_ProjLabelNotElem : DecEq lty => Not (Elem (fst t) ls) -> IsProjectRight {lty=lty} ls ts res1 -> 
-                       IsProjectRight ls (t :: ts) (t :: res1)-}
-
--- Ambiente local de valores de expresiones. Se trata de un record extensibles de valores de variables, cuyos valores solo pueden
--- ser Nat
---data Ambiente : LabelList String -> Type where
---  IsEnv : AllHaveType ts Nat -> Record {lty=String} ts -> Ambiente ts
-
--- TODO: Ver como ir agregando con "consRec" y que compile
-{-addLocalDefinitions : Ambiente tsIn -> List (String, Nat) -> (tsOut : LabelList String ** Ambiente tsOut)
-addLocalDefinitions envIn ls = ?addLocalDefinitions_rhs  -}
-  
--- TODO: Ver como interpretar una variable como string
-{-interpVariable : Ambiente ts -> String -> Nat
-interpVariable env var = ?interpVariable_rhs-}
-  
--- Intérprete
-{-interp : Ambiente ts -> Exp -> Nat
-interp env (Add e1 e2) = (interp env e1) + (interp env e2)
--- Aca necesitaria una prueba de que 'v' esta en el ambiente, para hacer lookup 
-interp env (Var var) = interpVariable env var
-interp env (Const c) = c
-interp {ts} env (Local def e) = 
-  let (tsOut ** subEnv) = addLocalDefinitions {tsIn=ts} env def
-  in interp {ts=tsOut} subEnv e-}
- 
-    
