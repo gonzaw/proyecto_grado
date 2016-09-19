@@ -96,26 +96,6 @@ fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2=l2 :: ls2} with (isElem l2 (l1 ::
     let subPrf = fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2}
     in IPR_ProjLabelNotElem_List notL2InLs1 subPrf
     
--- Ningun valor de lista 1 esta en la lista 2
-data Excluyent : List t -> List t -> Type where
-  ExcluyentNil : Excluyent [] xs
-  ExcluyentCons : Not (Elem x1 xs2) -> Excluyent xs1 xs2 -> Excluyent (x1 :: xs1) xs2
-    
-ifNotExcluyentThenConsIsnt : Not (Excluyent xs1 xs2) -> Not (Excluyent (x1 :: xs1) xs2)        
-ifNotExcluyentThenConsIsnt notXs1Excluyent (ExcluyentCons _ xs1Excluyent) = notXs1Excluyent xs1Excluyent
-
-ifIsElemThenConsNotExcluyent : Excluyent xs1 xs2 -> Elem x1 xs2 -> Not (Excluyent (x1 :: xs1) xs2)        
-ifIsElemThenConsNotExcluyent xs1Excluyent x1InXs2 (ExcluyentCons notX1InXs2 _) = notX1InXs2 x1InXs2
-
-isExcluyent : DecEq t => (xs1 : List t) -> (xs2 : List t) -> Dec (Excluyent xs1 xs2)
-isExcluyent [] xs2 = Yes ExcluyentNil
-isExcluyent (x1 :: xs1) xs2 with (isExcluyent xs1 xs2)
-  isExcluyent (x1 :: xs1) xs2 | No notXs1Excluyent = No $ ifNotExcluyentThenConsIsnt notXs1Excluyent
-  isExcluyent (x1 :: xs1) xs2 | Yes xs1Excluyent with (isElem x1 xs2)
-    isExcluyent (x1 :: xs1) xs2 | Yes xs1Excluyent | No notX1InXs2 = Yes $ ExcluyentCons notX1InXs2 xs1Excluyent
-    isExcluyent (x1 :: xs1) xs2 | Yes xs1Excluyent | Yes x1InXs2 = No $ ifIsElemThenConsNotExcluyent xs1Excluyent x1InXs2
-    
-  
 -- Arbol sintactico del lenguaje de expresiones aritmeticas
 data VarDec : String -> Type where
   (:=) : (var : String) -> Nat -> VarDec var
@@ -127,41 +107,33 @@ data LocalVariables : List String -> Type where
   (::) : VarDec l -> LocalVariables ls -> LocalVariables (l :: ls)  
 
 -- fvs: Lista de variables libres
--- cvs: Lista de variables cerradas (ya definidas en local)
-data Exp : List String -> List String -> Type where
-  Add : Exp fvs1 cvs1 -> Exp fvs2 cvs2 -> IsLeftUnion_List fvs1 fvs2 fvsRes -> 
-    IsLeftUnion_List cvs1 cvs2 cvsRes -> Exp fvsRes cvsRes 
-  Var : (l : String) -> Exp [l] []
-  Cons : Nat -> Exp [] []
-  Local : LocalVariables localVars -> Exp fvsInner cvsInner -> IsSet localVars -> Excluyent localVars cvsInner ->
-    IsProjectRight_List localVars fvsInner fvsOuter -> Exp fvsOuter (cvsInner ++ localVars)
-
+data Exp : List String -> Type where
+  Add : Exp fvs1 -> Exp fvs2 -> IsLeftUnion_List fvs1 fvs2 fvsRes -> Exp fvsRes 
+  Var : (l : String) -> Exp [l]
+  Cons : Nat -> Exp []
+  Local : LocalVariables localVars -> Exp fvsInner -> IsSet localVars -> IsProjectRight_List localVars fvsInner fvsOuter -> Exp fvsOuter
 
 -- DSL del lenguaje
-var : (l : String) -> Exp [l] []
+var : (l : String) -> Exp [l]
 var l = Var l
 
-cons : Nat -> Exp [] []
+cons : Nat -> Exp []
 cons n = Cons n
 
-add : Exp fvs1 cvs1 -> Exp fvs2 cvs2 -> Exp (leftUnion fvs1 fvs2) (leftUnion cvs1 cvs2)
-add {fvs1} {fvs2} {cvs1} {cvs2} e1 e2 = Add e1 e2 (fromLeftUnionFuncToPred {ls1=fvs1} {ls2=fvs2}) 
-  (fromLeftUnionFuncToPred {ls1=cvs1} {ls2=cvs2})
+add : Exp fvs1 -> Exp fvs2 -> Exp (leftUnion fvs1 fvs2)
+add {fvs1} {fvs2} e1 e2 = Add e1 e2 (fromLeftUnionFuncToPred {ls1=fvs1} {ls2=fvs2})
 
-localPred : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner cvsInner) -> 
-  {isSet : IsSet localVars} -> {isExcluyent : Excluyent localVars cvsInner} ->
-  Exp (projectRightList localVars fvsInner) (cvsInner ++ localVars)
-localPred {localVars} {fvsInner} {cvsInner} vars innerExp {isSet} {isExcluyent} = 
-  Local vars innerExp isSet isExcluyent (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner})
+localPred : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) -> 
+  {isSet : IsSet localVars} -> Exp (projectRightList localVars fvsInner)
+localPred {localVars} {fvsInner} vars innerExp {isSet} = 
+  Local vars innerExp isSet (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner})
 
-local : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner cvsInner) ->
-  TypeOrUnit (isSet localVars) (TypeOrUnit (isExcluyent localVars cvsInner) 
-  (Exp (projectRightList localVars fvsInner) (cvsInner ++ localVars)))
-local {localVars} {fvsInner} {cvsInner} vars innerExp = 
+local : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) ->
+  TypeOrUnit (isSet localVars) (Exp (projectRightList localVars fvsInner))
+local {localVars} {fvsInner} vars innerExp = 
   mkTypeOrUnit (isSet localVars)
-    (\localIsSet => 
-      mkTypeOrUnit (isExcluyent localVars cvsInner) (\localIsExcluyent =>
-        Local vars innerExp localIsSet localIsExcluyent (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner})))
+    (\localIsSet =>
+        Local vars innerExp localIsSet (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner}))
     
 
 
@@ -412,17 +384,16 @@ ifListIsSetThenProjectRightIsSet (IPR_ProjLabelNotElem_List notLInLs1 prjRight) 
       notLInRes = ifNotInListThenNotInProjectRight prjRight notLInLs2
   in IsSetCons notLInRes subPrf
   
-expIsSet : {fvs, cvs : List String} -> Exp fvs cvs -> IsSet fvs
-expIsSet (Add e1 e2 fvsLeftUnion cvsLeftUnion) =
+expIsSet : {fvs : List String} -> Exp fvs -> IsSet fvs
+expIsSet (Add e1 e2 fvsLeftUnion) =
   let e1IsSet = expIsSet e1
       e2IsSet = expIsSet e2
   in ifListsAreSetThenLeftUnionIsSet fvsLeftUnion e1IsSet e2IsSet
 expIsSet (Var l) = IsSetCons noEmptyElem IsSetNil
 expIsSet (Cons n) = IsSetNil
-expIsSet (Local vars e varsIsSet varsNinCvs prjRight) = 
+expIsSet (Local vars e varsIsSet prjRight) = 
   let eIsSet = expIsSet e
   in ifListIsSetThenProjectRightIsSet prjRight eIsSet
-
 
 
 -- NOTA: Este de abajo tira error de no-totalidad
@@ -445,31 +416,31 @@ addLocalVarsToEnv (MkAmbiente (MkRecord (IsSetCons notSetElem isSetRec) (n :: ns
   in (MkAmbiente resRec)
 
 -- Interpreta una expresion dado un ambiente con valores para cada variable
-interpEnv : Ambiente fvs -> Exp fvs cvs -> Nat
-interpEnv (MkAmbiente rec) (Add e1 e2 isUnionFvs _) = 
+interpEnv : Ambiente fvs -> Exp fvs -> Nat
+interpEnv (MkAmbiente rec) (Add e1 e2 isUnionFvs) = 
   let (recE1, recE2) = splitRecordByUnionList isUnionFvs rec
       interpE1 = interpEnv (MkAmbiente recE1) e1
       interpE2 = interpEnv (MkAmbiente recE2) e2
    in interpE1 + interpE2
 interpEnv (MkAmbiente rec) (Var l) = hLookupByLabel l rec HasFieldHere
 interpEnv env (Cons c) = c
-interpEnv env (Local vars subExp isSet isExcluyent prjRight) = 
+interpEnv env (Local vars subExp isSet prjRight) = 
   let isSetInner = expIsSet subExp
       newEnv = addLocalVarsToEnv env prjRight vars isSetInner
   in interpEnv newEnv subExp
   
   
-interp : Exp [] cvs -> Nat
+interp : Exp [] -> Nat
 interp = interpEnv (MkAmbiente {ls=[]} emptyRec)
     
 
 
 -- *** Ejemplos ***
-expTest1 : Exp ["x", "y"] []
+expTest1 : Exp ["x", "y"]
 expTest1 = add (var "x") (add (cons 1) (var "y"))
 
-expTest2 : Exp [] ["x"]
+expTest2 : Exp []
 expTest2 = local ["x" := 10] $ cons 1
 
-expTest3 : Exp [] ["x", "y"]
+expTest3 : Exp []
 expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
