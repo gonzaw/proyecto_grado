@@ -102,17 +102,13 @@ data VarDec : String -> Type where
 
 infixr 2 :=
 
-data LocalVariables : List String -> Type where
-  Nil : LocalVariables []
-  (::) : VarDec l -> LocalVariables ls -> LocalVariables (l :: ls)  
-
 -- fvs: Lista de variables libres
 data Exp : List String -> Type where
   Add : Exp fvs1 -> Exp fvs2 -> IsLeftUnion_List fvs1 fvs2 fvsRes -> Exp fvsRes 
   Var : (l : String) -> Exp [l]
   Cons : Nat -> Exp []
-  Local : LocalVariables localVars -> Exp fvsInner -> IsSet localVars -> IsProjectRight_List localVars fvsInner fvsOuter -> Exp fvsOuter
-
+  Let : VarDec var -> Exp fvsInner -> DeleteLabelAtPred_List var fvsInner fvsOuter -> Exp fvsOuter
+  
 -- DSL del lenguaje
 var : (l : String) -> Exp [l]
 var l = Var l
@@ -123,18 +119,27 @@ cons n = Cons n
 add : Exp fvs1 -> Exp fvs2 -> Exp (leftUnion fvs1 fvs2)
 add {fvs1} {fvs2} e1 e2 = Add e1 e2 (fromLeftUnionFuncToPred {ls1=fvs1} {ls2=fvs2})
 
+eLet : VarDec var -> Exp fvs -> Exp (deleteAtList var fvs)
+eLet {var} {fvs} varDec e = Let varDec e (fromDeleteLabelAtListFuncToPred {l=var} {ls=fvs})
+
+data LocalVariables : List String -> Type where
+  Nil : LocalVariables []
+  (::) : VarDec l -> LocalVariables ls -> LocalVariables (l :: ls)  
+
 localPred : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) -> 
   {isSet : IsSet localVars} -> Exp (projectRightList localVars fvsInner)
-localPred {localVars} {fvsInner} vars innerExp {isSet} = 
-  Local vars innerExp isSet (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner})
+localPred {localVars=[]} {fvsInner} vars innerExp {isSet} = innerExp
+localPred {localVars} {fvsInner=[]} vars innerExp {isSet} = ?local_rhs_1
+localPred {localVars} {fvsInner=(fv :: fvsInner)} vars innerExp {isSet} = ?local_hs_2
+
+
 
 local : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) ->
   TypeOrUnit (isSet localVars) (Exp (projectRightList localVars fvsInner))
 local {localVars} {fvsInner} vars innerExp = 
   mkTypeOrUnit (isSet localVars)
-    (\localIsSet =>
-        Local vars innerExp localIsSet (fromIsProjRightFuncToPred {ls1=localVars} {ls2=fvsInner}))
-    
+    (\localIsSet => localPred vars innerExp {isSet=localIsSet})
+
 
 
 
@@ -146,6 +151,8 @@ AllNats (x :: xs) = (x, Nat) :: AllNats xs
 
 data Ambiente : List String -> Type where
   MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
+
+{-
 
 ifNotElemThenNotElemNats : Not (Elem x xs) -> Not (ElemLabel x (AllNats xs))
 ifNotElemThenNotElemNats {xs = []} notXInXs xInLabelXs = absurd $ noEmptyElem xInLabelXs
@@ -434,13 +441,24 @@ interp : Exp [] -> Nat
 interp = interpEnv (MkAmbiente {ls=[]} emptyRec)
     
 
+-}
+
 
 -- *** Ejemplos ***
 expTest1 : Exp ["x", "y"]
 expTest1 = add (var "x") (add (cons 1) (var "y"))
 
-expTest2 : Exp []
-expTest2 = local ["x" := 10] $ cons 1
+--expTest2 : Exp []
+--expTest2 = local ["x" := 10] $ cons 1
 
-expTest3 : Exp []
-expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
+--expTest3 : Exp []
+--expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
+
+expTest4 : Exp []
+expTest4 = eLet ("x" := 10) $ var "x"
+
+expTest5 : Exp  ["y"]
+expTest5 = eLet ("x" := 10) $ add (var "x") (var "y")
+
+expTest6 : Exp []
+expTest6 = eLet ("y" := 5) expTest5
