@@ -32,7 +32,6 @@ leftUnion : DecEq lty => List lty -> List lty -> List lty
 leftUnion ls1 ls2 = ls1 ++ (deleteList ls1 ls2)
 
 projectRightList : DecEq lty => List lty -> List lty -> List lty
-projectRightList [] ls2 = ls2
 projectRightList ls1 [] = []
 projectRightList ls1 (l :: ls2) with (isElem l ls1)
  projectRightList ls1 (l :: ls2) | Yes lInLs = 
@@ -40,13 +39,20 @@ projectRightList ls1 (l :: ls2) with (isElem l ls1)
    in projectRightList delLFromLs1 ls2
  projectRightList ls1 (l :: ls2) | No notLInLs = l :: projectRightList ls1 ls2
 
+projectRightOfEmptyIsTheOther : DecEq lty => {ls : List lty} -> projectRightList [] ls = ls
+projectRightOfEmptyIsTheOther {ls=[]} = Refl
+projectRightOfEmptyIsTheOther {ls=l :: ls} = cong $ projectRightOfEmptyIsTheOther {ls}
+
 data IsProjectRight_List :  List lty -> List lty -> List lty -> Type where
-  IPR_EmptyLabels_List : IsProjectRight_List {lty} [] ls ls
   IPR_EmptyVect_List :  IsProjectRight_List {lty} ls [] []
   IPR_ProjLabelElem_List : (isElem : Elem l ls1) -> DeleteElemPred ls1 isElem lsNew ->
                       IsProjectRight_List {lty} lsNew ls2 res1 -> IsProjectRight_List ls1 (l :: ls2) res1      
   IPR_ProjLabelNotElem_List : Not (Elem l ls1) -> IsProjectRight_List {lty} ls1 ls2 res1 -> 
                        IsProjectRight_List ls1 (l :: ls2) (l :: res1)
+
+projectRightOfEmptyIsTheOtherPred : DecEq lty => {ls : List lty} -> IsProjectRight_List [] ls ls
+projectRightOfEmptyIsTheOtherPred {ls=[]} = IPR_EmptyVect_List
+projectRightOfEmptyIsTheOtherPred {ls=l :: ls} = IPR_ProjLabelNotElem_List noEmptyElem (projectRightOfEmptyIsTheOtherPred {ls})
 
 data DeleteLabelAtPred_List : lty -> List lty -> List lty -> Type where
   EmptyRecord_List : {l : lty} -> DeleteLabelAtPred_List l [] []
@@ -85,17 +91,16 @@ fromLeftUnionFuncToPred {ls1} {ls2} =
   in IsLeftUnionAppend_List delPred
 
 fromIsProjRightFuncToPred : DecEq lty => {ls1, ls2 : List lty} -> IsProjectRight_List ls1 ls2 (projectRightList ls1 ls2)
-fromIsProjRightFuncToPred {ls1=[]} {ls2} = IPR_EmptyLabels_List
-fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2=[]} = IPR_EmptyVect_List
-fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2=l2 :: ls2} with (isElem l2 (l1 :: ls1))
-  fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2=l2 :: ls2} | Yes l2InLs1 =
-    let delElemPred = fromCompToDeleteElemPred (l1 :: ls1) l2InLs1
-        subPrf = fromIsProjRightFuncToPred {ls1= deleteElem (l1 :: ls1) l2InLs1} {ls2}
+fromIsProjRightFuncToPred {ls1} {ls2=[]} = IPR_EmptyVect_List
+fromIsProjRightFuncToPred {ls1} {ls2=l2 :: ls2} with (isElem l2 ls1)
+  fromIsProjRightFuncToPred {ls1} {ls2=l2 :: ls2} | Yes l2InLs1 =
+    let delElemPred = fromCompToDeleteElemPred ls1 l2InLs1
+        subPrf = fromIsProjRightFuncToPred {ls1= deleteElem ls1 l2InLs1} {ls2}
     in IPR_ProjLabelElem_List l2InLs1 delElemPred subPrf
-  fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2=l2 :: ls2} | No notL2InLs1 = 
-    let subPrf = fromIsProjRightFuncToPred {ls1=l1 :: ls1} {ls2}
+  fromIsProjRightFuncToPred {ls1} {ls2=l2 :: ls2} | No notL2InLs1 = 
+    let subPrf = fromIsProjRightFuncToPred {ls1} {ls2}
     in IPR_ProjLabelNotElem_List notL2InLs1 subPrf
-    
+      
 -- Arbol sintactico del lenguaje de expresiones aritmeticas
 data VarDec : String -> Type where
   (:=) : (var : String) -> Nat -> VarDec var
@@ -126,13 +131,21 @@ data LocalVariables : List String -> Type where
   Nil : LocalVariables []
   (::) : VarDec l -> LocalVariables ls -> LocalVariables (l :: ls)  
 
+
+-- TODO: Hacer bien esta funcion
+deleteLabelIsProjectingCons : DecEq lty => {ls1, ls2 : List lty} -> DeleteLabelAtPred_List l (projectRightList ls1 ls2) (projectRightList (l :: ls1) ls2)
+deleteLabelIsProjectingCons {ls1} {ls2=[]} = EmptyRecord_List
+deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} with (isElem l2 ls1)
+  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | Yes l2InLs1 = ?watwat_1
+  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | No notL2InLs1 = ?watwat_2
+
 localPred : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) -> 
   {isSet : IsSet localVars} -> Exp (projectRightList localVars fvsInner)
-localPred {localVars=[]} {fvsInner} vars innerExp {isSet} = innerExp
-localPred {localVars} {fvsInner=[]} vars innerExp {isSet} = ?local_rhs_1
-localPred {localVars} {fvsInner=(fv :: fvsInner)} vars innerExp {isSet} = ?local_hs_2
-
-
+localPred {localVars=[]} {fvsInner} _ innerExp = rewrite (projectRightOfEmptyIsTheOther {ls=fvsInner}) in innerExp
+localPred {localVars=l :: localVars} {fvsInner = fvsInner} (varDec :: vars) innerExp {isSet = (IsSetCons _ isSet)} = 
+  let subExp = localPred vars innerExp {isSet}  
+  in Let varDec subExp deleteLabelIsProjectingCons    
+    
 
 local : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) ->
   TypeOrUnit (isSet localVars) (Exp (projectRightList localVars fvsInner))
@@ -141,7 +154,23 @@ local {localVars} {fvsInner} vars innerExp =
     (\localIsSet => localPred vars innerExp {isSet=localIsSet})
 
 
+-- *** Subset de una lista ***
+data IsSubSet : List lty -> List lty -> Type where
+  IsSubSetNil : IsSubSet [] ls
+  IsSubSetCons : IsSubSet ls1 ls2 -> Elem l ls2 -> IsSubSet (l :: ls1) ls2
+  
+ifIsSubSetThenLeftUnionIsSubSet : DecEq lty => {ls1, ls2, lsSub1, lsSub2 : List lty} -> IsSubSet ls1 ls2 -> 
+  IsLeftUnion_List lsSub1 lsSub2 ls1 -> (IsSubSet lsSub1 ls2, IsSubSet lsSub2 ls2)
 
+-- ifHasFieldInElemThenItHasThere : DecEq lty => {ts1, ts2 : LabelList lty} -> ElemLabel l ts2 -> HasField l ts1 ty ->
+
+-- NOTA: Ts1 y Ts2 podrian tener los mismos labels pero tipos distintos no?
+ifIsSubSetThenHasFieldInIt : DecEq lty => {ts1, ts2 : LabelList lty} -> IsSubSet (labelsOf ts1) (labelsOf ts2) -> 
+  HasField l ts1 ty -> HasField l ts2 ty
+ifIsSubSetThenHasFieldInIt {ts1 = []} _ hasField = absurd $ noEmptyHasField hasField
+ifIsSubSetThenHasFieldInIt {l=l1} {ts1 = ((l2,ty2) :: ts1)} subSet hasField with (decEq l1 l2)
+  ifIsSubSetThenHasFieldInIt {l=l1} {ts1 = ((l1,ty2) :: ts1)} (IsSubSetCons subSet elem) hasField | Yes Refl = ?ifIsSubSetThenHasFieldInIt_rhs_2_1
+  ifIsSubSetThenHasFieldInIt {l=l1} {ts1 = ((l2,ty2) :: ts1)} subSet hasField | No notL1EqL2 = ?ifIsSubSetThenHasFieldInIt_rhs_2_2
 
 
 -- *** Interprete ***
@@ -149,8 +178,51 @@ AllNats : List String -> LabelList String
 AllNats [] = []
 AllNats (x :: xs) = (x, Nat) :: AllNats xs
 
+labelsOfAllNats : labelsOf (AllNats ls) = ls
+labelsOfAllNats {ls = []} = Refl
+labelsOfAllNats {ls = l :: ls} = cong $ labelsOfAllNats {ls}
+ 
+
 data Ambiente : List String -> Type where
   MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
+
+
+-- Interpreta una expresion dado un ambiente con valores para cada variable
+interpEnv : Ambiente fvsAmb -> IsSubSet fvs fvsAmb -> Exp fvs -> Nat
+interpEnv env subSet (Add e1 e2 isUnionFvs) = 
+  let (subSet1, subSet2) = ifIsSubSetThenLeftUnionIsSubSet subSet isUnionFvs
+      res1 = interpEnv env subSet1 e1
+      res2 = interpEnv env subSet2 e2
+  in res1 + res2
+interpEnv {fvsAmb} (MkAmbiente rec) subSet (Var l) = 
+  let eqLabelsOfNats = labelsOfAllNats {ls =  fvsAmb}
+      hasField = HasFieldHere {l} {ty = Nat} {ts = []}
+      labelOfSubSet = replace (sym eqLabelsOfNats) subSet
+      hasFieldInEnv = ifIsSubSetThenHasFieldInIt {ts2 = AllNats fvsAmb} labelOfSubSet hasField
+  in hLookupByLabel l rec hasFieldInEnv
+interpEnv env subSet (Cons c) = c
+interpEnv env subSet (Let var e delAt) = ?interpEnv_rhs_4
+
+-- Ambiente fvsAmb -> Ambiente (var :: fvsAmb)
+-- InSubSet fvs fvsAmb -> IsSubSet fvsInner (var :: fvsAmb)
+-- interpEnv : Ambiente (var :: fvsAmb) -> IsSubSet fvsInner (var :: fvsAmb) -> Exp fvsInner -> Nat
+
+
+{-interpEnv (MkAmbiente rec) (Add e1 e2 isUnionFvs) = 
+  let (recE1, recE2) = splitRecordByUnionList isUnionFvs rec
+      interpE1 = interpEnv (MkAmbiente recE1) e1
+      interpE2 = interpEnv (MkAmbiente recE2) e2
+   in interpE1 + interpE2
+interpEnv (MkAmbiente rec) (Var l) = hLookupByLabel l rec HasFieldHere
+interpEnv env (Cons c) = c
+interpEnv env (Local vars subExp isSet prjRight) = 
+  let isSetInner = expIsSet subExp
+      newEnv = addLocalVarsToEnv env prjRight vars isSetInner
+  in interpEnv newEnv subExp -}
+  
+  
+interp : Exp [] -> Nat
+interp = interpEnv (MkAmbiente {ls=[]} emptyRec) IsSubSetNil
 
 {-
 
@@ -448,16 +520,16 @@ interp = interpEnv (MkAmbiente {ls=[]} emptyRec)
 expTest1 : Exp ["x", "y"]
 expTest1 = add (var "x") (add (cons 1) (var "y"))
 
---expTest2 : Exp []
---expTest2 = local ["x" := 10] $ cons 1
+expTest2 : Exp []
+expTest2 = local ["x" := 10] $ cons 1
 
---expTest3 : Exp []
---expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
+expTest3 : Exp []
+expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
 
 expTest4 : Exp []
 expTest4 = eLet ("x" := 10) $ var "x"
 
-expTest5 : Exp  ["y"]
+expTest5 : Exp ["y"]
 expTest5 = eLet ("x" := 10) $ add (var "x") (var "y")
 
 expTest6 : Exp []
