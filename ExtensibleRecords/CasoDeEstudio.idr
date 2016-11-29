@@ -168,7 +168,13 @@ labelsOfAllNats {ls = []} = Refl
 labelsOfAllNats {ls = l :: ls} = cong $ labelsOfAllNats {ls}
 
 ifNotElemThenNotInNats : Not (Elem x xs) -> Not (ElemLabel x (AllNats xs))
-   
+ifNotElemThenNotInNats {xs = []} notXInXs xInLabelXs = absurd $ noEmptyElem xInLabelXs
+ifNotElemThenNotInNats {xs = x1 :: xs} notXInXs Here = notXInXs Here
+ifNotElemThenNotInNats {xs = x1 :: xs} notXInXs (There there) = 
+  let notInCons = notElemInCons notXInXs
+      subPrf = ifNotElemThenNotInNats notInCons
+  in absurd $ subPrf there
+
 data Ambiente : List String -> Type where
   MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
 
@@ -206,6 +212,10 @@ ifIsSubSetThenHasFieldInIt {l=l1} {ls1 = (l2 :: ls1)} subSet hasField with (decE
     ifIsSubSetThenHasFieldInIt subSet hasFieldThere
 
 ifIsSubSetThenIsSubSetOfCons : IsSubSet ls1 ls2 -> IsSubSet ls1 (l :: ls2)
+ifIsSubSetThenIsSubSetOfCons IsSubSetNil = IsSubSetNil
+ifIsSubSetThenIsSubSetOfCons {l=l1} (IsSubSetCons {l=l2} subSet l1InLs2) = 
+  let subPrf = ifIsSubSetThenIsSubSetOfCons subSet
+  in IsSubSetCons subPrf (There l1InLs2)
 
 ifDeleteLabelFromSetThenIsNotElem : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> Not (Elem l ls2)
 
@@ -213,11 +223,22 @@ ifConsIsElemThenIsSubSet : IsSubSet ls1 (l :: ls2) -> Elem l ls2 -> IsSubSet ls1
 
 ifIsSubSetThenSoIfYouDeleteLabel : DeleteLabelAtPred_List l ls1 ls3 -> IsSubSet ls3 ls2 -> IsSubSet ls1 (l :: ls2)
 
-expIsSet : {fvs : List String} -> Exp fvs -> IsSet fvs
+ifListsAreSetThenLeftUnionIsSet : IsLeftUnion_List ls1 ls2 ls3 -> IsSet ls1 -> IsSet ls2 -> IsSet ls3
+
+ifIsSetThenDeleteAtIsSet : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> IsSet ls2
+
+expIsSet : Exp fvs -> IsSet fvs
+expIsSet (Add e1 e2 fvsLeftUnion) =
+  let e1IsSet = expIsSet e1
+      e2IsSet = expIsSet e2
+  in ifListsAreSetThenLeftUnionIsSet fvsLeftUnion e1IsSet e2IsSet
+expIsSet (Var l) = IsSetCons noEmptyElem IsSetNil
+expIsSet (Cons n) = IsSetNil
+expIsSet (Let (v := n) e delAt) = ifIsSetThenDeleteAtIsSet delAt $ expIsSet e
 
 ifIsElemThenHasFieldNat : Elem l ls -> HasField l (AllNats ls) Nat
-
-
+ifIsElemThenHasFieldNat Here = HasFieldHere
+ifIsElemThenHasFieldNat (There later) = HasFieldThere $ ifIsElemThenHasFieldNat later
 
 -- Interpreta una expresion dado un ambiente con valores para cada variable
 interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv -> Exp fvs -> Nat
@@ -287,124 +308,6 @@ ifNotElemThenNotElemNats {xs = x1 :: xs} notXInXs (There there) =
 
 getTailFromRecord : Record (l :: ls) -> Record ls
 getTailFromRecord (MkRecord (IsSetCons notElem isSet) (n :: ns)) = MkRecord isSet ns
-
-splitRecordByAppend_Lemma1 : Not (ElemLabel l1 (AllNats (ls1 ++ ls2))) -> 
-  (Not (ElemLabel l1 (AllNats ls1)), Not (ElemLabel l1 (AllNats ls2)))
-splitRecordByAppend_Lemma1 notL1InAppend = (lemmaLeft notL1InAppend, lemmaRight notL1InAppend)
-  where
-    lemmaLeft : Not (ElemLabel l1 (AllNats (ls1 ++ ls2))) -> Not (ElemLabel l1 (AllNats ls1))
-    lemmaLeft {ls1 = []} notL1InAppend l1InLs1 = noEmptyElem l1InLs1
-    lemmaLeft {ls1 = l1 :: ls1} notL1InAppend Here = notL1InAppend Here
-    lemmaLeft {ls1 = l1 :: ls1} notL1InAppend (There there) = 
-      let notL1InAppendSub = notElemInCons notL1InAppend
-          subPrf = lemmaLeft notL1InAppendSub
-      in subPrf there
-          
-    lemmaRight : Not (ElemLabel l1 (AllNats (ls1 ++ ls2))) -> Not (ElemLabel l1 (AllNats ls2))
-    lemmaRight {ls1 = []} notL1InAppend l1InLs2 = notL1InAppend l1InLs2
-    lemmaRight {ls1 = l1 :: ls1} notL1InAppend l1InLs2 = lemmaRight (notElemInCons notL1InAppend) l1InLs2
-    
-
-
-splitRecordByAppend : Record (AllNats (ls1 ++ ls2)) -> (Record (AllNats ls1), Record (AllNats ls2))
-splitRecordByAppend {ls1 = []} rec = (emptyRec, rec)
-splitRecordByAppend {ls1 = l1 :: ls1} {ls2} rec@(MkRecord (IsSetCons notElem isSet) (n :: ns)) = 
-  let tailRec = getTailFromRecord rec
-      (subRecLeft, subRecRight) = splitRecordByAppend {ls1} {ls2} tailRec
-      (notL1InLs1, notL1InLs2) = splitRecordByAppend_Lemma1 notElem
-      resRecLeft = consRec l1 n subRecLeft {notElem = notL1InLs1}
-  in (resRecLeft, subRecRight)  
-  
-splitRecordByUnionList_Lemma1_1 : Not (Elem l ls) -> Not (ElemLabel l (AllNats ls))  
-splitRecordByUnionList_Lemma1_1 {ls = []} _ lInLsLabel = noEmptyElem lInLsLabel
-splitRecordByUnionList_Lemma1_1 {ls = _ :: _} notLInLs Here = notLInLs Here
-splitRecordByUnionList_Lemma1_1 {ls = _ :: _} notLInLs (There there) = 
-  splitRecordByUnionList_Lemma1_1 (notElemInCons notLInLs) there
-
-
-splitRecordByUnionList_Lemma1_3 : Not (ElemLabel l (AllNats ls)) -> Not (Elem l ls) 
-splitRecordByUnionList_Lemma1_3 {ls = []} _ lInLs = noEmptyElem lInLs
-splitRecordByUnionList_Lemma1_3 {ls = _ :: _} notLInLsLabel Here = notLInLsLabel Here
-splitRecordByUnionList_Lemma1_3 {ls = _ :: _} notLInLsLabel (There there) = 
-  splitRecordByUnionList_Lemma1_3 (notElemInCons notLInLsLabel) there
-
-splitRecordByUnionList_Lemma1_2 : DeleteLabelAtPred_List l1 ls1 ls2 -> Not (l1 = l2) -> Not (Elem l2 ls2) -> Not (Elem l2 ls1)  
-splitRecordByUnionList_Lemma1_2 EmptyRecord_List _  _ l2InLs1 = noEmptyElem l2InLs1
-splitRecordByUnionList_Lemma1_2 IsElem_List notL1EqL2 _ Here = notL1EqL2 Refl
-splitRecordByUnionList_Lemma1_2 IsElem_List _ notL2InLs2 (There there) = notL2InLs2 there
-splitRecordByUnionList_Lemma1_2 (IsNotElem_List _ _) _ notL2InLs2 Here = notL2InLs2 Here
-splitRecordByUnionList_Lemma1_2 (IsNotElem_List _ delAt) notL1EqL2 notL2InLs2 (There there) = 
-  splitRecordByUnionList_Lemma1_2 delAt notL1EqL2 (notElemInCons notL2InLs2) there
-
-splitRecordByUnionList_Lemma1_5 : Record (AllNats (ls1 ++ ls2)) -> Not (Elem l ls1) -> Not (Elem l ls2) -> Record (AllNats (ls1 ++ l :: ls2))
-
-splitRecordByUnionList_Lemma1_4 : Not (l1 = l2) -> Not (Elem l1 (ls1 ++ ls2)) -> Not (Elem l1 (ls1 ++ l2 :: ls2))
-
-
-splitRecordByUnionList_Lemma1 : Not (Elem l ls1) -> Not (Elem l ls3) -> DeleteLabelAtPred_List l ls2 ls3 -> Nat -> Record (AllNats (ls1 ++ ls3)) -> Record (AllNats (ls1 ++ ls2))
-splitRecordByUnionList_Lemma1 _ _ EmptyRecord_List _ rec = rec
-splitRecordByUnionList_Lemma1 notLInLs1 notLInLs3 {l} {ls1 = []} IsElem_List n rec = 
-  consRec l n rec {notElem = splitRecordByUnionList_Lemma1_1 notLInLs3} 
-splitRecordByUnionList_Lemma1 notLInLs1 notLInLs3 {ls1 = l1 :: ls1} {ls3} IsElem_List n 
-  rec@(MkRecord (IsSetCons notL1InApp appIsSet) (n2 :: ns)) = 
-  let recLs1LLs3 = splitRecordByUnionList_Lemma1_5 (getTailFromRecord rec) (notElemInCons notLInLs1) notLInLs3
-      notL1InLs1LLs3 = splitRecordByUnionList_Lemma1_4 {ls1} {ls2=ls3}
-                       (symNot $ ifNotElemThenNotEqual notLInLs1) 
-                       (splitRecordByUnionList_Lemma1_3 notL1InApp)
-  in consRec l1 n2 recLs1LLs3 {notElem = splitRecordByUnionList_Lemma1_1 notL1InLs1LLs3}
-splitRecordByUnionList_Lemma1 notLInLs1 notLInLs3 {ls1 = []} {ls2 = l2 :: ls2} {ls3 = l2 :: ls3} (IsNotElem_List notEq delAt) n1 
-  (MkRecord (IsSetCons notL2InLs3 ls3IsSet) (n2 :: ns))  =
-  let recLs3 = MkRecord ls3IsSet ns
-      subRec = splitRecordByUnionList_Lemma1 notLInLs1 (notElemInCons notLInLs3) delAt n1 recLs3
-      notL2InLs2 = splitRecordByUnionList_Lemma1_2 delAt notEq (splitRecordByUnionList_Lemma1_3 notL2InLs3)
-  in consRec l2 n2 subRec {notElem = splitRecordByUnionList_Lemma1_1 notL2InLs2}
-splitRecordByUnionList_Lemma1 notLInLs1 notLInLs3 {ls1 = l1 :: ls1} {ls2 = l2 :: ls2} {ls3 = l2 :: ls3} (IsNotElem_List notEq delAt) n rec = 
-  ?splitRec_rhs_4
-
-splitRecordByUnionList_Lemma2 : Not (ElemLabel l (AllNats ls)) -> Not (Elem l ls)
-splitRecordByUnionList_Lemma2 {ls = []} notLInLsNats lInLs = notLInLsNats lInLs
-splitRecordByUnionList_Lemma2 {ls = l2 :: ls} notLInLsNats Here = notLInLsNats Here
-splitRecordByUnionList_Lemma2 {ls = l2 :: ls} notLInLsNats (There there) =
-  let notElemRes = notElemInCons notLInLsNats
-      subRes = splitRecordByUnionList_Lemma2 notElemRes
-  in subRes there
-  
-splitRecordByUnionList_Lemma4 : IsLabelSet (AllNats ls) -> IsSet ls  
-splitRecordByUnionList_Lemma4 {ls = []} isLabelSet = IsSetNil
-splitRecordByUnionList_Lemma4 {ls = l :: ls} (IsSetCons notLInLsLabel lsIsLabelSet) = 
-  let notLInLs = splitRecordByUnionList_Lemma1_3 notLInLsLabel
-      lsIsSet = splitRecordByUnionList_Lemma4 lsIsLabelSet
-  in IsSetCons notLInLs lsIsSet
-  
-splitRecordByUnionList_Lemma5 : IsSet ((l :: ls1) ++ ls2) -> Not (Elem l ls2)
-splitRecordByUnionList_Lemma5 (IsSetCons notLInApp appIsSet) = subLemma notLInApp appIsSet
-  where
-    subLemma : Not (Elem k (ks1 ++ ks2)) -> IsSet (ks1 ++ ks2) -> Not (Elem k ks2)
-    subLemma {ks1 = []} notKInApp kAppIsSet kInKs2 = notKInApp kInKs2
-    subLemma {ks1 = k1 :: ks1} {ks2} notKInApp (IsSetCons notK1InApp kAppIsSet) kInKs2 = 
-      let subPrf = subLemma {ks1} {ks2} (notElemInCons notKInApp) kAppIsSet
-      in subPrf kInKs2
-
-splitRecordByUnionList : IsLeftUnion_List ls1 ls2 lsRes -> Record (AllNats lsRes) -> (Record (AllNats ls1), Record (AllNats ls2))
-splitRecordByUnionList {ls1 = []} (IsLeftUnionAppend_List EmptyLabelList_List) rec = (emptyRec, rec)
-splitRecordByUnionList {ls1 = l1 :: ls1} (IsLeftUnionAppend_List (DeleteFirstOfLabelList_List delAt delLabels)) rec =
-  let auxLeftUnion = IsLeftUnionAppend_List delLabels  
-      (recLs1Cons, recLs3) = splitRecordByAppend rec
-      (MkRecord (IsSetCons notElem isSet) (n :: ns)) = recLs1Cons
-      recLs1AppLs3 = getTailFromRecord rec
-      notL1InLs3 = splitRecordByUnionList_Lemma5 . splitRecordByUnionList_Lemma4 . recLblIsSet $ rec
-      recLs1AppLsAux = splitRecordByUnionList_Lemma1 {ls1} (splitRecordByUnionList_Lemma2 notElem) notL1InLs3 delAt n recLs1AppLs3
-      (recLs1, recLs2) = splitRecordByUnionList auxLeftUnion recLs1AppLsAux
-  in (recLs1Cons, recLs2)
-  
-deleteElemFromLocalVariables : DeleteElemPred ls1 isElem ls2 ->
-  LocalVariables ls1 -> LocalVariables ls2
-deleteElemFromLocalVariables DeleteElemPredHere (field :: vars) = vars
-deleteElemFromLocalVariables (DeleteElemPredThere delThere) (field :: vars) = field :: (deleteElemFromLocalVariables delThere vars)
-
-lookupInLocalVars : Elem l localVars -> LocalVariables localVars -> Nat
-lookupInLocalVars Here ((var := val) :: _) = val
-lookupInLocalVars (There there) (field :: vars) = lookupInLocalVars there vars
 
 ifDelLabelAtThenNotElemInRes : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> Not (Elem l ls2)
 ifDelLabelAtThenNotElemInRes EmptyRecord_List _ lInLs2 = noEmptyElem lInLs2
@@ -525,25 +428,6 @@ expIsSet (Local vars e varsIsSet prjRight) =
   let eIsSet = expIsSet e
   in ifListIsSetThenProjectRightIsSet prjRight eIsSet
 
-
--- NOTA: Este de abajo tira error de no-totalidad
-addLocalVarsToEnv : Ambiente fvs -> IsProjectRight_List localVars fvsInner fvs -> LocalVariables localVars -> IsSet fvsInner ->
-  Ambiente fvsInner
-addLocalVarsToEnv env IPR_EmptyLabels_List _ _ = env
-addLocalVarsToEnv env IPR_EmptyVect_List _ _ = env
-addLocalVarsToEnv env (IPR_ProjLabelElem_List {l} isElem delElem prjRight) vars (IsSetCons notLInInner isSet) = 
-  let subVars = deleteElemFromLocalVariables delElem vars
-      natVal = lookupInLocalVars isElem vars
-      (MkAmbiente subRec) = addLocalVarsToEnv env prjRight subVars isSet
-      resRec = consRec l natVal subRec {notElem = ifNotElemThenNotElemNats notLInInner}
-  in (MkAmbiente resRec)
-addLocalVarsToEnv (MkAmbiente (MkRecord (IsSetCons notSetElem isSetRec) (n :: ns))) 
-  (IPR_ProjLabelNotElem_List {l} notIsElem prjRight) vars (IsSetCons notLInLs2 isSet) = 
-  let tailRec = MkRecord isSetRec ns
-      tailEnv = MkAmbiente tailRec  
-      (MkAmbiente subRec) = addLocalVarsToEnv tailEnv prjRight vars isSet 
-      resRec = consRec l n subRec {notElem = ifNotElemThenNotElemNats notLInLs2}
-  in (MkAmbiente resRec)
 
 -- Interpreta una expresion dado un ambiente con valores para cada variable
 interpEnv : Ambiente fvs -> Exp fvs -> Nat
