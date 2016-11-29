@@ -132,12 +132,11 @@ data LocalVariables : List String -> Type where
   (::) : VarDec l -> LocalVariables ls -> LocalVariables (l :: ls)  
 
 
--- TODO: Hacer bien esta funcion
 deleteLabelIsProjectingCons : DecEq lty => {ls1, ls2 : List lty} -> DeleteLabelAtPred_List l (projectRightList ls1 ls2) (projectRightList (l :: ls1) ls2)
 deleteLabelIsProjectingCons {ls1} {ls2=[]} = EmptyRecord_List
 deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} with (isElem l2 ls1)
-  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | Yes l2InLs1 = ?watwat_1
-  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | No notL2InLs1 = ?watwat_2
+  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | Yes l2InLs1 = ?delLabelCons_1
+  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | No notL2InLs1 = ?delLabelCons_2
 
 localPred : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) -> 
   {isSet : IsSet localVars} -> Exp (projectRightList localVars fvsInner)
@@ -159,53 +158,105 @@ data IsSubSet : List lty -> List lty -> Type where
   IsSubSetNil : IsSubSet [] ls
   IsSubSetCons : IsSubSet ls1 ls2 -> Elem l ls2 -> IsSubSet (l :: ls1) ls2
   
-ifIsSubSetThenLeftUnionIsSubSet : DecEq lty => {ls1, ls2, lsSub1, lsSub2 : List lty} -> IsSubSet ls1 ls2 -> 
-  IsLeftUnion_List lsSub1 lsSub2 ls1 -> (IsSubSet lsSub1 ls2, IsSubSet lsSub2 ls2)
-
--- ifHasFieldInElemThenItHasThere : DecEq lty => {ts1, ts2 : LabelList lty} -> ElemLabel l ts2 -> HasField l ts1 ty ->
-
--- NOTA: Ts1 y Ts2 podrian tener los mismos labels pero tipos distintos no?
-ifIsSubSetThenHasFieldInIt : DecEq lty => {ts1, ts2 : LabelList lty} -> IsSubSet (labelsOf ts1) (labelsOf ts2) -> 
-  HasField l ts1 ty -> HasField l ts2 ty
-ifIsSubSetThenHasFieldInIt {ts1 = []} _ hasField = absurd $ noEmptyHasField hasField
-ifIsSubSetThenHasFieldInIt {l=l1} {ts1 = ((l2,ty2) :: ts1)} subSet hasField with (decEq l1 l2)
-  ifIsSubSetThenHasFieldInIt {l=l1} {ts1 = ((l1,ty2) :: ts1)} (IsSubSetCons subSet elem) hasField | Yes Refl = ?ifIsSubSetThenHasFieldInIt_rhs_2_1
-  ifIsSubSetThenHasFieldInIt {l=l1} {ts1 = ((l2,ty2) :: ts1)} subSet hasField | No notL1EqL2 = ?ifIsSubSetThenHasFieldInIt_rhs_2_2
-
-
 -- *** Interprete ***
-AllNats : List String -> LabelList String
+AllNats : List lty -> LabelList lty
 AllNats [] = []
 AllNats (x :: xs) = (x, Nat) :: AllNats xs
 
 labelsOfAllNats : labelsOf (AllNats ls) = ls
 labelsOfAllNats {ls = []} = Refl
 labelsOfAllNats {ls = l :: ls} = cong $ labelsOfAllNats {ls}
- 
 
+ifNotElemThenNotInNats : Not (Elem x xs) -> Not (ElemLabel x (AllNats xs))
+   
 data Ambiente : List String -> Type where
   MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
 
+ifAppendIsSubSetThenSoIsTheRight : DecEq lty => {ls1, ls2, ls3 : List lty} -> IsSubSet (ls1 ++ ls2) ls3 -> IsSubSet ls2 ls3
+
+ifIsSubSetThenLeftUnionIsSubSet : DecEq lty => {ls1, ls2, lsSub1, lsSub2 : List lty} -> IsSubSet ls1 ls2 -> 
+  IsLeftUnion_List lsSub1 lsSub2 ls1 -> (IsSubSet lsSub1 ls2, IsSubSet lsSub2 ls2)
+ifIsSubSetThenLeftUnionIsSubSet subSet (IsLeftUnionAppend_List delLabels) = (isSubSetLeft subSet delLabels, isSubSetRight subSet delLabels)
+  where
+    isSubSetLeft :  DecEq lty => {rs2, rs3, rsSub1, rsSub2 : List lty} -> IsSubSet (rSub1 ++ rs3) rs2 -> 
+  DeleteLabelsPred_List rsSub1 rsSub2 rs3 -> IsSubSet rsSub1 rs2
+    isSubSetLeft {rsSub1 = []} _ _ = IsSubSetNil
+    isSubSetLeft {rsSub1 = r :: rsSub1} subSet1 (DeleteFirstOfLabelList_List delAt delLabels) = ?isSubSetLeft_rhs_2_2x
+    
+    isSubSetRight :  DecEq lty => {rs2, rs3, rsSub1, rsSub2 : List lty} -> IsSubSet (rSub1 ++ rs3) rs2 -> 
+  DeleteLabelsPred_List rsSub1 rsSub2 rs3 -> IsSubSet rsSub2 rs2
+    isSubSetRight {rsSub1 = []} subSet2 EmptyLabelList_List = ifAppendIsSubSetThenSoIsTheRight subSet2
+    isSubSetRight {rsSub1 = r :: rsSub1} subSet2 (DeleteFirstOfLabelList_List delAt delLabels) = ?isSubSetRight_rhs_1_2
+
+-- NOTA: No puede parametrizarse por cualquier tipo Type porque necesitaria poder comparar sus tipos. Ej un "t1 : Type" y "t2 : Type" no necesariamente serian el mismo, y no es decidible igualarlos
+ifHasFieldInElemThenItHasThere : DecEq lty => {ls : List lty} -> Elem l ls -> HasField l (AllNats ls) Nat
+ifHasFieldInElemThenItHasThere {ls = []} elem = absurd $ noEmptyElem elem
+ifHasFieldInElemThenItHasThere {l = l2} {ls = l2 :: ls} Here = HasFieldHere
+ifHasFieldInElemThenItHasThere {l = l1} {ls = l2 :: ls} (There later) = HasFieldThere $ ifHasFieldInElemThenItHasThere later
+
+-- NOTA: No puede parametrizarse por cualquier tipo Type porque necesitaria poder comparar sus tipos. Ej un "t1 : Type" y "t2 : Type" no necesariamente serian el mismo, y no es decidible igualarlos
+ifIsSubSetThenHasFieldInIt : DecEq lty => {ls1, ls2 : List lty} -> IsSubSet ls1 ls2 -> 
+  HasField l (AllNats ls1) Nat -> HasField l (AllNats ls2) Nat
+ifIsSubSetThenHasFieldInIt {ls1 = []} _ hasField = absurd $ noEmptyHasField hasField
+ifIsSubSetThenHasFieldInIt {l=l1} {ls1 = (l2 :: ls1)} subSet hasField with (decEq l1 l2)
+  ifIsSubSetThenHasFieldInIt {l=l1} {ls1 = (l1 :: ls1)} (IsSubSetCons subSet elem) hasField | Yes Refl = 
+    ifHasFieldInElemThenItHasThere elem
+  ifIsSubSetThenHasFieldInIt {l=l1} {ls1 = (l1 :: ls1)} (IsSubSetCons subSet elem) HasFieldHere | No notL1EqL2 = absurd $ notL1EqL2 Refl
+  ifIsSubSetThenHasFieldInIt {l=l1} {ls1 = (l2 :: ls1)} (IsSubSetCons subSet elem) (HasFieldThere hasFieldThere) | No notL1EqL2 = 
+    ifIsSubSetThenHasFieldInIt subSet hasFieldThere
+
+ifIsSubSetThenIsSubSetOfCons : IsSubSet ls1 ls2 -> IsSubSet ls1 (l :: ls2)
+
+ifDeleteLabelFromSetThenIsNotElem : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> Not (Elem l ls2)
+
+ifConsIsElemThenIsSubSet : IsSubSet ls1 (l :: ls2) -> Elem l ls2 -> IsSubSet ls1 ls2
+
+ifIsSubSetThenSoIfYouDeleteLabel : DeleteLabelAtPred_List l ls1 ls3 -> IsSubSet ls3 ls2 -> IsSubSet ls1 (l :: ls2)
+
+expIsSet : {fvs : List String} -> Exp fvs -> IsSet fvs
+
+ifIsElemThenHasFieldNat : Elem l ls -> HasField l (AllNats ls) Nat
+
+
 
 -- Interpreta una expresion dado un ambiente con valores para cada variable
-interpEnv : Ambiente fvsAmb -> IsSubSet fvs fvsAmb -> Exp fvs -> Nat
+interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv -> Exp fvs -> Nat
 interpEnv env subSet (Add e1 e2 isUnionFvs) = 
+  -- La union es un subconjunto del ambiente, entonces se interpretan por separado y se suman
   let (subSet1, subSet2) = ifIsSubSetThenLeftUnionIsSubSet subSet isUnionFvs
       res1 = interpEnv env subSet1 e1
       res2 = interpEnv env subSet2 e2
   in res1 + res2
-interpEnv {fvsAmb} (MkAmbiente rec) subSet (Var l) = 
-  let eqLabelsOfNats = labelsOfAllNats {ls =  fvsAmb}
-      hasField = HasFieldHere {l} {ty = Nat} {ts = []}
-      labelOfSubSet = replace (sym eqLabelsOfNats) subSet
-      hasFieldInEnv = ifIsSubSetThenHasFieldInIt {ts2 = AllNats fvsAmb} labelOfSubSet hasField
+interpEnv {fvsEnv} (MkAmbiente rec) subSet (Var l) = 
+  -- Al ser un subconjunto del ambiente, la variable existe en el y se puede obtener
+  let hasField = HasFieldHere {l} {ty = Nat} {ts = []}
+      hasFieldInEnv = ifIsSubSetThenHasFieldInIt  subSet hasField
   in hLookupByLabel l rec hasFieldInEnv
 interpEnv env subSet (Cons c) = c
-interpEnv env subSet (Let var e delAt) = ?interpEnv_rhs_4
-
--- Ambiente fvsAmb -> Ambiente (var :: fvsAmb)
--- InSubSet fvs fvsAmb -> IsSubSet fvsInner (var :: fvsAmb)
--- interpEnv : Ambiente (var :: fvsAmb) -> IsSubSet fvsInner (var :: fvsAmb) -> Exp fvsInner -> Nat
+interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) with (isElem var fvsEnv)
+  -- Si la variable existe en el ambiente, entonces se sustituye su valor y se interpreta la subexpresion con ese nuevo ambiente
+  interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) | Yes varInEnv = 
+    let
+        -- Se actualiza el ambiente con el valor de la variable
+        (MkAmbiente recEnv) = env
+        hasField = ifIsElemThenHasFieldNat varInEnv 
+        newRec = hUpdateAtLabel var n recEnv hasField
+        newEnv = MkAmbiente newRec
+        
+        -- Conociendo que las variables libres son un conjunto, se prueba que el inner es subconjunto del ambiente
+        fvsInnerIsSet = expIsSet e
+        notVarInFvs = ifDeleteLabelFromSetThenIsNotElem delAt fvsInnerIsSet
+        consSubSet = ifIsSubSetThenSoIfYouDeleteLabel delAt subSet {l = var}
+        newSubSet = ifConsIsElemThenIsSubSet consSubSet varInEnv
+    in interpEnv newEnv newSubSet e
+    
+  -- Si la variable no existe en el ambiente, se le agrega y se interpreta la subexpresion con ese nuevo ambiente
+  interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) | No notVarInEnv = 
+    let (MkAmbiente recEnv) = env
+        newRec = consRec var n recEnv {notElem = ifNotElemThenNotInNats notVarInEnv}
+        newEnv = MkAmbiente newRec {ls = (var :: fvsEnv)}
+        newSubSet = ifIsSubSetThenSoIfYouDeleteLabel delAt subSet {l = var}
+    in interpEnv newEnv newSubSet e
 
 
 {-interpEnv (MkAmbiente rec) (Add e1 e2 isUnionFvs) = 
