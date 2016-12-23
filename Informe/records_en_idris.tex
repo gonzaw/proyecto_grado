@@ -27,11 +27,36 @@ El resto de la implementacion es identica a la de \texttt{HList} de Idris, con l
 
 En Idris se pueden definir parametros implicitos, como \texttt{\{l : lty\}}, a diferencia de parametros explicitos como \texttt{(val : t)}. Al momento de utilizar un tipo o una funcion no es necesario incluir los parametros implicitos, Idris va a intentar calcularlos automaticamente basados en el contexto de la llamada o uso del tipo o funcion. Si Idris no puede calcularlos, el typechecker va a fallar y va a ser necesario explicitar tales parametros de esta forma: \texttt{\{parametro=valor\}}.
 
+\subsection{Tipos Decidibles}
+
+Para poder definir records extensibles en Idris, es necesario trabajar con tipos o proposiciones decidibles. En Idris la decidibilidad de un tipo se representa con el siguiente predicado:
+
+\begin{code}
+data Dec : Type -> Type where
+  Yes : (prf : prop) -> Dec prop
+  No  : (contra : Not prop) -> Dec prop
+\end{code}
+
+Un tipo es decidible si se puede construir un valor de si mismo, o se puede construir un valor de su contradicción. Si se tiene \texttt{Dec P}, entonces significa que o bien existe un valor \texttt{s : P} o existe un valor \texttt{n : Not P}. Cabe notar que \texttt{Not P} es equivalente a \texttt{P -> Void}, representando la contradicción de \texttt{P}.
+
+Poder obtener tipos decidibles es importante cuando se tienen tipos que funcionan como predicados y se necesita saber si ese predicado se cumple o no. Solo basta tener \texttt{Dec P} para poder realizar un análisis de casos, uno cuando \texttt{P} es verdadero y otro cuando no.
+
+Otra funcionalidad importante es la de poder realizar igualdad de valores:
+
+\begin{code}
+interface DecEq t where
+  total decEq : (x1 : t) -> (x2 : t) -> Dec (x1 = x2)
+\end{code}
+
+\texttt{DecEq t} indica que, siempre que se tienen dos elementos \texttt{x1, x2 : t}, siempre es posible tener una prueba de que son iguales o una prueba de que son distintos. La función \texttt{decEq} es importante cuando se quiere realizar un análisis de casos sobre la igualdad de dos elementos, un caso donde son iguales y otro caso donde se tiene una prueba de que no lo son.
+
+Los tipos decidibles y las funciones que permiten obtener valores del estilo \texttt{Dec P} son muy importantes al momento de probar teoremas y manipular predicados.
+
 \section{Definicion de Records Extensibles}
 
-Al igual que la implementacion de records extensibles en Haskell vista en la seccion anterior, en este trabajo se decidio implementar records extensibles utilizando una lista heterogenea, cuyo tipo contiene una lista de etiquetas que no deben ser repetidas.
+Al igual que la implementacion de records extensibles en Haskell vista anteriormente, en este trabajo se decidio implementar records extensibles utilizando una lista heterogenea, cuyo tipo contiene una lista de etiquetas que no deben ser repetidas.
 
-Para comenzar con esta implementacion, se necesita que las etiquetas de los records puedan ser comparadas para verificar que no sean repetidas. En este trabajo se decidio utilizar la \textit{typeclass} \texttt{DecEq lty} para las etiquetas de tipo \texttt{lty}. Al ser las etiquetas de un tipo que tienen una instancia de esa typeclass, la igualdad de cualquier par de valores de etiquetas es decidible, por lo que las etiquetas pueden ser comparadas.
+Para comenzar con esta implementacion, se necesita que las etiquetas de los records puedan ser comparadas para verificar que no sean repetidas. En este trabajo se decidio utilizar la \textit{typeclass} \texttt{DecEq lty} para las etiquetas de tipo \texttt{lty}. Como se vió en la sección anterior, al ser las etiquetas de un tipo que tienen una instancia de esa typeclass, la igualdad de cualquier par de valores de etiquetas es decidible, por lo que las etiquetas pueden ser comparadas.
 
 Como en la implementacion en Haskell se decide utilizar un predicado que indica que una lista de valores no tiene repetidos.
 En Idris es posible codificar esta propiedad en un tipo de datos:

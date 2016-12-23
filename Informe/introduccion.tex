@@ -5,52 +5,48 @@
 \chapter{Introducción}
 \label{ch:1}
 
-Los records extensibles son una herramienta muy útil en la programación. Su necesidad ocurre ante un problema que tienen lenguajes de programacion estáticos en cuanto a records: ¿Cómo puedo modificar la estructura de un record ya definido?
+Los records extensibles son una herramienta muy útil en la programación. Surgen como una respuesta a un problema que tienen los lenguajes de programacion estáticos en cuanto a records: ¿Cómo puedo modificar la estructura de un record ya definido?
 
-En los lenguajes de programación fuertemente tipados modernos no existe una forma canónica de definir y manipular records extensibles. Algunos lenguajes ni si quiera permiten definirlos.
+En los lenguajes de programación fuertemente tipados modernos no existe una forma primitiva de definir y manipular records extensibles. Algunos lenguajes ni siquiera permiten definirlos.
 
-En este trabajo se presenta una manera de definir records extensibles y poder trabajar con ellos de forma simple, utilizando un lenguaje de programación con \textit{tipos dependientes} llamado Idris.
+En este trabajo se presenta una manera de definir records extensibles en un lenguaje de programación con \textit{tipos dependientes} llamado Idris.
 
 \section{Records Extensibles}
 
-En varios lenguajes de programación con un sistema de tipos estáticos, es posible definir una estructura estática llamada 'record'. Un record permite agrupar varios valores en un único conjunto, asociando una etiqueta o nombre a cada uno de esos valores.
-Un ejemplo de un record en Haskell sería el siguiente
+En varios lenguajes de programación con tipos estáticos, es posible definir una estructura estática llamada 'record'. Un record es una estructura heterogénea que permite agrupar valores de varios tipos en un único objeto, asociando una etiqueta o nombre a cada uno de esos valores.
+Un ejemplo de la definición de un tipo record en Haskell sería la siguiente:
 
 \begin{code}
 data Persona = Persona { edad :: Int, nombre :: String}
 \end{code}
 
-Una desventaja que tienen los records es que una vez definidos, no es posible modificar su estructura de forma dinámica. Tomando el ejemplo anterior, si uno quisiera tener un nuevo record con los mismos campos de \texttt{Persona} pero con un nuevo campo adicional, como \texttt{apellido}, entonces uno solo podría definirlo de una de estas dos formas:
+En muchos lenguajes de programación, una desventaja que tienen los records es que una vez definidos, no es posible modificar su estructura de forma dinámica. Tomando el ejemplo anterior, si uno quisiera tener un nuevo record con los mismos campos de \texttt{Persona} pero con un nuevo campo adicional, como \texttt{apellido}, entonces uno solo podría definirlo de una de estas dos formas:
 \begin{itemize}[noitemsep]
 \item Definir un nuevo record con esos 3 campos
-\item Crear un nuevo record que contenga el campo \texttt{apellido} y contenga un campo de tipo \texttt{Persona}
+\item Crear un nuevo record que contenga el campo \texttt{apellido} y otro campo de tipo \texttt{Persona}
 \end{itemize}
 
-En ninguno de ambos enfoques es posible obtener el nuevo record de manera dinámica. Es decir, siempre es necesario definir un nuevo tipo, indicando que es un record e indicando sus campos.
+En ninguno de ambos enfoques es posible obtener el nuevo record extendiendo el anterior de manera dinámica. Es decir, siempre es necesario definir un nuevo tipo, indicando que es un record e indicando sus campos.
 
-Los records extensibles intentan resolver ese problema. Si \texttt{Persona} fuera un record extensible, entonces definir un nuevo record idéntico a él, pero con un campo adicional, sería tan fácil como tomar un record de \texttt{Persona} existente, y simplemente agregarle el nuevo campo \texttt{apellido} con su valor correspondiente. A continuación se muestra un ejemplo de record extensible, con una sintaxis hipotética similar a Haskell
+Los records extensibles intentan resolver este problema. Si \texttt{Persona} fuera un record extensible, entonces definir un nuevo record idéntico a él, pero con un campo adicional, sería tan fácil como tomar un record de tipo \texttt{Persona} existente, y simplemente agregarle el nuevo campo \texttt{apellido} con su valor correspondiente. A continuación se muestra un ejemplo de record extensible, con una sintaxis hipotética similar a Haskell:
 
 \begin{code}
 p :: Persona
-p = Persona {edad = 20, nombre = "Juan"}
+p = Persona { edad = 20, nombre = "Juan" }
 
-pExtensible :: Persona + {apellido :: String}
-pExtensible = p + {apellido = "Sanchez"}
+pExtensible :: Persona + { apellido :: String }
+pExtensible = p + { apellido = "Sanchez" }
 \end{code}
 
 El tipo del nuevo record debería reflejar el hecho de que es una copia de \texttt{Persona} pero con el campo adicional utilizado. Uno debería poder, por ejemplo, acceder al campo \texttt{apellido} del nuevo record como uno lo haría con cualquier otro record arbitrario.
 
-Para poder utilizar un record extensible, es necesario poder codificar toda la información del record. Esta información incluye las etiquetas que acepta el record, y el tipo de los valores asociados a cada una de esas etiquetas. Si en un lenguaje de programación con tipado estático no existe soporte del lenguaje para manejar estos records, entonces es necesario mantener esa información en el \textit{tipo} del record. Los \textit{tipos dependientes} permiten llevar a cabo esto.
+Para poder implementar un record extensible, es necesario poder codificar toda la información del record. Esta información incluye las etiquetas que acepta el record, y el tipo de los valores asociados a cada una de esas etiquetas. 
+
+Algunos lenguajes permiten implementar records extensibles con primitivas del lenguaje, pero requiere de sintaxis y semántica especial para records extensibles, y no es posible implementarlos con primitivas del lenguaje más básicas. En este trabajo describiremos la implementación de records extensibles mediante el uso de tipos \textit{dependientes}.
 
 \section{Tipos Dependientes}
 
-Con tipos dependientes, se permite que un tipo dependa de valores y no solo de tipos. Un ejemplo es el de un tipo que representa un natural con cota superior:
-\begin{code}
-Fin : Nat -> Type
-\end{code}
-Este tipo es parametrizado por un natural, el cual indica el valor de la cota superior. Por lo tanto un valor de tipo \texttt{Fin 10} solamente puede ser un natural menor a 10, mientras que un valor de tipo \texttt{Fin 4} solamente puede ser un natural menor a 4.
-
-Otro ejemplo es el de un vector o lista donde su tamano esta indicado en su tipo:
+Los tipos dependientes son tipos que dependen de valores. Por ejemplo, veamos la definición del tipo \textit{vector} que son listas cuyo largo es anotado en su tipo:
 
 \begin{code}
 data Vect : Nat -> Type -> Type where
@@ -58,24 +54,24 @@ data Vect : Nat -> Type -> Type where
   (::) : (x : A) -> (xs : Vect n A) -> Vect (n + 1) A
 \end{code}
 
-Un valor del tipo \texttt{Vect 1 String} equivale a una lista de 1 string, mientras que un valor del tipo \texttt{Vect 10 String} equivale a una lista de 10 strings.
+Un valor del tipo \texttt{Vect 1 String} es una lista que contiene 1 string, mientras que un valor del tipo \texttt{Vect 10 String} es una lista que contiene 10 strings.
 
-Tener un valor en el tipo permite poder restringir el uso de funciones a determinados tipos que tengan un valor específico. Como ejemplo se tiene la siguiente funcion
+Tener valores en el tipo permite poder restringir el uso de funciones a determinados tipos que tengan un valores específicos. Como ejemplo se tiene la siguiente funcion
+
 \begin{code}
-index : Fin n -> Vect n a -> a
+head : Vect (n + 1) a -> a
+head (x :: xs) = x
 \end{code}
 
-Esta función obtiene un valor de un vector dado su índice. Sin embargo, si el vector tiene largo \texttt{n}, esta función fuerza a que el índice pasado por parámetro sea menor o igual a \texttt{n} para que \texttt{Fin n} pueda ser construido.
+Esta funcion obtiene el primer valor de un vector. Es una funcion total, ya que restringe su uso solamente a vectores que tengan un largo mayor a 0, por lo que tal vector siempre va a tener por lo menos un elemento para obtener.
 
-En relación a records extensibles, los tipos dependientes hacen posible que dentro del tipo del record puedan existir valores para poder ser manipulados, como podrian ser la lista de etiquetas del record. Como esta información se encuentra en el tipo del record, es posible definir tipos y funciones que accedan a ella y la manipulen para poder definir todas las funcionalidades de records extensibles.
+En relacion a records extensibles, los tipos dependientes hacen posible que dentro del tipo del record puedan existir valores para poder ser manipulados, como podrian ser la lista de etiquetas del record. Como esta informacion se encuentra en el tipo del record, es posible definir tipos y funciones que accedan a ella y la manipulen para poder definir todas las funcionalidades de records extensibles.
 
 \section{Idris}
 
-En este trabajo se decidió utilizar el lenguaje de programación \textit{Idris} para llevar a cabo la investigación de tipos dependientes aplicados a records extensibles.
+En este trabajo se decidio utilizar el lenguaje de programacion \textit{Idris} para llevar a cabo la investigacion del uso de tipos dependientes aplicados a la definicion de records extensibles. Idris es un lenguaje de programacion funcional con tipos dependientes, con sintaxis similar a Haskell.
 
-Idris es un lenguaje de programación funcional con tipos dependientes, con sintaxis similar a Haskell.
-
-A continuación se muestra un ejemplo de código escrito en Idris:
+A continuacion se muestra un ejemplo de codigo escrito en Idris:
 \begin{code}
 length : (xs : Vect n a) -> Nat
 length [] = 0
@@ -87,29 +83,4 @@ El código descrito en la sección anterior también está en Idris.
 Otro lenguaje que cumple con los requisitos es \textit{Agda}. \textit{Agda} es otro lenguaje funcional con tipos dependientes. Sin embargo, se decidió utilizar Idris para investigar las funcionalidades de este nuevo lenguaje.
 Por este motivo, todas las conclusiones obtenidas en este informe pueden ser aplicadas a \textit{Agda} también.
 
-La version de Idris utilizada en este trabajo es la 0.12.0
-
-\subsection{Tipos Decidibles}
-
-Una noción que surgió constantemente en el trabajo presente es el de tipos decidibles. En Idris la decidibilidad de un tipo se representa con el siguiente predicado:
-
-\begin{code}
-data Dec : Type -> Type where
-  Yes : (prf : prop) -> Dec prop
-  No  : (contra : Not prop) -> Dec prop
-\end{code}
-
-Un tipo es decidible si se puede construir un valor de si mismo, o se puede construir un valor de su contradicción. Si se tiene \texttt{Dec P}, entonces significa que o bien existe un valor \texttt{s : P} o existe un valor \texttt{n : Not P}. Cabe notar que \texttt{Not P} es equivalente a \texttt{P -> Void}, representando la contradicción de \texttt{P}.
-
-Poder obtener tipos decidibles es importante cuando se tienen tipos que funcionan como predicados y se necesita saber si ese predicado se cumple o no. Solo basta tener un \texttt{Dec P} para poder realizar un análisis de casos, uno cuando \texttt{P} es verdadero y otro cuando no.
-
-Otra funcionalidad importante es la de poder realizar igualdad de valores:
-
-\begin{code}
-interface DecEq t where
-  total decEq : (x1 : t) -> (x2 : t) -> Dec (x1 = x2)
-\end{code}
-
-\texttt{DecEq t} indica que, siempre que se tienen dos elementos \texttt{x1, x2 : t}, siempre es posible tener una prueba de que son iguales o una prueba de que son distintos. La función \texttt{decEq} es importante cuando se quiere realizar un análisis de casos sobre la igualdad de dos elementos, un caso donde son iguales y otro caso donde se tiene una prueba de que no lo son.
-
-Los tipos decidibles y las funciones que permiten obtener valores del estilo \texttt{Dec P} son muy importantes al momento de probar teoremas y manipular predicados.
+La version de Idris utilizada en este trabajo es la 0.12.0.
