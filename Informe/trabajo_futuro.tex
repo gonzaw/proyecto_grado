@@ -5,6 +5,14 @@
 \chapter{Trabajo a futuro}
 \label{ch:5}
 
-PENDIENTE
-
-%\section{Introducción}
+En este trabajo se encontraron varias tareas para mejorar esta implementación de records extensibles.
+\begin{itemize}
+\item Una posible tarea a futuro es terminar de implementar las demás funciones y predicados de \textit{HList} de Haskell que faltan implementar.
+\item En el diseño de la librería y del caso de estudio, hubo varios predicados y funciones duplicados para \texttt{List (lty, Type)} y \texttt{List String}. Predicados como \texttt{IsLeftUnion}, \texttt{DeleteLabelAt}, y muchas otras. Una mejora es crear predicados y funciones parametrizadas por \texttt{List a}, con una restricción sobre este \texttt{a} de que contenga una etiqueta o valor String. De este modo no se repite código ni se realiza más esfuerzo en probar todos los lemas para cada predicado en particular.
+\item Todavia existen muchos lemas y teoremas que relacionan todos los predicados y tipos creados que podrían ser muy útiles. Es fundamental que la librería contenga estos teoremas para que el programador que la use no tenga que probarlos por sí solo cada vez (lo cual va a requerir que el usuario de esta librería conozca su comportamiento interno, que es necesario para probar los teoremas).
+\item Para algunos predicados se crearon funciones que computan su mismo resultado. Por ejemplo, para el predicado \texttt{IsLeftUnion} se implementó la función \texttt{leftUnion}. Un buen trabajo a futuro sería implementar las funciones análogas de todos los predicados definidos, y definir todos los posibles teoremas y lemas interesantes entre esas funciones y los distintos predicados.
+\item La implementación actual funciona sobre listas ordenadas. Esto hace que \texttt{Record [('A', Nat), ('B', Nat)]} sea distinto de \texttt{Record [('B', Nat), ('A', Nat)]}, cuando en realidad tal orden no es necesario para utilizar las funciones definidas para records. Se podrían implementar los predicados, tipos y funciones para que dependan de un conjunto donde no importe el orden, y no sobre listas ordenadas.
+\item Se puede mejorar la librería en general. Se puede mejorar la implementación de varios lemas, mejorando el código, organizándo la librería en módulo, definir teoremas y lemas más legibles y simples de usar, etc. También se puede mejorar la sintaxis de cómo se construyen los records, se pueden definir instancias para typeclasses muy útiles para el ecosistema de Idris (como \texttt{Show}, etc), entre muchas otras posibles mejoras.
+\item Actualmente los records se implementaron siguiendo los pasos de \textit{HList} de Haskell. Sin embargo, pueden existir otras implementaciones que sean mejores en otras situaciones. Una buena tarea a futuro es diseñar la librería utilizando el record como tipo abstracto, tal que la implementación misma del record pueda variar sin que los usuarios de la librería sean afectados. 
+\item Como se vió en la introducción, los conceptos visitados en este trabajo aplican tanto a \textit{Agda} como a \textit{Idris}. Se podría ver para traspasar esta definición e implementación a Agda.
+\end{itemize}

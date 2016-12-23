@@ -5,6 +5,129 @@
 \chapter{Caso de estudio}
 \label{ch:4}
 
-PENDIENTE
+\section{Introducción}
 
-%\section{Introducción}
+Se decidió aplicar la previa definición de records extensibles en un caso de estudio. Éste consiste en definir un pequeño lenguaje aritmético con variables y constantes, y utilizar records extensibles para poder interpretarlo.
+
+Este lenguaje \textit{Exp} se define de la siguiente manera:
+\begin{itemize}
+\item Si \textit{n} es un natural, entonces \textit{n} pertenece a \textit{Exp} como una constante.
+\item Si \textit{x} es un string, entonces \textit{x} pertenece a \textit{Exp} como una variable.
+\item Si \textit{e1} y \textit{e2} pertenecen a \textit{Exp}, entonces \textit{e1 + e2} pertenece a \textit{Exp} como una suma.
+\item Si \textit{x} es un string, \textit{n} es un natural y \textit{e} pertenece a \textit{Exp}, entonces \textit{let x := n in e} pertenece a \textit{Exp} como una sustitución de una variable.
+\end{itemize}
+
+Este lenguaje permite definir expresiones aritméticas donde se pueden definir constantes numéricas, variables, o sumar expresiones. Los siguientes son ejemplos de expresiones de este lenguaje:
+
+\begin{code}
+x
+x + 3
+let x := 3 in x + 3
+let y := 10 in (let x := 3 in x + 3)
+\end{code}
+
+En este trabajo se va a implementar tal lenguaje en Idris utilizando tipos dependientes, y se van a utilizar records extensibles para definir el contexto necesario para interpretar una expresión de este lenguaje.
+
+\section{Definición de una expresión}
+
+Una expresión de este lenguaje se define en Idris de la siguiente forma:
+
+\begin{code}
+data VarDec : String -> Type where
+  (:=) : (var : String) -> Nat -> VarDec var
+
+data Exp : List String -> Type where
+  Add : Exp fvs1 -> Exp fvs2 -> 
+    IsLeftUnion_List fvs1 fvs2 fvsRes -> 
+    Exp fvsRes 
+  Var : (l : String) -> Exp [l]
+  Cons : Nat -> Exp []
+  Let : VarDec var -> Exp fvsInner -> 
+    DeleteLabelAtPred_List var fvsInner fvsOuter -> 
+    Exp fvsOuter
+\end{code}
+
+Un valor de tipo \texttt{VarDec x} contiene la variable \texttt{x} y un natural. Representa la declaración de una variable, como \texttt{'x' := 10 : VarDec 'x'}.
+
+El tipo \texttt{Exp} se define como un tipo parametrizado por una lista de variables. Esta lista representa la lista de variables libres que ocurren en la expresión. Un valor de tipo \texttt{Exp ['x', 'y']} es una expresión que tiene a \textit{'x'} e \textit{'y'} como variables libres. Se decidió incluir la información de variables libres en el tipo para poder facilitar tanto la implementación del intérprete, como la construcción de expresiones.
+
+Cada constructor de \texttt{Exp} representa cada ítem de la definición del lenguaje:
+\begin{itemize}
+\item \texttt{Cons} define una constante numérica. La expresión resultante es \texttt{Exp []} porque no contiene variables libres. 
+\item \texttt{Var} define una variable. La expresión resultante contiene esa variable como libre.
+\item \texttt{Add} define la suma de dos expresiones. \texttt{IsLeftUnion\_List fvs1 fvs2 fvsRes} es un predicado que indica que \texttt{fvsRes} es la unión por izquierda de la lista \texttt{fvs1} y \texttt{fvs2}. Por lo tanto la expresión resultante tiene como variables libres la unión por izquierda de las variables libres de la primera expresión y de la segunda.
+\item \texttt{Let} define la sustitución de una variable. Toma una declaración de variable del estilo \textit{'x' := 10} y una subexpresión. \texttt{DeleteLabelAtPred\_List var fvsInner fvsOuter} es un predicado que indica que la lista \texttt{fvsOuter} es el resultado de tomar la lista \texttt{fvsInner} y eliminarle la variable \texttt{var} (si \texttt{var} no existe en \texttt{fvsInner} entonces la lista resultante es idéntica a ésta). Esto significa que las variables libres de una sustitución son las variables libres de la subexpresión menos la variable que ahora está ligada.
+\end{itemize}
+
+\subsection{Construcción de una expresión}
+
+Para poder construir expresiones de este lenguaje, se definieron funciones auxiliares que construyen valores del tipo \texttt{Exp}.
+
+\begin{code}
+var : (l : String) -> Exp [l]
+var l = Var l
+
+cons : Nat -> Exp []
+cons n = Cons n
+
+add : Exp fvs1 -> Exp fvs2 -> Exp (leftUnion fvs1 fvs2)
+add {fvs1} {fvs2} e1 e2 = Add e1 e2
+  (fromLeftUnionFuncToPred {ls1=fvs1} {ls2=fvs2})
+
+eLet : VarDec var -> Exp fvs -> Exp (deleteAtList var fvs)
+eLet {var} {fvs} varDec e = Let varDec e 
+  (fromDeleteLabelAtListFuncToPred {l=var} {ls=fvs})
+\end{code}
+
+Las cuatro funciones simplemente realizan la aplicación del constructor correspondiente. \texttt{add} y \texttt{eLet} tienen la particularidad de que realizan las computaciones sobre las listas de variables, y construyen los predicados correspondientes dada esas computaciones. \texttt{leftUnion} y \texttt{deleteAtList} son las computaciones análogas a \texttt{IsLeftUnion\_List} y \texttt{DeleteAtLabel\_List}, cumpliendo con los siguientes lemas:
+
+\begin{code}
+fromDeleteLabelAtListFuncToPred : DecEq lty => {l : lty} -> 
+  {ls : List lty} -> 
+  DeleteLabelAtPred_List l ls (deleteAtList l ls)
+fromLeftUnionFuncToPred : DecEq lty => {ls1, ls2 : List lty} -> 
+  IsLeftUnion_List {lty} ls1 ls2 (leftUnion ls1 ls2)   
+\end{code}
+
+También se decidió incluir otra función útil para construir expresiones. Se trata de \textit{local}, que permite tomar una lista de declaraciones de variables y definir la sustitución de todas en una subexpresión:
+
+\begin{code}
+data LocalVariables : List String -> Type where
+  Nil : LocalVariables []
+  (::) : VarDec l -> LocalVariables ls -> 
+    LocalVariables (l :: ls) 
+
+localPred : (vars : LocalVariables localVars) -> 
+  (innerExp : Exp fvsInner) -> {isSet : IsSet localVars} -> 
+  Exp (projectRightList localVars fvsInner)
+
+local : (vars : LocalVariables localVars) -> 
+  (innerExp : Exp fvsInner) -> 
+  TypeOrUnit 
+    (isSet localVars) 
+    (Exp (projectRightList localVars fvsInner))
+local {localVars} {fvsInner} vars innerExp = 
+  mkTypeOrUnit (isSet localVars)
+    (\localIsSet => localPred vars innerExp {isSet=localIsSet}) 
+\end{code}
+
+\texttt{LocalVariables} es un tipo que contiene una lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{['x' := 10, 'y' := 4] : LocalVariables ['x', 'y']}.
+
+\texttt{localPred} toma la declaración de variables locales, una subexpresión, una prueba de que las variables declaradas no se repiten, y retorna una nueva expresión. Su implementación se encuentra en el anexo, pero en términos simples construye \texttt{Let}s secuencialmente para cada variable declarada en la lista. La prueba \texttt{IsSet localVars} de que las variables no son repetidas nunca es utilizada, simplemente se agrega para restringir el uso de \texttt{local} y no poder incluir variables repetidas (lo cual sí es posible en aplicaciones sucesivas de \texttt{Let}).
+
+\texttt{local} utiliza el mismo truco definido para \texttt{Record} anteriormente para poder generar la prueba de \texttt{IsSet localVars} de forma automática.
+
+Con estas definiciones se pueden construir expresiones de la siguiente manera:
+
+\begin{code}
+exp1 : Exp []
+exp1 = local ["x" := 10] $ cons 1
+
+exp2 : Exp []
+exp2 = local ["x" := 10, "y" := 9] $ add (var "x") (var "y")
+\end{code}
+
+
+\section{Interpretación de una expresión}
+
+PENDIENTE
