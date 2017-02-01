@@ -5,12 +5,17 @@
 \chapter{Estado del arte}
 \label{ch:2}
 
+En este capítulo se van a presentar varias implementaciones de records extensibles en varios lenguajes. Se enfocará en lenguajes fuertemente tipados. Existen implementaciones de records extensibles en lenguajes dinámicamente tipados, pero no entran en el alcance de este trabajo ni de lo que se quiere investigar.
 
-\section{Records Extensibles como parte del lenguaje}
+En términos generales, las implementaciones de records extensibles se dividen según si son proporcionados por el lenguaje como primitivas, o si son proporcionados por bibliotecas. Se describirán ambas alternativas, incluyendo ejemplos de lenguajes e implementaciones de cada uno.
 
-Algunos lenguaje de programación funcionales permiten el manejo de records extensibles como funcionalidad del lenguaje.
+En particular, este trabajo se enmarca dentro de los proporcionados como bibliotecas de usuario. Este trabajo fue motivado por una biblioteca de Haskell llamada \textit{HList}, la cual va a ser presentada más adelante.
 
-Uno de ellos es \textit{Elm}. Uno de los ejemplos que se muestra en su documentación (\cite{ElmRecords}) es el siguiente:
+\section{Records Extensibles como primitivas del lenguaje}
+
+Algunos lenguaje de programación funcionales permiten el manejo de records extensibles como primitiva del lenguaje. Esto significa que records extensibles son funcionalidades del lenguaje en sí, y tienen sintaxis y funcionamiento especial en el lenguaje.
+
+Uno de ellos es \textit{Elm}\cite{Czaplicki:2013:AFR:2499370.2462161}. Uno de los ejemplos que se muestra en su documentación (\cite{ElmRecords}) es el siguiente:
 
 \begin{code}
 type alias Positioned a =
@@ -42,7 +47,7 @@ Elm permite definir tipos que equivalen a records, pero agregándole campos adic
 
 Una desventaja es que por el poco uso de records extensibles en la versión 0.16 se decidió eliminar la funcionalidad de agregar y eliminar campos a records de forma dinámica \cite{ElmReducedRecordSyntax}.
 
-Otro lenguaje con esta particularidad es \textit{Purescript}. A continuación se muestra uno de los ejemplos de su documentación (\cite{PurescriptRecords}):
+Otro lenguaje con esta particularidad es \textit{Purescript}\cite{PurescriptByExample}. A continuación se muestra uno de los ejemplos de su documentación (\cite{PurescriptRecords}):
 
 \begin{code}
 fullname :: forall t. { firstName :: String, 
@@ -54,7 +59,10 @@ Purescript permite definir records con determinados campos, y luego definir func
 
 Ambos lenguajes basan su implementación de records extensibles, aunque sea parcialmente, en el paper \cite{Leijen:scopedlabels}.
 
+-- TODO: Aca abajo buscar mas propuestas y agregarlas
 También existen otras propuestas de sistemas de tipos con soporte para records extensibles. Algunas de ellas son \cite{Leijen:fclabels}, \cite{Jeltsch:2010:GRC:1836089.1836108}, y \cite{Gaster96apolymorphic}.
+
+-- TODO: Aca abajo explicar mejor las criticas, etc.
 
 Todas estas propuestas tienen en común la necesidad de extender el lenguaje para poder soportar records extensibles. Esto tiene el problema de que los records extensibles no tienen el soporte \textit{first-class} de otros tipos del lenguaje. Esta falta de soporte limita la expresividad de tales records, ya que cualquier manipulación de ellos debe ser proporcionada por el lenguaje, cuando podrían ser proporcionadas por librerías de usuario.
 

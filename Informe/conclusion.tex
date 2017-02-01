@@ -3,8 +3,79 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{Conclusión}
-\label{ch:6}
+\label{ch:5}
 
 PENDIENTE
 
 %\section{Introducción}
+
+\section{Alternativas de HList en Idris}
+
+El sistema de tipos de Idris permite definir tipos de muchas maneras, por lo cual en su momento se investigaron otras formas distintas de implementar HList.
+A continuacion se describen tales formas, indicando por que no se opto por cada una ellas.
+
+\subsection{Dinámico}
+
+\begin{code}
+data HValue : Type where
+    HVal: {A : Type} -> (x : A) -> HValue
+
+HList : Type
+HList = List HValue 
+\end{code}
+
+Este tipo se asemeja al tipo \texttt{Dynamic} utilizado a veces en Haskell, o a \texttt{Object} en Java/C\#. Esta HList mantiene valores de tipos arbitrarios dentro de ella, pero no proporciona ninguna informacion de ellos en su tipo. Cada valor es simplemente reconocido como \texttt{HValue}, y no es posible conocer su tipo u operar con el de ninguna forma. Solo es posible insertar elementos, y manipularlos en la lista (eliminarlos, reordenarlos, etc).
+
+Este enfoque se asemeja al uso de \texttt{List<Object>} de Java/C\# que fue usado incluso antes de que estos lenguajes tuvieran tipos parametrizables, pero sin la funcionalidad de poder realizar \textit{down-casting} (castear un elemento de una superclase a una subclase).
+
+No se utilizo este enfoque ya que al no poder obtenerse la informacion del tipo de \texttt{HValue} es imposible poder verificar que un record contenga campos con etiquetas y que estos no esten repetidos, al igual que es imposible poder trabajar con tal record luego de construido.
+
+Un ejemplo de su uso es 
+
+\begin{code}
+[HVal (1,2), HVal "Hello", HVal 42] : HList
+\end{code}
+
+\subsection{Existenciales}
+
+\begin{code}
+data HList : Type where
+    Nil : HList
+    (::) : {A : Type} -> (x : A) -> HList -> HList
+\end{code}
+
+Este enfoque se asemeja al uso de \textit{tipos existenciales} utilizado en Haskell. Básicamente el tipo \texttt{HList} se define como un tipo simple sin parámetros, pero sus constructores permiten utilizar valores de cualquier tipo.
+Esta definicion es muy similar a la que utiliza tipos dinámicos, y tiene las mismas desventajas. Luego de creada una HList de esta forma, no es posible obtener ninguna informacion de los tipos de los valores que contiene, por lo que es imposible poder trabajar con tales valores. Por ese motivo tampoco fue utilizado.
+
+Un ejemplo de su uso es
+
+\begin{code}
+[1,"2"] : HList
+\end{code}
+
+\subsection{Estructurado}
+
+\begin{code}
+using (x : Type, P : x -> Type)        
+    data HList : (P : x -> Type) ->  Type where
+        Nil : HList P
+        (::) : {head : x} -> P head -> HList P -> 
+          HList P 
+\end{code}
+
+Esta definicion es un punto medio (en terminos de poder) entre la definicion utilizada en este trabajo y las demás definiciones descritas en las secciones anteriores.
+
+Esta HList es parametrizada sobre un constructor de tipos. Es decir, toma como parámetro una funcion que toma un tipo y construye otro tipo a partir de este. Esta definicion permite imponer una estructura en común a todos los elementos de la lista, forzando que cada uno de ellos haya sido construido con tal constructor de tipo, sin importar el tipo base utilizado.
+La desventaja es que no es posible conocer nada de los tipos de cada elemento sin ser por la estructura que se impone en su tipo. El tipo utilizado en este trabajo (al igual que el tipo \texttt{HList} utilizado por Idris) permite utilizar tipos arbitrarios y obtener informacion de ellos accediendo a la lista de tipos, por lo cual son más útiles.
+
+Algunos ejemplos son los siguientes:
+
+\begin{code}
+hListTuple : HList (\x => (x, x))
+hListTuple = (1,1) :: ("1","2") :: Nil
+
+hListExample : HList id
+hListExample = 1 :: "1" :: (1,2) :: Nil
+\end{code}
+
+Como se ve en el último ejemplo, se puede reconstruir la definicion de HList existencial simple utilizando \texttt{HList id}.
