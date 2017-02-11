@@ -70,9 +70,9 @@ Este trabajo se enfocará en records extensibles como bibliotecas de usuario. Un
 
 Las bibliotecas de usuario son componentes de un lenguaje de programación escrito en ese lenguaje para proveer una funcionalidad al usuario. Las implementaciones de records extensibles que utilizan este mecanismo se basan en utilizar funcionalidades avanzadas del lenguaje en cuestión para poder realizar la definición de tales records.
 
-En \textit{Generic Record Combinators with Static Type Checking} \cite{Jeltsch:2010:GRC:1836089.1836108}, Wolfgang Jeltsch describe un sistema de records en Haskell definiendo los records como typeclasses, y los tipos y etiquetas del record como tipos producto. Su trabajo fue liberado como una biblioteca de Haskell llamada \textit{records} \cite{Haskell:Records}. Esta implementación es similar a HList, pero no nos enfocaremos en ella en este trabajo.
+En \textit{Generic Record Combinators with Static Type Checking} \cite{Jeltsch:2010:GRC:1836089.1836108}, Wolfgang Jeltsch describe un sistema de records en Haskell definiendo los records como typeclasses, y los tipos y etiquetas del record como tipos producto. Su trabajo fue liberado como una biblioteca de Haskell llamada \textit{records} \cite{HaskellRecords}. Esta implementación es similar a HList, pero no nos enfocaremos en ella en este trabajo.
 
-Otras propuestas se basan en utilizar extensiones de Haskell para poder definir los records. \textit{rawr} \cite{Haskell:Rawr} utiliza \textit{type families} y \textit{type-level lists} para definir sus records. \textit{Vinyl} \cite{Haskell:Vinyl} también utiliza type-level lists, pero define el record como un GADT (Generalized Abstract Data Type). \textit{ruin} \cite{Haskell:Ruin} utiliza \textit{Template Haskell} y metaprogramming para crear instancias de type-classes específicas. Existen otras propuestas, como \textit{labels} \cite{Haskell:Labels}, \textit{named-records} \cite{Haskell:NamedRecords}, \textit{bookkeeper} \cite{Haskell:Bookkeeper}, entre otras. Estas bibliotecas son muy similares en su funcionamiento, difiriendo en qué funcionalidades de GHC (Glasgow Haskell Compiler) y Haskell utilizan, qué funcionalidades de records y records extensibles le proporcionan al usuario, qué sintaxis usan, etc.
+Otras propuestas se basan en utilizar extensiones de Haskell para poder definir los records. \textit{rawr} \cite{HaskellRawr} utiliza \textit{type families} y \textit{type-level lists} para definir sus records. \textit{Vinyl} \cite{HaskellVinyl} también utiliza type-level lists, pero define el record como un GADT (Generalized Abstract Data Type). \textit{ruin} \cite{HaskellRuin} utiliza \textit{Template Haskell} y metaprogramming para crear instancias de type-classes específicas. Existen otras propuestas, como \textit{labels} \cite{HaskellLabels}, \textit{named-records} \cite{HaskellNamedRecords}, \textit{bookkeeper} \cite{HaskellBookkeeper}, entre otras. Estas bibliotecas son muy similares en su funcionamiento, difiriendo en qué funcionalidades de GHC (Glasgow Haskell Compiler) y Haskell utilizan, qué funcionalidades de records y records extensibles le proporcionan al usuario, qué sintaxis usan, etc.
 
 Como ejemplo de uso de una biblioteca, se tienen los records de \textit{rawr} que se definen de la siguiente forma:
 
@@ -239,7 +239,7 @@ data Tagged s b = Tagged b
 
 Este tipo permite tener un \textit{phantom type} en el tipo \texttt{s}. Esto significa que un valor de tipo \texttt{Tagged s b} va a contener solamente un valor de tipo \texttt{b}, pero en tiempo de compilación se va a tener el tipo \texttt{s} para manipular.
 
-El predicado \texttt{HAllTaggedLV} simplemente verifica que la lista solo contenga elementos del tipo \texttt{Tagged}. Ambos \texttt{Tagged} y \texttt{HAllTaggedLV} pertenecen a la biblioteca \textit{tagged} \cite{Haskell:Tagged}. 
+El predicado \texttt{HAllTaggedLV} simplemente verifica que la lista solo contenga elementos del tipo \texttt{Tagged}. Ambos \texttt{Tagged} y \texttt{HAllTaggedLV} pertenecen a la biblioteca \textit{tagged} \cite{HaskellTagged}. 
 
 Un ejemplo posible de tal lista sería
 
