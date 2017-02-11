@@ -9,7 +9,7 @@ Los records extensibles son una herramienta muy útil en la programación. Surge
 
 En los lenguajes de programación fuertemente tipados modernos no existe una forma primitiva de definir y manipular records extensibles. Algunos lenguajes ni siquiera permiten definirlos.
 
-Este trabajo se enfoca en presentar una manera de definir records extensibles en lenguajes funcionales fuertemente tipoados. En particular, se presenta una manera de hacerlo utilizando un lenguaje de programación con \textit{tipos dependientes} llamado Idris.
+Este trabajo se enfoca en presentar una manera de definir records extensibles en lenguajes funcionales fuertemente tipados. En particular, se presenta una manera de hacerlo utilizando un lenguaje de programación con \textit{tipos dependientes} llamado Idris.
 
 \section{Records Extensibles}
 
@@ -55,15 +55,15 @@ El tipo del nuevo record debería reflejar el hecho de que es una copia de \text
 
 Para poder implementar un record extensible, es necesario poder codificar toda la información del record. Esta información incluye las etiquetas que acepta el record, y el tipo de los valores asociados a cada una de esas etiquetas. 
 
-Algunos lenguajes permiten implementar records extensibles con primitivas del lenguaje (como en Elm \cite{ElmRecords} o Purescript \cite{PurescriptRecords}), pero requiere de sintaxis y semántica especial para records extensibles, y no es posible implementarlos con primitivas del lenguaje más básicas. 
+Algunos lenguajes permiten implementar records extensibles con primitivas del lenguaje (como en Elm \cite{ElmRecords} o Purescript \cite{PurescriptRecords}), pero requieren de sintaxis y semántica especial para records extensibles, y no es posible implementarlos con primitivas del lenguaje más básicas. 
 
 Las propiedades de records extensibles requieren que los campos sean variables y puedan ser agregados a records previamente definidos. En el ejemplo visto más arriba, básicamente se espera poder tener un tipo \texttt{Persona}, y poder agregarle un campo \texttt{apellido} con el tipo \texttt{String}, y que esto sea un nuevo tipo. Esto se puede realizar con \textit{tipos dependientes}.
 
 \section{Tipos Dependientes}
 
-\textit{Tipos dependientes} son tipos que dependen de valores, y no solamente de otros tipos. En el ejemplo anterior, el nuevo tipo \texttt{Persona + \{ apellido :: String\}} depende de tipos (\texttt{Persona} y \texttt{String}) pero también de valores. El campo \texttt{apellido} se puede representar como un valor de tipo \texttt{String}. Con tipos dependientes los tipos son \textit{first-class}, lo que permite que cualquier operación que se puede realizar sobre valores también se puede realizar sobre tipos. En particular, se pueden definir funciones que tengan tipos como parámetros y retornen tipos como resultado. En el ejemplo, \texttt{+} funciona como tal funcion, tomando el tipo \texttt{Persona} y el tipo \texttt{\{apellido :: String\}} y uniéndolos en un nuevo tipo.
+\textit{Tipos dependientes} son tipos que dependen de valores, y no solamente de otros tipos. En el ejemplo anterior, el nuevo tipo \texttt{Persona + \{ apellido :: String\}} depende de tipos (\texttt{Persona} y \texttt{String}) pero también de valores. El elemento \texttt{apellido} se puede representar como un valor de tipo \texttt{String}, quedando el tipo final \texttt{Persona + \{ 'apellido' :: String \}}. Con tipos dependientes los tipos son \textit{first-class}, lo que permite que cualquier operación que se puede realizar sobre valores también se puede realizar sobre tipos. En particular, se pueden definir funciones que tengan tipos como parámetros y retornen tipos como resultado. En el ejemplo, \texttt{+} funciona como tal función, tomando el tipo \texttt{Persona} y el tipo \texttt{\{'apellido' :: String\}} y uniéndolos en un nuevo tipo. \texttt{::} funciona como otra función, uniendo el valor \texttt{apellido} y el tipo \texttt{String}. 
 
-Con tipos dependientes se pueden especificar mejor los tipos que uno desea que tengan los records. Es posible codificar la información que uno quiera y guardarla en el tipo, permitiendo que el tipo resultante sea más rico. 
+En relacion a records extensibles, los tipos dependientes hacen posible que dentro del tipo del record puedan existir valores para poder ser manipulados, como podrian ser la lista de etiquetas del record. Como esta informacion se encuentra en el tipo del record, es posible definir tipos y funciones que accedan a ella y la manipulen para poder definir todas las funcionalidades de records extensibles.
 
 Otra propiedad de los tipos dependientes es que permiten definir propiedades como tipos. Es posible definir proposiciones como tipos, y probar tales proposiciones construyendo valores de ese tipo. Como ejemplo, se puede codificar la propiedad \textit{'Un record extensible no puede tener campos repetidos'} como un tipo \texttt{RecordSinRepetidos record} (donde \texttt{record} es un valor de tipo record), y luego se puede usar un valor \texttt{prueba : RecordSinRepetidos record} en cualquier lugar donde uno quiera que se cumpla esa propiedad. Como se verá más adelante en el trabajo, esto permite tener chequeos y restricciones sobre la construcción de records en tiempo de compilación, ya que si un tipo que representa una propiedad no puede ser construido (lo que significa que no se pudo probar esa propiedad), entonces el código no va a compilar. Esto es una mejora a la alternativa de que se realice un chequeo en tiempo de ejecución haciendo que falle el programa, ya que uno no necesita correr el programa para saber que éste es correcto y cumple tal propiedad.
 
@@ -71,7 +71,7 @@ Otra propiedad de los tipos dependientes es que permiten definir propiedades com
 
 En este trabajo se decidio utilizar el lenguaje de programacion \textit{Idris} \cite{brady:idris-jfp13} para llevar a cabo la investigacion del uso de tipos dependientes aplicados a la definicion de records extensibles. Idris es un lenguaje de programacion funcional con tipos dependientes, con sintaxis similar a Haskell.
 
-Otro lenguaje que cumple con los requisitos es \textit{Agda}. \textit{Agda} \cite{Norell:2009:DTP:1481861.1481862} es otro lenguaje funcional con tipos dependientes. Sin embargo, se decidió utilizar Idris para investigar las funcionalidades de este nuevo lenguaje.
+Otro lenguaje que cumple con los requisitos es \textit{Agda} \cite{Norell:2009:DTP:1481861.1481862}, un lenguaje funcional con tipos dependientes. Sin embargo, se decidió utilizar Idris para investigar las funcionalidades de este nuevo lenguaje.
 Por este motivo, todas las conclusiones obtenidas en este informe pueden ser aplicadas a \textit{Agda} también.
 
 La version de Idris utilizada en este trabajo es la 0.12.0.
@@ -91,49 +91,3 @@ En el capítulo \textit{Conclusión} se tomarán las experiencias del desarrollo
 En el capítulo \textit{Trabajo a futuro} se indicarán aspectos de diseño y implementación que pueden realizarse sobre este trabajo para mejorarlo, como posibles tareas que surgieron y se pueden llevar a cabo.
 
 En el \textit{Apéndice} se encontrarán recursos adicionales, como el código fuente de este trabajo.
-
-
-
--- LO DE ABAJO ES VIEJO --
-
-
-\section{Tipos Dependientes}
-
-Los tipos dependientes son tipos que dependen de valores. Por ejemplo, veamos la definición del tipo \textit{vector} que son listas cuyo largo es anotado en su tipo:
-
-\begin{code}
-data Vect : Nat -> Type -> Type where
-  [] : Vect 0 A
-  (::) : (x : A) -> (xs : Vect n A) -> Vect (n + 1) A
-\end{code}
-
-Un valor del tipo \texttt{Vect 1 String} es una lista que contiene 1 string, mientras que un valor del tipo \texttt{Vect 10 String} es una lista que contiene 10 strings.
-
-Tener valores en el tipo permite poder restringir el uso de funciones a determinados tipos que tengan un valores específicos. Como ejemplo se tiene la siguiente funcion
-
-\begin{code}
-head : Vect (n + 1) a -> a
-head (x :: xs) = x
-\end{code}
-
-Esta funcion obtiene el primer valor de un vector. Es una funcion total, ya que restringe su uso solamente a vectores que tengan un largo mayor a 0, por lo que tal vector siempre va a tener por lo menos un elemento para obtener.
-
-En relacion a records extensibles, los tipos dependientes hacen posible que dentro del tipo del record puedan existir valores para poder ser manipulados, como podrian ser la lista de etiquetas del record. Como esta informacion se encuentra en el tipo del record, es posible definir tipos y funciones que accedan a ella y la manipulen para poder definir todas las funcionalidades de records extensibles.
-
-\section{Idris}
-
-En este trabajo se decidio utilizar el lenguaje de programacion \textit{Idris} \cite{brady:idris-jfp13} para llevar a cabo la investigacion del uso de tipos dependientes aplicados a la definicion de records extensibles. Idris es un lenguaje de programacion funcional con tipos dependientes, con sintaxis similar a Haskell.
-
-A continuacion se muestra un ejemplo de codigo escrito en Idris:
-\begin{code}
-length : (xs : Vect n a) -> Nat
-length [] = 0
-length (x::xs) = 1 + length xs
-\end{code}
-
-El código descrito en la sección anterior también está en Idris.
-
-Otro lenguaje que cumple con los requisitos es \textit{Agda}. \textit{Agda} \cite{Norell:2009:DTP:1481861.1481862} es otro lenguaje funcional con tipos dependientes. Sin embargo, se decidió utilizar Idris para investigar las funcionalidades de este nuevo lenguaje.
-Por este motivo, todas las conclusiones obtenidas en este informe pueden ser aplicadas a \textit{Agda} también.
-
-La version de Idris utilizada en este trabajo es la 0.12.0.
