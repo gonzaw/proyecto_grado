@@ -494,6 +494,18 @@ fromDeleteLabelAtFuncToPred {l=l1} {ts=((l2,ty) :: ts)} with (decEq l1 l2)
     let subDelPred = fromDeleteLabelAtFuncToPred {l=l1} {ts}
     in IsNotElem notL1EqL2 subDelPred
     
+fromDeleteLabelAtPredToFunc : DecEq lty => {l : lty} -> {ts1, ts2 : LabelList lty} -> DeleteLabelAtPred l ts1 ts2 -> ts2 = deleteLabelAt l ts1
+fromDeleteLabelAtPredToFunc {ts1=[]} EmptyRecord = Refl
+fromDeleteLabelAtPredToFunc {l=l2} {ts1 = (l2, ty) :: ts2} {ts2 = ts2} IsElem with (decEq l2 l2)
+  fromDeleteLabelAtPredToFunc {l=l2} {ts1 = (l2, ty) :: ts2} {ts2 = ts2} IsElem | Yes Refl = Refl
+  fromDeleteLabelAtPredToFunc {l=l2} {ts1 = (l2, ty) :: ts2} {ts2 = ts2} IsElem | No notEq = absurd $ notEq Refl
+fromDeleteLabelAtPredToFunc {l=l1} {ts1 = (l2, ty) :: ts1} {ts2 = ((l2, ty) :: ts2)} (IsNotElem notElem subDel) with (decEq l1 l2)
+  fromDeleteLabelAtPredToFunc {l=l1} {ts1 = (l1, ty) :: ts1} {ts2 = ((l1, ty) :: ts2)} (IsNotElem notElem subDel) | Yes Refl = 
+    absurd $ notElem Refl
+  fromDeleteLabelAtPredToFunc {l=l1} {ts1 = (l2, ty) :: ts1} {ts2 = ((l2, ty) :: ts2)} (IsNotElem notElem subDel) | No notL1EqL2 = 
+    let subPrf = fromDeleteLabelAtPredToFunc subDel
+    in cong subPrf
+    
 -- Transformo una prueba de que se proyectó una lista con un solo elemento a una prueba de que se elimino tal elemento
 fromIsProjectRightToDeleteLabelAtPred : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} -> IsProjectRight [l] ts1 ts2 -> 
   DeleteLabelAtPred l ts1 ts2
@@ -659,6 +671,14 @@ fromDeleteLabelsFuncToPred {ls=l :: ls} {ts} =
       delLabelAtPred = fromDeleteLabelAtFuncToPred {l} {ts=deleteLabels ls ts}
   in DeleteFirstOfLabelList {tsAux=deleteLabels ls ts} delLabelAtPred subDelLabelPred
     
+fromDeleteLabelsPredToFunc : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> DeleteLabelsPred ls ts1 ts2 ->
+  ts2 = deleteLabels ls ts1
+fromDeleteLabelsPredToFunc {ls=[]} EmptyLabelList = Refl
+fromDeleteLabelsPredToFunc {ls=l :: ls} (DeleteFirstOfLabelList delAt subDelLabels) = 
+  let subPrfDelAt = fromDeleteLabelAtPredToFunc delAt
+      subPrfDelLabels = fromDeleteLabelsPredToFunc subDelLabels
+  in rewrite (sym subPrfDelLabels) in subPrfDelAt    
+    
 hDeleteLabelsHList : DecEq lty => {ts1 : LabelList lty} -> (ls : List lty) -> HList ts1 ->
   (ts2 : LabelList lty ** (HList ts2, DeleteLabelsPred ls ts1 ts2))
 hDeleteLabelsHList {ts1} [] hs = (ts1 ** (hs, EmptyLabelList))
@@ -698,10 +718,16 @@ data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty 
 hLeftUnion_List : DecEq lty => LabelList lty -> LabelList lty -> LabelList lty
 hLeftUnion_List ts1 ts2 = ts1 ++ (deleteLabels (labelsOf ts1) ts2)
 
-fromHLeftUnionFuncToPred : DecEq lty => {ts1 : LabelList lty} -> {ts2 : LabelList lty} -> IsLeftUnion ts1 ts2 (hLeftUnion_List ts1 ts2)    
+fromHLeftUnionFuncToPred : DecEq lty => {ts1, ts2 : LabelList lty} -> IsLeftUnion ts1 ts2 (hLeftUnion_List ts1 ts2)    
 fromHLeftUnionFuncToPred {ts1} {ts2} = 
   let delLabelsPred = fromDeleteLabelsFuncToPred {ls=labelsOf ts1} {ts=ts2}
   in IsLeftUnionAppend delLabelsPred
+  
+fromHLeftUnionPredToFunc : DecEq lty => {ts1, ts2, ts3 : LabelList lty} -> IsLeftUnion ts1 ts2 ts3 ->
+  ts3 = hLeftUnion_List ts1 ts2
+fromHLeftUnionPredToFunc (IsLeftUnionAppend delLabels) =
+  let eqDelLabels = fromDeleteLabelsPredToFunc delLabels
+  in cong eqDelLabels
   
 -- Lemas necesarios
 ifDeleteLabelsThenAppendIsSetLemma_1_1 : DecEq lty => {ts1, ts2 : LabelList lty} -> {t : (lty,Type)} ->
@@ -795,9 +821,9 @@ ifDeleteLabelsThenAppendIsSetLemma {ts1=((l1,ty1) :: ts1)} {tsDel} (IsSetCons no
   in IsSetCons isNotInAppend resIsSet
    
 -- *-* Definición de "hLeftUnion" de hackage *-*
-hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 ->
+hLeftUnionPred : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 ->
    (tsRes : LabelList lty ** (Record tsRes, IsLeftUnion ts1 ts2 tsRes))
-hLeftUnion {ts1} {ts2} rec1 rec2 = 
+hLeftUnionPred {ts1} {ts2} rec1 rec2 = 
   let
     isSet1 = recLblIsSet rec1
     isSet2 = recLblIsSet rec2
@@ -805,6 +831,13 @@ hLeftUnion {ts1} {ts2} rec1 rec2 =
     recRes = hAppend rec1 recDel (ifDeleteLabelsThenAppendIsSetLemma {ts1=ts1} {ts2=ts2} {tsDel=tsDel} isSet1 isSet2 prfDel)
    in
     (ts1 ++ tsDel ** (recRes, IsLeftUnionAppend prfDel))
+
+hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> Record ts1 -> Record ts2 ->
+  Record (hLeftUnion_List ts1 ts2)
+hLeftUnion ts1 ts2 =
+  let (tsRes ** (resUnion, isLeftUnion)) = hLeftUnionPred ts1 ts2
+      leftUnionEq = fromHLeftUnionPredToFunc isLeftUnion
+  in rewrite (sym leftUnionEq) in resUnion 
 
 -- *** hLookupByLabel ***
 

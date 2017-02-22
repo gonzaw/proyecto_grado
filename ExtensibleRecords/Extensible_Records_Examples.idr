@@ -30,8 +30,9 @@ labelSetEx1 = recLblIsSet recEx1
 recEx3 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
 recEx3 = consRecAuto "Apellido" "Sanchez" recEx1
 
-recordA : Record [('A', Nat), ('A', Nat)]
-recordA = consRecAuto 'A' 10 $ consRecAuto 'A' 10 $ emptyRec
+-- Ejemplo de record que no compilaria
+--recordA : Record [('A', Nat), ('A', Nat)]
+--recordA = consRecAuto 'A' 10 $ consRecAuto 'A' 10 $ emptyRec
 
 -- *** hListToRecAuto ***
 recEx4 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
