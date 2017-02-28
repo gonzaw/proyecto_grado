@@ -5,27 +5,218 @@
 \chapter{Records Extensibles en Idris}
 \label{ch:3}
 
-\section{HList actualizado}
-En este trabajo se decidio implementar las listas heterogeneas de una forma distinta a la que utiliza Idris en general. Las listas heterogeneas de Idris permiten incluir cualquier tipo arbitrario, pero eso no es suficiente al momento de poder implementar records extensibles. Para implementar records extensibles, no solo es necesario poder tener tipos arbitrarios en tal lista, sino que es necesario asociar una etiqueta a cada uno de esos tipos.
+Para describir de este trabajo, se comenzará mostrando ejemplos de creación y uso de records y luego se explicará más a fondo la implementación detrás de ellos.
 
-Una posible implementacion es la de \texttt{Record} de Haskell definida en el capítulo anterior. En esta se define un tipo \texttt{Tagged s b} que contenga un \textit{phantom type}, de tal forma que luego se utiliza una lista de esos tipos. Sin embargo se decidio no utilizar esta implementacion, ya que necesita definir tipos auxiliares (como \texttt{Tagged}), y a su vez necesita definir predicados específicos para esta implementacion, como el predicado que indica que la lista heterogenea está compuesta solamente por valores del tipo \texttt{Tagged}.
-
-Se decidio utilizar una solucion más simple, en donde se reimplementa  \texttt{HList} para que contenga la etiqueta junto al tipo
+En este trabajo se decidió seguir el diseño de HList de Haskell para extender records. Como ejemplo, podemos tomar el siguiente caso de HList descrito en la sección anterior:
 
 \begin{code}
-LabelList : Type -> Type
-LabelList lty = List (lty, Type)
-
-data HList : LabelList lty -> Type where
-  Nil : HList []
-  (::) : {l : lty} -> (val : t) -> HList ts -> 
-    HList ((l,t) :: ts)
+persona = clave .=. (3 :: Integer)
+  .*. nombre .=. 'Juan'
+  .*. edad .=. 27
+  .*. emptyRecord
 \end{code}
 
-El tipo \texttt{LabelList} representa una lista de tipos, junto a una etiqueta para cada uno de esos tipos. Las etiquetas pueden ser de cualquier tipo, pero generalmente se utiliza \texttt{String} para poder nombrarlas mejor. Un ejemplo de tal lista sería \texttt{[("1", Nat),("2", String)] : LabelList String}.
-El resto de la implementacion es identica a la de \texttt{HList} de Idris, con la diferencia de que se debe pasar no solo el valor sino la etiqueta de su campo tambien.
+Este ejemplo se puede definir en Idris de esta forma:
 
-En Idris se pueden definir parametros implicitos, como \texttt{\{l : lty\}}, a diferencia de parametros explicitos como \texttt{(val : t)}. Al momento de utilizar un tipo o una funcion no es necesario incluir los parametros implicitos, Idris va a intentar calcularlos automaticamente basados en el contexto de la llamada o uso del tipo o funcion. Si Idris no puede calcularlos, el typechecker va a fallar y va a ser necesario explicitar tales parametros de esta forma: \texttt{\{parametro=valor\}}.
+\begin{code}
+persona : Record [('Clave', Nat), ('Nombre', String), 
+  ('Edad', Nat)]
+persona = consRecAuto 'Clave' 3 $ 
+  consRecAuto 'Nombre' 'Juan' $
+  consRecAuto 'Edad' 27 $
+  emptyRec
+\end{code}
+
+Las funciones y valores utilizados son comparables con las de HList. La única diferencia entre ambos ejemplos (además de leves diferencias sintácticas) es en la declaración de tipo de Idris.
+
+\begin{code}
+persona : Record [('Clave', Nat), ('Nombre', String), 
+  ('Edad', Nat)]
+\end{code}
+
+El tipo base de este trabajo es \texttt{Record}. Como se ve, \texttt{Record} contiene en su tipo la lista \texttt{[('Clave', Nat), ('Nombre', String), ('Edad', Nat)]}. Esta lista representa los campos (o \textit{rows}) del record. Es una lista de tuplas, donde el primer valor de la tupla es la etiqueta del campo, y el segundo valor es el tipo del campo. Aquí está el uso base de tipos dependientes de este trabajo, ya que el tipo \texttt{Record} depende de un valor (una lista en particular).
+
+En Idris el tipo de Record sería \texttt{Record : List (String, Type) -> Type}. Representa una función de tipo, que se puede aplicar a un valor y retornar un tipo nuevo como \texttt{Record [('Clave', Nat), ('Nombre', String), ('Edad', Nat)] : Type}.
+
+Dentro del tipo del record se encuentra toda la información necesaria, ya que se encuentran todas las etiquetas del mismo y el tipo de cada campo. Tampoco es necesario definir valores externos al record como las etiquetas \texttt{clave} de HList (de tipo \texttt{Label}), sino que se pueden usar simples tipos como \texttt{String} para definir las etiquetas.
+
+Otra pieza fundamental en este trabajo es \texttt{consRecAuto}. Esta es la función que permite tomar un record y extenderlo con otro valor. Para poder entender su comportamiento se puede ver el mismo ejemplo pero con menos campos:
+
+\begin{code}
+persona2 : Record [('Nombre', String), ('Edad', Nat)]
+persona2 = consRecAuto 'Nombre' 'Juan' $
+  consRecAuto 'Edad' 27 $
+  emptyRec
+\end{code}
+
+Al tener este nuevo record, se puede reescribir el original de esta forma:
+
+\begin{code}
+persona1 : Record [('Clave', Nat), ('Nombre', String), 
+  ('Edad', Nat)]
+persona1 = consRecAuto 'Clave' 3 persona2
+\end{code}
+
+Si comparamos estos dos records, podemos ver que \texttt{persona1} contiene la tupla \texttt{('Clave', Nat)} en su tipo mientras que \texttt{persona2} no. Al comparar los argumentos pasados a \texttt{consRecAuto} y cómo éste modificó el tipo del record resultante, se puede definir su tipo de esta forma:
+
+\begin{code}
+consRecAuto : {A : Type} -> (l : String) -> (a : A) -> 
+  Record ts -> Record ((l, A) :: ts)
+\end{code}
+
+En Idris los paréntesis \texttt{\{\}} indican argumentos implícitos mientras que \texttt{()} indican argumentos explícitos. El compilador intenta inferir los argumentos implícitos conociendo cuales otros argumentos fueron pasados a la función, aunque a veces no puede y es necesario pasarlos explícitamente. \texttt{consRecAuto 'Clave' 3 persona2} es equivalente a \texttt{consRecAuto \{A = Nat\} 'Clave' 3 persona2}.
+
+Inductivamente se puede seguir aplicando el razonamiento anterior para conocer el tipo de \texttt{emptyRec}
+
+\begin{code}
+emptyRec : Record []
+\end{code}
+
+Este trabajo también permite realizar varias operaciones de creación, manipulación y lookup de records.
+
+\begin{code}
+personaConNombre : Record [("Clave", Nat), ("Nombre", String)]
+personaConNombre = consRecAuto "Clave" 1 $
+  consRecAuto "Nombre" "Juan" $
+  emptyRec
+-- { "Clave": 1, "Nombre": "Juan" }
+
+personaConEdad : Record [("Clave", Nat), ("Edad", Nat)]
+personaConEdad = consRecAuto "Clave" 1 $
+  consRecAuto "Edad" 34 $
+  emptyRec
+-- { "Clave": 1, "Edad": 34 }
+\end{code}
+
+Si uno tiene estos dos records que representan distintos atributos de una persona, entonces puede unirlos de la siguiente manera:
+
+\begin{code}
+persona : Record [("Clave", Nat), ("Nombre", String), 
+  ("Edad", Nat)]
+persona = hLeftUnion personaConNombre personaConEdad
+-- { "Clave": 1, "Nombre": "Juan", "Edad": 34 }
+\end{code}
+
+Esta unión unifica los campos de ambos (quedándose con el valor del record de la izquierda para los campos repetidos).
+
+Uno también puede obtener el valor de cualquiera de sus campos:
+
+\begin{code}
+nombre : String
+nombre = hLookupByLabelAuto "Nombre" persona
+-- "Juan"
+\end{code}
+
+Si se quiere también se puede actualizar un campo individualmente:
+
+\begin{code}
+personaActualizada : Record [("Clave", Nat), ("Nombre", String), 
+  ("Edad", Nat)]
+personaActualizada = hUpdateAtLabelAuto "Nombre" "Pedro" persona
+-- { "Clave": 1, "Nombre": "Pedro", "Edad": 34 }
+\end{code}
+
+Si uno tiene un record con valores completamente distintos, también puede simplemente añadirlos al final del record original:
+
+\begin{code}
+direccion : Record [("Direccion", String)]
+direccion = consRecAuto "Direccion" "18 de Julio" $
+  emptyRec
+
+personaYDireccion : Record [("Clave", Nat), ("Nombre", String), 
+  ("Edad", Nat), ("Direccion", String)]
+personaYDireccion hAppendAuto persona direccion
+-- { "Clave": 1, "Nombre": "Juan", "Edad": 34, 
+  "Direccion": "18 de Julio" }
+\end{code}
+
+Si se tiene un record, se puede obtener un sub-record proyectando por algunos de sus campos:
+
+\begin{code}
+proyeccion: Record [("Clave", Nat), ("Direccion", String)]
+proyeccion = hProjectByLabelsAuto ["Clave", "Direccion"] 
+  personaYDireccion
+-- { "Clave": 1, "Direccion": "18 de Julio"}
+\end{code}
+
+Todas estas funciones fueron traducidas de la biblioteca HList de Haskell. La implementacion y descripcion de ellas se vera mas adelante.
+
+\section{Predicados y propiedades en Idris}
+
+Antes de ver la implementacion de \texttt{consRec} y \texttt{emptyRec}, es necesario entender la otra propiedad de estos records. Al igual que en HList, se desea que en tiempo de compilación se sepa que las etiquetas del record no son repetidas. En particular, para \texttt{consRecAuto}, se necesita saber que la etiqueta nueva a agregar no existe actualmente en el record. Por lo tanto, se necesita más información del record y del campo a agregar para poder extender un record.
+
+La función que extiende un record debería tener el siguiente tipo:
+
+\begin{code}
+consRec : {A : Type} -> (l : String) -> (a : A) -> 
+ (prf : Not (Elem l ts)) -> Record ts -> Record ((l, A) :: ts)
+\end{code}
+
+Se agregó el nuevo término \texttt{prf : Not (Elem l ts)}. En Idris esto representa no solo un valor \texttt{prf} de un tipo en particular, sino que representa un predicado o proposición, cuya prueba es el valor \texttt{prf} mismo. En este caso, el tipo representa la proposición \textit{La etiqueta 'l' no pertenece a la lista de campos 'ts'}.
+
+Esta correspodencia entre tipos y proposiciones se llama \textit{Curry-Howard isomorphism} \cite{Howard80}, la cual demuestra que todo predicado de una lógica constructivista puede ser representado (isomórficamente) con un tipo de un lenguaje inductivo con tipos dependientes (siempre y cuando éste sea total y consistente).
+
+Tal predicado puede definirse como cualquier otro tipo de datos, definiendo los casos base y los casos inductivos como constructores de tal.
+
+\begin{code}
+data Elem : a -> List a -> Type where
+     Here : Elem x (x :: xs)
+     There : Elem x xs -> Elem x (y :: xs)
+\end{code}
+
+Esta es la definición de Idris del tipo \texttt{Elem}, donde \texttt{Elem x xs} representa el predicado \textit{El elemento 'x' se encuentra en la lista 'xs'}. La definición es inductiva, se tiene el caso base en \texttt{Here} y el caso inductivo en \texttt{There}.
+
+El caso base ocurre cuando el elemento a comparar es idéntico al primer elemento de la lista, representado por el tipo \texttt{Elem x (x :: xs)}. Si uno quiere probar tal caso, simplemente construye el valor \texttt{Here} y lo obtiene.
+
+El caso inductivo ocurre cuando uno sabe que el elemento está en el resto de la lista, por lo cual uno sabe que también pertenece a esa lista con cualquier otro elemento agregado a su cabeza.
+
+Con esta definición, se puede probar un predicado simplemente construyendo términos, como en este ejemplo:
+
+\begin{code}
+Here : Elem 3 [3] -- Elem 3 (3 :: [])
+There Here : Elem 3 [4, 3] -- Elem 3 (4 :: 3 :: [])
+There (There Here) : Elem 3 [1, 4, 3] 
+  -- Elem 3 (1 :: 4 :: 3 :: [])
+\end{code}
+
+En el caso anterior, se tenía el tipo \texttt{Not (Elem l ts)}. \texttt{Not} es una función de tipos que toma un tipo y retorna otro, pero representa la negación. Si tengo un valor \texttt{prf : Not (Elem l ts)}, significa que es imposible obtener cualquier prueba de \texttt{Elem l ts}, básicamente contradiciendo tal predicado. 
+
+\begin{code}
+Not : Type -> Type
+Not t = t -> Void
+\end{code}
+
+\texttt{Not} es una simple función, que toma un tipo, y retorna un tipo función de ese tipo a \texttt{Void}. \texttt{Not (Elem l ts)} es equivalente a \texttt{Elem l ts -> Void}.
+
+\texttt{Void} es un tipo muy interesante en Idris. Es el tipo \textit{bottom}, es un tipo sin ninguna instancia, es un tipo que no puede construirse. En lógica constructivista, representa el valor \textit{False}, donde si se puede obtener una prueba de ese valor, entonces se puede obtener una prueba de cualquier otro. En Idris esa regla está representada por una función proporcionada por el lenguaje llamada \texttt{absurd}
+
+\begin{code}
+absurd : {a : Type} -> Void -> a
+\end{code}
+
+Si en algún momento se tiene un valor \texttt{v : Void}, entonces siempre se puede obtener cualquier tipo con \texttt{absurd v : a}, sea el tipo que sea. Esta función es generalmente usada cuando se está en un caso de pattern-matching 'imposible', y se quiere probar que es imposible de que la ejecución del programa llegue a ese caso, por lo que se prueba \texttt{Void} y luego se aplica \texttt{absurd}.
+
+En Idris, la forma más directa de crear pruebas de \texttt{Void} es mediante la imposibilidad de aplicar constructores. Si al hacer inducción o pattern-matching sobre un valor es imposible poder encontrar un constructor que retorne un tipo compatible con él, entonces se puede utilizar el término \texttt{impossible} y crear una prueba de \texttt{Void} (básicamente, se encuentra un término que debería ser imposible de construir, por lo que se probó el absurdo). 
+
+\begin{code}
+noEmptyElem : Elem x [] -> Void
+noEmptyElem Here impossible
+\end{code}
+
+En este ejemplo, si se tiene un valor de tipo \texttt{Elem x []}, no es posible construirlo. Si se hubiera construido con \texttt{Here}, debería tener un tipo que unifique con \texttt{Elem x (x :: xs)}, lo cual es imposible ya que la lista proporcionada es vacía. Si se hubiera construido con \texttt{There}, debería tener un tipo que unifique con \texttt{Elem x (y :: xs)}, el cual tiene el mismo problema. Por lo tanto es imposible construir un valor de tipo \texttt{Elem x []}, por lo que si se tiene tal valor, al aplicarle la función \texttt{noEmptyElem} a él se puede probar Void.
+
+Si uno recuerda la definición de \texttt{Not} vista anteriormente, se puede reescribir esta función de esta forma:
+
+\begin{code}
+noEmptyElem : Not (Elem x [])
+noEmptyElem Here impossible
+\end{code}
+
+Esta forma es la forma directa de construir pruebas de \texttt{Not}.
+
+Volviendo al caso de records extensibles, vamos a mostrar la definicion completa de la extension de records. Sin embargo, primero mostraremos algunas funciones, tipos, nomenclatura y conceptos necesarios para poder hacerlo.
+
+En una primera instancia, describiremos que son los tipos decidibles y para que son utilizados en este trabajo.
 
 \subsection{Tipos Decidibles}
 
@@ -37,7 +228,7 @@ data Dec : Type -> Type where
   No  : (contra : Not prop) -> Dec prop
 \end{code}
 
-Un tipo es decidible si se puede construir un valor de si mismo, o se puede construir un valor de su contradicción. Si se tiene \texttt{Dec P}, entonces significa que o bien existe un valor \texttt{s : P} o existe un valor \texttt{n : Not P}. Cabe notar que \texttt{Not P} es equivalente a \texttt{P -> Void}, representando la contradicción de \texttt{P}.
+Un tipo es decidible si se puede construir un valor de si mismo, o se puede construir un valor de su contradicción. Si se tiene \texttt{Dec P}, entonces significa que o bien existe un valor \texttt{s : P} o existe un valor \texttt{n : Not P}.
 
 Poder obtener tipos decidibles es importante cuando se tienen tipos que funcionan como predicados y se necesita saber si ese predicado se cumple o no. Solo basta tener \texttt{Dec P} para poder realizar un análisis de casos, uno cuando \texttt{P} es verdadero y otro cuando no.
 
@@ -48,18 +239,59 @@ interface DecEq t where
   total decEq : (x1 : t) -> (x2 : t) -> Dec (x1 = x2)
 \end{code}
 
-\texttt{DecEq t} indica que, siempre que se tienen dos elementos \texttt{x1, x2 : t}, siempre es posible tener una prueba de que son iguales o una prueba de que son distintos. La función \texttt{decEq} es importante cuando se quiere realizar un análisis de casos sobre la igualdad de dos elementos, un caso donde son iguales y otro caso donde se tiene una prueba de que no lo son.
+\texttt{DecEq t} indica que, siempre que se tienen dos elementos \texttt{x1, x2 : t}, es posible tener una prueba de que son iguales o una prueba de que son distintos. La función \texttt{decEq} es importante cuando se quiere realizar un análisis de casos sobre la igualdad de dos elementos, un caso donde son iguales y otro caso donde se tiene una prueba de que no lo son.
 
 Los tipos decidibles y las funciones que permiten obtener valores del estilo \texttt{Dec P} son muy importantes al momento de probar teoremas y manipular predicados.
 
-\section{Definicion de Records Extensibles}
+En este trabajo los tipos decidibles son principalmente utilizados para generalizar las etiquetas a tipos que no sean String (incluso si en este trabajo principalemente se trabaja con Strings). Su uso es bastante simple, en vez de tener \texttt{LabelList String} se tiene \texttt{DecEq lty => LabelList lty}. Como solo se utiliza la igualdad de strings (y nada más) esta definición es suficiente. Sin embargo, a su vez es flexible para permitir otros posibles tipos de etiquetas (como enumerados finitos, identificadores naturales, entre otros).
 
-Al igual que la implementacion de records extensibles en Haskell vista anteriormente, en este trabajo se decidio implementar records extensibles utilizando una lista heterogenea, cuyo tipo contiene una lista de etiquetas que no deben ser repetidas.
+Para poder implementar la extensión de records contamos con las siguientes funciones y tipos también:
 
-Para comenzar con esta implementacion, se necesita que las etiquetas de los records puedan ser comparadas para verificar que no sean repetidas. En este trabajo se decidio utilizar la \textit{typeclass} \texttt{DecEq lty} para las etiquetas de tipo \texttt{lty}. Como se vió en la sección anterior, al ser las etiquetas de un tipo que tienen una instancia de esa typeclass, la igualdad de cualquier par de valores de etiquetas es decidible, por lo que las etiquetas pueden ser comparadas.
+\begin{code}
+LabelList : Type -> Type
+LabelList lty = List (lty, Type)
+ 
+labelsOf : LabelList lty -> List lty
+labelsOf = map fst
 
-Como en la implementacion en Haskell se decide utilizar un predicado que indica que una lista de valores no tiene repetidos.
-En Idris es posible codificar esta propiedad en un tipo de datos:
+ElemLabel : lty -> LabelList lty -> Type
+ElemLabel l ts = Elem l (labelsOf ts)
+
+isElemLabel : DecEq lty => (l : lty) -> 
+  (ts : LabelList lty) -> 
+  Dec (ElemLabel l ts)
+isElemLabel l ts = isElem l (labelsOf ts)
+\end{code}
+
+\texttt{LabelList} es una abstracción que representa una lista de campos con etiquetas y tipos. Por ejemplo: \texttt{[('Clave', Nat)] : LabelList String}.
+
+\texttt{labelsOf} simplemente toma una lista de campos y obtiene solo la lista con sus etiquetas. Por ejemplo: \texttt{labelsOf [('Clave', Nat), ('Edad', Nat)] = ['Clave', 'Edad']}.
+
+\texttt{ElemLabel} toma una etiqueta, una lista de campos y representa el predicado de que esa etiqueta no pertenece a esa lista.
+
+\texttt{isElemLabel} es una funcion de decision, donde para cualquier etiqueta y cualquier lista, se puede probar que tal etiqueta pertenece a esa lista o no. Se basa en una función de decisión ya existente en las bibliotecas base de Idris llamada \texttt{isElem}:
+
+\begin{code}
+isElem : DecEq a => (x : a) -> (xs : List a) -> 
+  Dec (Elem x xs)
+\end{code}
+
+Con estos conceptos y definiciones podemos llegar a la definición final de extensión de un record:
+
+\begin{code}
+consRec : DecEq lty => {ts : LabelList lty} -> 
+  {t : Type} -> (l : lty) -> (val : t) ->
+  Record ts -> {notElem : Not (ElemLabel l ts)} -> 
+  Record ((l, t) :: ts)
+\end{code}
+
+\texttt{DecEq lty} indica que la etiqueta debe tener igualdad (para la mayoría de los casos basta con \texttt{String}). \texttt{ts : LabelList lty} es la lista de campos del record actual, \texttt{t} es el tipo del nuevo campo, \texttt{l} es la nueva etiqueta, \texttt{val} el valor del nuevo campo, \texttt{Record ts} el record a extender, \texttt{Not (ElemLabel l ts)} la prueba de que \texttt{l} no se encuentra repetida en \texttt{ts}, y el record extendido va a tener el tipo \texttt{Record ((l, t) :: ts)}.
+
+\subsection{Listas sin repetidos}
+
+En la sección anterior vimos que para garantizar que no hayan etiquetas repetidas, era necesario tener una prueba de \texttt{Not (ElemLabel l ts)} (utilizando los nuevos tipos y funciones definidos anteriormente). Sin embargo, existe otra forma más sencilla de definir tal predicado. En vez de indicar que \texttt{l} no debe pertenecer a \texttt{ts}, se puede probar que la lista \texttt{(l, A) :: ts} no tiene repetidos.
+
+Esto se define con el siguiente predicado:
 
 \begin{code}
 data IsSet : List t -> Type where
@@ -70,72 +302,18 @@ data IsSet : List t -> Type where
 
 El tipo \texttt{IsSet ls} funciona efectivamente como un predicado logico, el cual indica que la lista \texttt{ls} es un conjunto que no tiene elementos repetidos.
 
-Las pruebas de este predicado se construyen de forma constructiva. Primero se prueba que la lista vacía no contiene repetidos, y luego para el caso recursivo si se agrega un elemento a una lista, la lista resultante no va a tener repetidos solamente si el elemento a agregar no se encuentra en la lista original.
+Las pruebas de este predicado se construyen de forma constructiva. Primero se prueba que la lista vacía no contiene repetidos. Luego, para el caso recursivo, si se agrega un elemento a una lista, la lista resultante no va a tener repetidos solamente si el elemento a agregar no se encuentra en la lista original.
 
-Como para el caso de records extensibles se manejan listas de pares de etiquetas y tipos, se definen los siguientes tipos y funciones útiles para manejarlos:
+Como en este trabajo se manejan listas de campos (representados por tuplas donde el primer elemento contiene la etiqueta) se define el siguiente tipo:
 
 \begin{code}
-ElemLabel : lty -> LabelList lty -> Type
-ElemLabel l ts = Elem l (labelsOf ts)
-
-isElemLabel : DecEq lty => (l : lty) -> 
-  (ts : LabelList lty) -> 
-  Dec (Elem l (labelsOf ts))
-isElemLabel l ts = isElem l (labelsOf ts)
-
-labelsOf : LabelList lty -> List lty
-labelsOf = map fst
-
 IsLabelSet : LabelList lty -> Type
 IsLabelSet ts = IsSet (labelsOf ts)  
 \end{code}
 
-El predicado \texttt{IsLabelSet ts} indica que para la lista de etiquetas y tipos \texttt{ts} no existen etiquetas repetidas.
-El predicado \texttt{ElemLabel l ts} indica que la etiqueta \texttt{l} pertenece a la lista de etiquetas \texttt{ts}.
-\texttt{isElemLabel} es una funcion de decision, donde para cualquier etiqueta y cualquier lista, se puede probar que tal etiqueta pertenece a esa lista o no.
-
-Obtener una definicion de record extensible es simplemente necesitar una lista heterogenea etiquetada, y una prueba de que las etiquetas no son repetidas.
-
-\begin{code}
-data Record : LabelList lty -> Type where
-    MkRecord : IsLabelSet ts -> HList ts -> Record ts
-\end{code}
-
-Un caso base que se puede definir es el record vacío
-
-\begin{code}
-emptyRec : Record []
-emptyRec = MkRecord IsSetNil {ts=[]} [] 
-\end{code}
-
-A su vez se pueden crear funciones que proyectan sobre los campos del constructor del record. En particular, se puede convertir un record a un HList, y dado un record se puede obtener la prueba de que sus etiquetas forman un conjunto.
-
-\begin{code}
-recToHList : Record ts -> HList ts
-recToHList (MkRecord _ hs) = hs
-
-recLblIsSet : Record ts -> IsLabelSet ts
-recLblIsSet (MkRecord lsIsSet _ ) = lsIsSet  
-\end{code}
-
-\section{Extension de records dinámicamente}
-
-La funcionalidad más importante de records extensibles es la de poder extender tal record con un nuevo campo. Esta funcionalidad puede definirse de esta forma:
-
-\begin{code}
-consRec : DecEq lty => {ts : LabelList lty} -> 
-  {t : Type} -> (l : lty) -> (val : t) ->
-  Record ts -> {notElem : Not (ElemLabel l ts)} -> 
-  Record ((l,t) :: ts)
-consRec l val (MkRecord subLabelSet hs) {notElem} = 
-    MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
-\end{code}
-
-Antes que nada se necesita que el tipo de etiquetas admita igualdad, utilizando la restriccion \texttt{DecEq lty}. Luego, se necesita un record ya existente \texttt{Record ts}, el nuevo valor \texttt{val} y la etiqueta del nuevo campo \texttt{l}. A su vez es necesaria una prueba de que la etiqueta nueva no este repetida en las etiquetas ya existentes del record, representado por el tipo \texttt{Not (ElemLabel l ts)}. Si se cumplen estas condiciones entonces es posible crear un nuevo record con el nuevo campo, el cual es reflejado en el tipo \texttt{Record ((l,t) :: ts)}, donde se agrega el par con la nueva etiqueta y el tipo del valor a la lista de tipos y etiquetas original.
-
 \subsection{Construccion de terminos de prueba}
 
-El principal problema que ocurre al utilizar esa funcion se da por el parámetro \texttt{notElem}. Para poder llamar a esta funcion es necesario construir una prueba de que la nueva etiqueta a agregar al record no está repetida en el record ya existente.
+El principal problema que ocurre al utilizar la función \texttt{consRec} definida anteriormente se da por el parámetro \texttt{notElem : Not (ElemLabel l ts)}. Para poder llamar a esta funcion es necesario construir una prueba de que la nueva etiqueta a agregar al record no está repetida en el record ya existente.
 
 Una primera opcion es generar la prueba manualmente, pero esto resulta tedioso e impráctico, ya que sería necesario construir ese termino de prueba cada vez que se llame a la funcion.
 
@@ -159,10 +337,11 @@ getNo (Yes _ ) = ()
 \end{code}
 
 Se analizará el caso de \texttt{getYes} primero, y luego se aplicará el mismo razonamiento para \texttt{getNo}.
-\texttt{getYes} toma un tipo \texttt{Dec p} y el tipo que retorna es una computacion la cual hace \textit{pattern matching} sobre el valor de \texttt{Dec p}. Esta computacion es ejecutada en tiempo de typechecking, y tiene dos opciones: o retorna el tipo \textit{top} \texttt{()}, o retorna el tipo \texttt{p}.
+
+\texttt{getYes} toma un tipo \texttt{Dec p} y retorna una computación la cual hace \textit{pattern matching} sobre el valor de \texttt{Dec p}. Esta computacion es ejecutada en tiempo de typechecking, y tiene dos opciones: o retorna el tipo \textit{top} \texttt{()}, o retorna el tipo \texttt{p}.
 En tiempo de typechecking, se hace pattern matching sobre \texttt{Dec p}. Si la prueba es de \texttt{No}, entonces se retorna el valor \texttt{()} (que efectivamente es un valor del tipo \texttt{()}). Sin embargo, si la prueba es de \texttt{Yes}, entonces ya se tiene un valor de tipo \texttt{p}, por lo cual se retorna ese. El pattern matching no solo permite tener una bifurcacion sobre cuál valor retornar, sino tambien sobre cuál es el tipo de este valor retornado, pudiendo retornar dos valores con tipos totalmente distintos.
 
-La funcion \texttt{getNo} es identica, pero retornando un valor del tipo \texttt{Not p}.
+La funcion \texttt{getNo} es idéntica, pero retornando un valor del tipo \texttt{Not p}.
 
 A continuacion se muestran ejemplos del uso de estas funciones:
 
@@ -173,6 +352,7 @@ okYes = getYes $ isElem "L1" ["L1"]
 okNo : Not (Elem "L1" ["L2"])
 okNo = getNo $ isElem "L1" ["L2"]
 
+-- Las siguientes no compilan
 badYes : Elem "L1" ["L2"]
 badYes = getYes $ isElem "L1" ["L2"]
 
@@ -253,16 +433,6 @@ Por lo tanto, con este metodo es posible forzar, en tiempo de compilacion, a que
 Para poder aplicar este metodo a los records, es necesario poder tener una funcion que obtenga una prueba o contradiccion de que los campos del record no tienen repetidos. Esa funcion es la siguiente:
 
 \begin{code}
-ifNotSetHereThenNeitherThere : Not (IsSet xs) -> 
-  Not (IsSet (x :: xs))
-ifNotSetHereThenNeitherThere notXsIsSet 
-  (IsSetCons xIsInXs xsIsSet) = notXsIsSet xsIsSet
-
-ifIsElemThenConsIsNotSet : Elem x xs -> 
-  Not (IsSet (x :: xs))      
-ifIsElemThenConsIsNotSet xIsInXs 
-  (IsSetCons notXIsInXs xsIsSet) = notXIsInXs xIsInXs
-
 isSet : DecEq t => (xs : List t) -> Dec (IsSet xs)
 isSet [] = Yes IsSetNil
 isSet (x :: xs) with (isSet xs)
@@ -273,6 +443,16 @@ isSet (x :: xs) with (isSet xs)
       Yes $ IsSetCons notXInXs xsIsSet
     isSet (x :: xs) | Yes xsIsSet | Yes xInXs = 
       No $ ifIsElemThenConsIsNotSet xInXs
+
+ifNotSetHereThenNeitherThere : Not (IsSet xs) -> 
+  Not (IsSet (x :: xs))
+ifNotSetHereThenNeitherThere notXsIsSet 
+  (IsSetCons xIsInXs xsIsSet) = notXsIsSet xsIsSet
+
+ifIsElemThenConsIsNotSet : Elem x xs -> 
+  Not (IsSet (x :: xs))      
+ifIsElemThenConsIsNotSet xIsInXs 
+  (IsSetCons notXIsInXs xsIsSet) = notXIsInXs xIsInXs
 
 isLabelSet : DecEq lty => (ts : LabelList lty) -> 
   Dec (IsLabelSet ts)
@@ -304,7 +484,6 @@ eq n m  with (decEq n m)
 
 El matcheo de \texttt{Yes} tiene un valor de tipo \texttt{val : n = m}. Como la única forma de que se tenga una prueba de ambos es que \texttt{n} sea efectivamente \texttt{m}, se puede unificar \texttt{val} con \texttt{Refl : n = n} y cambiar \texttt{eq n m} por \texttt{eq n n} en la definicion de la funcion.
 
-
 Luego de tener la funcion de decidibilidad anterior definida, es posible aplicar el tipo \texttt{TypeOrUnit} a los records de la siguiente forma:
 
 \begin{code}
@@ -320,72 +499,254 @@ Con este tipo es posible tener la siguiente funcion que extiende un record:
 consRecAuto : DecEq lty => {ts : LabelList lty} -> 
   {t : Type} -> (l : lty) -> (val : t) -> Record ts -> 
   RecordOrUnit ((l,t) :: ts)
-consRecAuto {ts} {t} l val (MkRecord tsIsLabelSet hs) = 
+consRecAuto {ts} {t} l val (MkRecord _ hs) = 
   mkTypeOrUnit (isLabelSet ((l, t) :: ts)) 
   (\isLabelSet => MkRecord isLabelSet (val :: hs))
 \end{code}
 
-Esta funcion es identica a \texttt{consRec}, solamente que no es necesario pasar una prueba de \texttt{Not (ElemLabel l ts)}. Ahora se calcula automáticamente la prueba de \texttt{IsLabelSet ((l,t) :: ts))}  en tiempo de typechecking y se impacta en el tipo resultante \texttt{RecordOrUnit ((l,t) :: ts)}.
+Esta funcion es identica a \texttt{consRec}, solamente que no es necesario pasar una prueba de \texttt{Not (ElemLabel l ts)}. Ahora se calcula automáticamente la prueba de \texttt{IsLabelSet ((l,t) :: ts))}  en tiempo de typechecking y se impacta en el tipo resultante \texttt{RecordOrUnit ((l,t) :: ts)}. La implementación se describirá más adelante.
 
-Con esta nueva funcion es posible extender un record de la siguiente manera:
-
-\begin{code}
-extendedRec1 : Record [("Nombre", String)]
-extendedRec1 = consRecAuto "Nombre" "Juan" emptyRec
-
-extendedRec2 : Record [("Edad", Nat), ("Nombre", String)]
-extendedRec2 = consRecAuto "Edad" 24 extendedRec1
-\end{code}
-
-Otra funcion útil que se puede definir con este metodo es la que toma una lista heterogenea y la convierte en un record:
+Su uso fue demostrado al comienzo de esta sección, con el siguiente caso:
 
 \begin{code}
-hListToRecAuto : DecEq lty => (ts : LabelList lty) -> 
-  HList ts -> RecordOrUnit ts
-hListToRecAuto ts hs = mkTypeOrUnit (isLabelSet ts) 
-  (\tsIsSet => MkRecord tsIsSet hs) 
+persona : Record [('Clave', Nat), ('Nombre', String), 
+  ('Edad', Nat)]
+persona = consRecAuto 'Clave' 3 $ 
+  consRecAuto 'Nombre' 'Juan' $
+  consRecAuto 'Edad' 27 $
+  emptyRec
 \end{code}
 
-Esta funcion permite construir records solamente indicando su lista de campos, y luego su lista de valores. Un ejemplo es el siguiente:
+Con estas definiciones y técnicas es posible definir el record de arriba, sabiendo en tiempo de compilación que ninguna de las etiquetas utilizadas se repite.
+
+En el caso de que las etiquetas si se repitan, mostrará un mensaje de error:
 
 \begin{code}
-rec : Record [("Apellido", String), ("Nombre", String)]
-rec = hListToRecAuto 
-  [("Apellido", String), ("Nombre", String)] 
-  ["Sanchez", "Juan"]
+recordA : Record [('A', Nat), ('A', Nat)]
+recordA = consRecAuto 'A' 10 $ consRecAuto 'A' 10 $ emptyRec
+
+When checking right hand side of recordA with expected type
+             Record [('A', Nat), ('A', Nat)]
+     
+     Type mismatch between
+             RecordOrUnit [('A', Integer), ('A', Integer)] 
+               (Type of consRecAuto 'A' 10
+                 (consRecAuto 'A' 10 emptyRec))
+     and
+             Record [('A', Nat), ('A', Nat)] (Expected type)
 \end{code}
 
-\section{Proyeccion de un record}
+Como \texttt{RecordOrUnit} se computa a \texttt{()}, nunca puede unificarlo con \texttt{Record}.
 
-Dado un record, una funcionalidad importante que se puede tener es poder filtrar el record dada una lista de etiquetas, donde es posible obtener un nuevo record con solo los campos indicados en una lista de etiquetas proporcionada por el usuario. Esto se llama proyeccion de un record, y es otra funcionalidad clave de los records extensibles.
+\section{Definición de un record}
 
-Un ejemplo de su uso seria el siguiente
+Un caso pendiente que quedó de la sección anterior es explicar la implementación misma de \texttt{consRecAuto}. Para hacerlo basta explicar la implementación del tipo \texttt{Record} utilizada en este trabajo:
 
 \begin{code}
-rec : Record [("Nombre", String), ("Edad", Nat),
-               ("Apellido", String)]
-rec = consRecAuto "Nombre" "Juan" $ 
-               consRecAuto "Edad" 24 $
-               consRecAuto "Apellido" "Sanchez" $
-               emptyRec
-
-projectedRec: Record [("Apellido", String), ("Edad", Nat)]
-projectedRec = hProjectByLabelsAuto ["Apellido", "Edad"] rec
--- ["Sanchez", 24]
+data Record : LabelList lty -> Type where
+    MkRecord : IsLabelSet ts -> HList ts -> Record ts
 \end{code}
 
-\texttt{hProjectByLabelsAuto} en este caso toma una lista de etiquetas y retorna un subconjunto del record con solo esas etiquetas. 
+Esta definición se corresponde a la de Haskell. Un record es una lista heterogénea donde sus etiquetas no tienen valores repetidos.
 
-El uso de \texttt{\$} permite aplicar una funcion a sus argumentos sin tener que usar parentesis. Esta sintaxis proviene de Haskell y es definida de esta manera:
+Con esta definición se puede ver cómo se implementa \texttt{emptyRec} y \texttt{consRecAuto}
 
 \begin{code}
-($) : (a -> b) -> a -> b
-($) f a = f a
+emptyRec : Record []
+emptyRec = MkRecord IsSetNil {ts=[]} [] 
 \end{code}
 
-Esta herramienta facilita la aplicacion de funciones gracias a su precedencia, donde \texttt{f x (g y (h z))} es equivalente a \texttt{f x \$ g y \$ h z}.
+Un record vacío simplemente tiene una lista heterogénea vacía y la prueba del caso base de etiquetas no repetidas
 
-Para comenzar a definir proyeccion sobre records se necesita definir un predicado que indique que una lista es el resultado de eliminar un elemento de otra.
+\begin{code}
+consRecAuto : DecEq lty => {ts : LabelList lty} -> 
+  {t : Type} -> (l : lty) -> (val : t) -> Record ts -> 
+  RecordOrUnit ((l,t) :: ts)
+consRecAuto {ts} {t} l val (MkRecord _ hs) = 
+  mkTypeOrUnit (isLabelSet ((l, t) :: ts)) 
+  (\isLabelSet => MkRecord isLabelSet (val :: hs))
+\end{code}
+
+La extensión de un record genera la prueba de que la lista resultante no tiene etiquetas repetidas, y crea el nuevo record con esa prueba y la lista heterogénea vieja con el nuevo elemento.
+
+\subsection{HList actualizado}
+
+En este trabajo se decidio implementar las listas heterogeneas de una forma distinta a la que utiliza Idris en general. Las listas heterogeneas de Idris permiten incluir cualquier tipo arbitrario, pero eso no es suficiente al momento de poder implementar records extensibles. Para implementar records extensibles, no solo es necesario poder tener tipos arbitrarios en tal lista, sino que es necesario asociar una etiqueta a cada uno de esos tipos.
+
+Se decidio utilizar la siguiente solución, en donde \texttt{HList} no solo tiene el tipo en su lista, sino la etiqueta también:
+
+\begin{code}
+data HList : LabelList lty -> Type where
+  Nil : HList []
+  (::) : {l : lty} -> (val : t) -> HList ts -> 
+    HList ((l,t) :: ts)
+\end{code}
+
+La implementación es idéntica a la de Idris, con la diferencia de que se debe pasar no solo el valor sino la etiqueta también.
+
+Un ejemplo sería el siguiente:
+
+\begin{code}
+[("Clave", 1), ("Nombre", "Juan")] : 
+  HList [("Clave", Nat), ("Nombre", String)]
+\end{code}
+
+
+\section{Implementación de operaciones sobre records}
+
+Al comienzo de esta sección vimos algunas operaciones sobre records y su uso. Ahora describiremos mejor cómo se implementaron éstas.
+
+\subsection{Proyección sobre un record}
+
+El ejemplo visto anteriormente fue el siguiente:
+
+\begin{code}
+personaYDireccion : Record [("Clave", Nat), ("Nombre", String), 
+  ("Edad", Nat), ("Direccion", String)]
+
+proyeccion: Record [("Clave", Nat), ("Direccion", String)]
+proyeccion = hProjectByLabelsAuto ["Clave", "Direccion"] 
+  personaYDireccion
+\end{code}
+
+La proyección sobre un record toma una lista de etiquetas, y retorna solo los campos del record asociados a esas etiquetas, es decir, realiza una proyección del record.
+
+Esta función utiliza el mismo truco de \texttt{consRecAuto}. Para poder proyectar una lista de campos sobre un record, es necesario que esos campos no tengan etiquetas repetidas tampoco.
+
+\begin{code}
+proyeccion: Record [("Clave", Nat), ("Clave", Nat)]
+proyeccion = hProjectByLabelsAuto ["Clave", "Nat"]
+-- No compila 
+\end{code}
+
+El tipo de tal función es el siguiente:
+
+\begin{code}
+hProjectByLabelsAuto : DecEq lty => {ts : LabelList lty} -> 
+  (ls : List lty) -> Record ts -> 
+  TypeOrUnit (isSet ls) (Record (projectLeft ls ts))
+\end{code}
+
+Esta función toma una lista de etiquetas, un record, y automáticamente genera una prueba de \texttt{IsSet ls}. En caso de poder hacerlo, retorna un nuevo record \texttt{Record (proyectLeft ls ts)}.
+
+\texttt{projectLeft} es una función a nivel de tipos. Permite retornar una lista a nivel de tipos distinta según los campos a proyectar.
+
+\begin{code}
+projectLeft ["Clave"] 
+ [("Clave", Nat), ("Nombre", String)] =
+ [("Clave", Nat)]
+projectLeft ["Clave", "Direccion"] 
+ [("Clave", Nat), ("Nombre", String), ("Direccion", String)] =
+ [("Clave", Nat), ("Direccion", String)]
+\end{code}
+
+Esta es una función común que se puede usar sobre listas, pero puede ser también utilizada para tener distintos tipos en un record
+
+\begin{code}
+Record (projectLeft ["Clave", "Direccion"] 
+ [("Clave", Nat), ("Nombre", String), ("Direccion", String)]) =
+Record [("Clave", Nat), ("Direccion", String)]
+\end{code}
+
+La computación simplemente se translada a los tipos.
+
+La implementación de la función es la siguiente:
+
+\begin{code}
+deleteElem : (xs : List t) -> Elem x xs -> List t
+deleteElem (x :: xs) Here = xs
+deleteElem (x :: xs) (There inThere) =
+  let rest = deleteElem xs inThere
+  in x :: rest  
+
+projectLeft : DecEq lty => List lty -> LabelList lty -> 
+  LabelList lty
+projectLeft [] ts = []
+projectLeft ls [] = []
+projectLeft ls ((l,ty) :: ts) with (isElem l ls)
+  projectLeft ls ((l,ty) :: ts) | Yes lIsInLs = 
+    let delLFromLs = deleteElem ls lIsInLs
+        rest = projectLeft delLFromLs ts
+    in (l,ty) :: rest
+  projectLeft ls ((l,ty) :: ts) | No _ = projectLeft ls ts
+\end{code}
+
+La implementación hace recursión sobre los campos del record. Si el primer campo pertenece a la lista a proyectar, entonces lo retorna. Si no pertenece, no lo retorna. Si pertenece, elimina ese campo de la lista a proyectar y aplica el mismo razonamiento al resto de la lista.
+
+Con esto se puede implementar \texttt{hProjectByLabelsAuto}
+
+\begin{code}
+hProjectByLabelsAuto : DecEq lty => {ts : LabelList lty} ->
+  (ls : List lty) -> Record ts -> 
+  TypeOrUnit (isSet ls) (Record (projectLeft ls ts))
+hProjectByLabelsAuto {ts} ls rec = 
+  mkTypeOrUnit (isSet ls) (\lsIsSet => 
+    hProjectByLabels {ts=ts} ls rec lsIsSet)
+\end{code}
+
+Simplemente aplica el mismo truco de \texttt{consRecAuto}, delegando la llamada a \texttt{hProjectByLabels}
+
+\begin{code}
+hProjectByLabels : DecEq lty => {ts : LabelList lty} -> 
+  (ls : List lty) -> Record ts -> IsSet ls -> 
+  Record (projectLeft ls ts)
+hProjectByLabels {ts} ls rec lsIsSet =
+  let 
+    isLabelSet = recLblIsSet rec
+    hs = recToHList rec
+    (lsRes ** (hsRes, prjLeftRes)) = 
+      fst $ hProjectByLabelsHList ls hs
+    isLabelSetRes = 
+      hProjectByLabelsLeftIsSet_Lemma2 prjLeftRes isLabelSet
+    resIsProjComp = fromIsProjectLeftToComp prjLeftRes lsIsSet
+    recRes = hListToRec {prf=isLabelSetRes} hsRes
+  in rewrite (sym resIsProjComp) in recRes
+\end{code}
+
+Para entender esta implementación iremos por partes:
+
+\begin{code}
+isLabelSet = recLblIsSet rec
+hs = recToHList rec
+\end{code}
+
+Dado un record, se obtiene su lista heterogénea y la prueba de que no tiene etiquetas repetidas, utilizando las siguientes funciones:
+
+\begin{code}
+recToHList : Record ts -> HList ts
+recToHList (MkRecord _ hs) = hs
+
+recLblIsSet : Record ts -> IsLabelSet ts
+recLblIsSet (MkRecord lsIsSet _ ) = lsIsSet 
+\end{code}
+
+\begin{code}
+(lsRes ** (hsRes, prjLeftRes)) = 
+      fst $ hProjectByLabelsHList ls hs
+\end{code}
+
+Esta llamada hace uso de la siguiente función:
+
+\begin{code}
+hProjectByLabelsHList : DecEq lty => {ts : LabelList lty} -> 
+  (ls : List lty) -> HList ts ->     
+  ((ls1 : LabelList lty ** (HList ls1, IsProjectLeft ls ts ls1)),
+  (ls2 : LabelList lty ** (HList ls2, IsProjectRight ls ts ls2)))
+\end{code}
+
+Esta función realiza la proyección a nivel de HList. También contiene otro mecanismo del manejo de tipos: En vez de retornar la computación en el tipo mismo, retorna un predicado que representa esa computación.
+
+El tipo \texttt{IsProjectLeft} es el tipo que cumple las siguientes propiedades:
+
+\begin{code}
+IsProjectLeft ls ts1 ts2 -> ts2 = projectLeft ls ts1
+
+IsProjectLeft ls ts (projectLeft ls ts) 
+\end{code}
+
+Es la representación de la proposición \textit{'Si se proyecta ls sobre ts1, el resultado es ts2'}. \texttt{IsProjectRight} cumple el mismo propósito, pero realiza la proyección por la derecha (retorna todos los elementos que no fueron proyectados por \texttt{projectLeft}).
+
+Su definición es la siguiente:
 
 \begin{code}
 data DeleteElemPred : (xs : List t) -> Elem x xs -> 
@@ -394,49 +755,7 @@ data DeleteElemPred : (xs : List t) -> Elem x xs ->
   DeleteElemPredThere : {isThere : Elem y xs} -> 
     DeleteElemPred xs isThere ys -> 
     DeleteElemPred (x :: xs) (There isThere) (x :: ys)
-\end{code}
 
-El tipo \texttt{DeleteElemPred xs elem ys} toma dos listas \texttt{xs} y \texttt{ys}, una prueba \texttt{elem} de que un elemento pertenece a \texttt{xs}, y representa el predicado de que la lista \texttt{ys} es el resultado de eliminar ese elemento de \texttt{xs}.
-El caso base del predicado es \texttt{DeleteElemPredHere}, donde el elemento a eliminar es el primero de la lista.
-El caso recursivo es \texttt{DeleteElemPredThere}, donde elimina el elemento del resto de la lista y deja el primer elemento sin cambiar.
-
-La función que computa la lista resultado que es equivalente al predicado anterior es
-
-\begin{code}
-deleteElem : (xs : List t) -> Elem x xs -> List t
-deleteElem (x :: xs) Here = xs
-deleteElem (x :: xs) (There inThere) =
-  let rest = deleteElem xs inThere
-  in x :: rest  
-\end{code}
-
-En un lenguaje como Idris se pueden definir funciones que computen un resultado, o un predicado que establezcan que uno de sus parametros sea ese mismo resultado. 
-
-Estas dos formas de definir una funcionalidad son equivalentes, lo cual se prueba definiendo las siguientes dos funciones:
-
-\begin{code}
-fromDeleteElemPredToComp : {xs1, xs2 : List t} -> 
-  {isElem : Elem x xs1} -> DeleteElemPred xs1 isElem xs2 -> 
-  xs2 = deleteElem xs1 isElem
-
-fromCompToDeleteElemPred : (xs : List t) -> 
-  (isElem : Elem x xs) -> 
-  DeleteElemPred xs isElem (deleteElem xs isElem)
-\end{code}
-
-Estas funciones permiten establecer un isomorfismo entre \texttt{deleteElem xs isElem} y \texttt{DeleteElemPred xs isElem ys}.
-
-Para completar la definicion del tipo se define la funcion de decibilidad de esta, con el siguiente tipo
-
-\begin{code}
-isDeleteElemPred : DecEq t => (xs : List t) -> 
-  (isElem : Elem x xs) -> (res : List t) -> 
-  Dec (DeleteElemPred xs isElem res)
-\end{code}
-
-Con esta definicion se pueden definir los predicados de proyeccion
-
-\begin{code}
 data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> 
   LabelList lty -> Type where
   IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty} [] ts []
@@ -462,9 +781,36 @@ data IsProjectRight : DecEq lty => List lty -> LabelList lty ->
     IsProjectRight ls ((l,ty) :: ts) ((l,ty) :: res1)
 \end{code}
 
-\texttt{IsProjectLeft ls ts1 ts2} indica que la proyeccion de las etiquetas \texttt{ls} sobre la lista \texttt{ts1} equivale a la lista \texttt{ts2}. \texttt{IsProjectRight ls ts1 ts2} indica que al proyectar las etiquetas \texttt{ls} sobre la lista \texttt{ts1}, las etiquetas que no pertenecen a la proyeccion son las de la lista \texttt{ts2}. Se le llama proyeccion por izquierda y derecha ya que dada una lista de etiquetas esta siempre se puede dividir en dos al ser proyectada por otra, donde en la izquierda estan las etiquetas que pertenecen a la lista a proyectar y en la derecha las que no.
+Como se ve, la definición de \texttt{IsProjectLeft} es muy similar a la de \texttt{projectLeft}. Esto es necesario para que es cumplan las propiedades descritas anteriormente: El predicado indica que su resultado corresponde a aplicar tal función.
 
-Algunos ejemplos son los siguientes
+Se pueden ver las similitudes comparando ambas implementaciones:
+
+\begin{code}
+IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty} [] ts []
+projectLeft [] ts = []
+
+IPL_EmptyVect : DecEq lty => IsProjectLeft {lty} ls [] []
+projectLeft ls [] = []
+
+IPL_ProjLabelElem : DecEq lty => (isElem : Elem l ls) -> 
+    DeleteElemPred ls isElem lsNew ->
+    IsProjectLeft {lty} lsNew ts res1 -> 
+    IsProjectLeft ls ((l,ty) :: ts) ((l,ty) :: res1)   
+projectLeft ls ((l,ty) :: ts) | Yes lIsInLs = 
+    let delLFromLs = deleteElem ls lIsInLs
+        rest = projectLeft delLFromLs ts
+    in (l,ty) :: rest
+
+IPL_ProjLabelNotElem : DecEq lty => Not (Elem l ls) -> 
+    IsProjectLeft {lty} ls ts res1 -> 
+    IsProjectLeft ls ((l,ty) :: ts) res1
+projectLeft ls ((l,ty) :: ts) | No _ = projectLeft ls ts
+\end{code}
+
+Cada constructor del predicado se corresponde a cada caso de pattern matching de la definición de la función (sea pattern matching regular o utilizando \texttt{with}).
+
+Algunos ejemplos son los siguientes:
+
 \begin{code}
 IsProjectLeft ["Edad"] [("Edad", Nat),("Nombre",String)] 
   [("Edad",Nat)]
@@ -472,335 +818,82 @@ IsProjectRight ["Edad"] [("Edad", Nat),("Nombre",String)]
   [("Nombre", String)] 
 \end{code}
 
-Al momento de definir estos tipos, el caso de \texttt{IsProjectLeft} tiene estos posibles casos
-\begin{itemize}
-\item Si se intenta proyectar por una lista vacia, la proyeccion de esta sobre cualquier otra lista va a ser vacia tambien, indicado por el tipo \texttt{IsProjectLeft {lty} [] ts []}
-\item Si se intenta proyectar hacia una lista vacia, entonces el resultado va a ser vacio tambien, indicado por el tipo \texttt{IsProjectLeft {lty} ls [] []}
-\item Si la lista donde se proyecta es del estilo \texttt{(l,ty) :: ts}, y si se tiene que esa etiqueta pertenece a la otra lista, con \texttt{isElem : Elem l ls}, entonces para proyectar la otra lista se debe eliminar ese elemento de esa con \texttt{DeleteElemPred ls isElem lsNew} obteniendo una nueva lista \texttt{lsNew} sin ese elemento. Luego se debe proyectar el resto de la lista con \texttt{IsProjectLeft {lty} lsNew ts res1}. La proyeccion final equivale a ese resultado mas el elemento eliminado, con el tipo \texttt{IsProjectLeft ls ((l,ty) :: ts) ((l,ty) :: res1)}
-\item Si la lista donde se proyecta es del estilo \texttt{(l,ty) :: ts}, y si se tiene que esa etiqueta no pertenece a la otra lista, con \texttt{Not (Elem l ls)}, entonces la proyeccion equivale a proyectar sobre el resto de la lista de la forma \texttt{IsProjectLeft {lty} ls ts res1}, retornando \texttt{IsProjectLeft ls ((l,ty) :: ts) res1}
-\end{itemize}
-
-Para el caso de \texttt{IsProjectRight} los casos son similares, donde la diferencia cae en que si se va a proyectar por un elemento que existe en la lista origen, entonces no se agrega a la lista destino (y si no pertenece a la lista origen si se agrega a la lista destino).
-
-Al igual que \texttt{DeleteElemPred}, se puede definir una funcion que compute la proyeccion misma. Para el caso de \texttt{IsProjectLeft} (no vamos a enforcarnos en \texttt{IsProjectRight} de ahora en mas) esta es
+Con estas definiciones, los siguientes dos son equivalentes:
 
 \begin{code}
-projectLeft : DecEq lty => List lty -> LabelList lty -> 
-  LabelList lty
-projectLeft [] ts = []
-projectLeft ls [] = []
-projectLeft ls ((l,ty) :: ts) with (isElem l ls)
-  projectLeft ls ((l,ty) :: ts) | Yes lIsInLs = 
-    let delLFromLs = deleteElem ls lIsInLs
-        rest = projectLeft delLFromLs ts
-    in (l,ty) :: rest
-  projectLeft ls ((l,ty) :: ts) | No _ = projectLeft ls ts
+(ls1 : LabelList lty ** (HList ls1, IsProjectLeft ls ts ls1)
+
+HList (projectLeft ls ts)
 \end{code}
 
-La implementacion de esta funcion sigue los mismos pasos de la definicion del predicado \texttt{IsProjectLeft}. 
+En este trabajo se decidió utilizar los predicados para operaciones internas porque resulta más sencillo realizar pattern matching. 
 
-Tambien se puede definir un isomorfismo entre \texttt{projectLeft ls ts1} y \texttt{IsProjectLeft ls ts1 ts2} de esta forma
+Cada vez que se tiene un llamado a una función que retorna \texttt{projectLeft}, es necesario hacer pattern matching sobre los argumentos específicos que la implementación de esa función hace, en el orden exacto. Sin embargo, con predicados como \texttt{IsProjectLeft} solo basta hacer pattern matching sobre los constructores y nada más. El desarrollo queda más simple.
+
+El resto de la implementación de \texttt{hProjectByLabelsHList} se puede ver en el apéndice.
+
+Siguiendo con la implementación de \texttt{hProjectLabels}, se tiene lo siguiente:
 
 \begin{code}
-fromIsProjectLeftToComp : DecEq lty => 
-  {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
-  IsProjectLeft ls ts1 ts2 -> 
-  IsSet ls -> ts2 = projectLeft ls ts1
-
-fromCompToIsProjectLeft : DecEq lty => (ls : List lty) -> 
-  (ts : LabelList lty) -> 
-  IsProjectLeft ls ts (projectLeft ls ts)
+isLabelSetRes = 
+  hProjectByLabelsLeftIsSet_Lemma2 prjLeftRes isLabelSet
 \end{code}
 
-En el caso de \texttt{fromIsProjectLeftToComp} es necesario tener una prueba de \texttt{IsSet ls}. Como las etiquetas de un record no pueden repetirse, no tiene sentido intentar proyectar por una lista con etiquetas repetidas. Sin embargo, en la definicion de varios tipos y funciones no es necesario explicitar esa precondicion de que no tengan etiquetas repetidas (proporcionando una prueba de \texttt{IsSet ls}). Solo es necesario proporcionar esa prueba en \texttt{fromIsProjectLeftToComp} porque necesita esa prueba en su implementacion. Su implementacion completa se encuentra en el apendice.
-
-Dados estos tipos y funciones es posible definir una funcion que particione una lista heterogenea en dos, donde en el lado izquierdo se tienen los valores asociados a las etiquetas proyectadas y en el lado derecho los valores no asociados a tales
+Este lema es el siguiente:
 
 \begin{code}
-hProjectByLabelsHList : DecEq lty => 
-  {ts : LabelList lty} -> (ls : List lty) -> 
-  HList ts ->     
-  ((ts1 : LabelList lty ** 
-    (HList ls1, IsProjectLeft ls ts ts1)),
-  (ts2 : LabelList lty ** 
-    (HList ls2, IsProjectRight ls ts ts2)))
-hProjectByLabelsHList [] {ts} hs = 
-  (([] ** ([], IPL_EmptyLabels)),
-  (ts ** (hs, IPR_EmptyLabels)))
-hProjectByLabelsHList _ [] =
-  (([] ** ([], IPL_EmptyVect)),
-  ([] ** ([], IPR_EmptyVect)))
-hProjectByLabelsHList {lty} ls ((::) {l=l2} {t} 
-    {ts=ts2} val hs) =
-  case (isElem l2 ls) of
-    Yes l2InLs =>
-      let
-        (lsNew ** isDelElem) = deleteElemPred ls l2InLs
-        ((subInLs ** (subInHs, subPrjLeft)), 
-          (subOutLs ** (subOutHs, subPrjRight))) =
-          hProjectByLabelsHList {lty=lty} {ts=ts2} lsNew hs
-        rPrjRight = IPR_ProjLabelElem {l=l2} {ty=t} {ts=ts2} 
-          {res1=subOutLs} l2InLs isDelElem subPrjRight
-        rPrjLeft = IPL_ProjLabelElem {l=l2} {ty=t} {ts=ts2} 
-          {res1=subInLs} l2InLs isDelElem subPrjLeft
-        rRight = (subOutLs ** (subOutHs, rPrjRight))
-        rLeft = ((l2,t) :: subInLs ** (
-          (::) {l=l2} val subInHs, rPrjLeft))
-       in
-         (rLeft, rRight)
-    No notL2InLs =>
-      let
-        ((subInLs ** (subInHs, subPrjLeft)), 
-          (subOutLs ** (subOutHs, subPrjRight))) =
-          hProjectByLabelsHList {lty=lty} {ts=ts2} ls hs
-        rPrjLeft = IPL_ProjLabelNotElem {l=l2} {ty=t} {ts=ts2} 
-          {res1=subInLs} notL2InLs subPrjLeft
-        rPrjRight = IPR_ProjLabelNotElem {l=l2} {ty=t} {ts=ts2} 
-          {res1=subOutLs} notL2InLs subPrjRight
-        rLeft = (subInLs ** (subInHs, rPrjLeft))
-        rRight = ((l2,t) :: subOutLs ** (
-          (::) {l=l2} val subOutHs, rPrjRight))
-      in
-        (rLeft, rRight)
+hProjectByLabelsLeftIsSet_Lemma2 : DecEq lty => {ls : List lty} -> 
+  {ts1, ts2 : LabelList lty} -> IsProjectLeft ls ts1 ts2 -> 
+  IsLabelSet ts1 -> IsLabelSet ts2
 \end{code}
 
-Se analizara esta funcion en partes:
+Indica que si se hace proyección sobre una lista de campos, y si no hay etiquetas repetidas en los campos originales entonces tampoco lo van a haber en los resultantes. Su implementación se puede encontrar en el apéndice.
 
 \begin{code}
-hProjectByLabelsHList : DecEq lty => {ts : LabelList lty} -> 
-  (ls : List lty) -> HList ts ->     
-  ((ts1 : LabelList lty ** 
-    (HList ts1, IsProjectLeft ls ts ts1)),
-  (ts2 : LabelList lty ** 
-    (HList ts2, IsProjectRight ls ts ts2)))
+resIsProjComp = fromIsProjectLeftToComp prjLeftRes lsIsSet
 \end{code}
 
-La definicion de la funcion toma una lista de etiquetas a proyectar \texttt{ls : List lty}, la lista heterogenea con valores \texttt{HList ts}, y retorna dos valores. En la izquierda retorna una lista \texttt{ts1 : LabelList lty} junto a la lista heterogenea \texttt{HList ts1}. A su vez retorna una prueba de \texttt{IsProjectLeft ls ts ts1}, que indica que al proyectar \texttt{ls} sobre \texttt{ts} el resultado fue \texttt{ts1}, es decir, \texttt{ts1} contiene las etiquetas proyectadas y \texttt{HList ts1} contiene los valores de esas etiquetas.
-El caso de la derecha es similar, pero teniendo una prueba de \texttt{IsProjectRight ls ts ts2}, lo cual indica que \texttt{HList ts2} tiene los valores de las etiquetas que no estan en \texttt{ls}.
+La función es la siguiente:
 
 \begin{code}
-hProjectByLabelsHList [] {ts} hs = 
-  (([] ** ([], IPL_EmptyLabels)),
-  (ts ** (hs, IPR_EmptyLabels)))
-\end{code}
-
-Si se intenta proyectar por una lista vacia, entonces en la izquierda se retorna vacio pero en la derecha la HList original. Para las pruebas se utilizan las que corresponden a este caso base.
-
-\begin{code}
-hProjectByLabelsHList _ [] =
-  (([] ** ([], IPL_EmptyVect)),
-  ([] ** ([], IPR_EmptyVect)))
-\end{code}
-
-Si la lista heterogenea origen es vacia, entonces ambos resultados van a ser vacios. Las pruebas utilizadas son las correspondientes a este caso base tambien.
-
-\begin{code}
-hProjectByLabelsHList {lty} ls ((::) {l=l2} {t} 
-    {ts=ts2} val hs) =
-  case (isElem l2 ls) of
-    Yes l2InLs =>
-\end{code}
-
-Para el caso de que la HList sea del estilo \texttt{val :: hs} (se utiliza la notacion \texttt{(::) val hs} para poder utilizar las variables implicitas \texttt{l2} y \texttt{t}) se verifica si la etiqueta de ese primer valor pertenece a las que se quieren proyectar, con \texttt{isElem l2 ls : Elem l2 ls}.
-
-\begin{code}
-Yes l2InLs =>
-  let
-    (lsNew ** isDelElem) = deleteElemPred ls l2InLs
-    ((subInLs ** (subInHs, subPrjLeft)), 
-      (subOutLs ** (subOutHs, subPrjRight))) =
-      hProjectByLabelsHList {lty=lty} {ts=ts2} lsNew hs
-    rPrjRight = IPR_ProjLabelElem {l=l2} {ty=t} {ts=ts2} 
-      {res1=subOutLs} l2InLs isDelElem subPrjRight
-    rPrjLeft = IPL_ProjLabelElem {l=l2} {ty=t} {ts=ts2} 
-      {res1=subInLs} l2InLs isDelElem subPrjLeft
-    rRight = (subOutLs ** (subOutHs, rPrjRight))
-    rLeft = ((l2,t) :: subInLs ** (
-      (::) {l=l2} val subInHs, rPrjLeft))
-   in
-     (rLeft, rRight)
-\end{code}
-
-Si pertenece a la lista, entonces se utiliza la siguiente funcion para sacar esa etiqueta de las que se quieren proyectar
-
-\begin{code}
-deleteElemPred : {x : t} -> (xs : List t) -> 
-  (elem : Elem x xs) -> 
-  (res : List t ** DeleteElemPred xs elem res)
-\end{code}
-
-Al llamar a \texttt{deleteElemPred ls l2InLs} se obtiene el predicado correspondiente a tal eliminacion. Luego se llama recursivamente a hProjectByLabelsHList con esa nueva lista en \texttt{hProjectByLabelsHList \{lty=lty\} \{ts=ts2\} lsNew hs}. Con \texttt{IPR\_ProjLabelElem \{l=l2\} \{ty=t\} \{ts=ts2\} \{res1=subOutLs\} l2InLs isDelElem subPrjRight} se genera la prueba de \texttt{IsProjectRight} correspondiente, y con \texttt{IPL\_ProjLabelElem \{l=l2\} \{ty=t\} \{ts=ts2\} \{res1=subInLs\} l2InLs isDelElem subPrjLeft} la prueba de \texttt{IsProjectLeft}. Luego se retorna en la derecha \texttt{(subOutLs ** (subOutHs, rPrjRight))} que no contiene el valor actual y \texttt{((l2,t) :: subInLs ** ((::) \{l=l2\} val subInHs, rPrjLeft))} que si contiene el valor actual (de nuevo se utiliza el constructor de forma prefija para asignar las variables implicitas correspondientes).
-
-\begin{code}
-No notL2InLs =>
-  let
-    ((subInLs ** (subInHs, subPrjLeft)), 
-      (subOutLs ** (subOutHs, subPrjRight))) =
-      hProjectByLabelsHList {lty=lty} {ts=ts2} ls hs
-    rPrjLeft = IPL_ProjLabelNotElem {l=l2} {ty=t} {ts=ts2} 
-      {res1=subInLs} notL2InLs subPrjLeft
-    rPrjRight = IPR_ProjLabelNotElem {l=l2} {ty=t} {ts=ts2} 
-      {res1=subOutLs} notL2InLs subPrjRight
-    rLeft = (subInLs ** (subInHs, rPrjLeft))
-    rRight = ((l2,t) :: subOutLs ** (
-      (::) {l=l2} val subOutHs, rPrjRight))
-\end{code}
-
-Si no pertenece a la lista, entonces simplemente se realiza la proyeccion sobre el resto de los campos y se agrega ese valor a la derecha. La proyeccion se realiza con \texttt{hProjectByLabelsHList \{lty=lty\} \{ts=ts2\} ls hs}, la prueba de \texttt{IsProjectLeft} se genera con \texttt{IPL\_ProjLabelNotElem \{l=l2\} \{ty=t\} \{ts=ts2\} \{res1=subInLs\} notL2InLs subPrjLeft}, y la prueba de \texttt{IsProjectRight} se genera con \texttt{IPR\_ProjLabelNotElem \{l=l2\} \{ty=t\} \{ts=ts2\} \{res1=subOutLs\} notL2InLs subPrjRight}. El valor izquierdo devuelto es \texttt{(subInLs ** (subInHs, rPrjLeft))} y el derecho \texttt{((l2,t) :: subOutLs ** ((::) \{l=l2\} val subOutHs, rPrjRight))}, donde se agrega el valor actual.
-
-Esta funcion permite proyectar sobre listas heterogeneas, pero se necesita proyectar sobre records extensibles.
-Para ello es necesario tener una garantia de que las etiquetas resultantes de la proyeccion no sean repetidas. Eso se logra con el siguiente lema:
-
-\begin{code}
-hProjectByLabelsLeftIsSet_Lemma2 : DecEq lty => 
-  {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
-  IsProjectLeft ls ts1 ts2 -> IsLabelSet ts1 -> 
-  IsLabelSet ts2
-\end{code}
-
-Este lema indica que si las etiquetas de \texttt{ts1} no son repetidas, representadas con una prueba de \texttt{IsLabelSet ts1}, y se realiza la proyeccion con \texttt{IsProjectLeft ls ts1 ts2}, entonces las etiquetas resultantes no son repetidas, representadas con una prueba de \texttt{IsLabelSet ts2}.
-
-Con este lema se tienen todas las herramientas para definir la proyeccion sobre un Record
-
-\begin{code}
-hProjectByLabelsWithPred : DecEq lty => 
-  {ts1 : LabelList lty} -> (ls : List lty) -> 
-  Record ts1 -> IsSet ls ->    
-  (ts2 : LabelList lty ** 
-    (Record ts2, IsProjectLeft ls ts1 ts2))
-hProjectByLabelsWithPred ls rec lsIsSet =
-  let 
-    isLabelSet = recLblIsSet rec
-    hs = recToHList rec
-    (lsRes ** (hsRes, prjLeftRes)) = 
-      fst $ hProjectByLabelsHList ls hs
-    isLabelSetRes = hProjectByLabelsLeftIsSet_Lemma2 
-      prjLeftRes isLabelSet
-  in (lsRes ** 
-    (hListToRec {prf=isLabelSetRes} hsRes, prjLeftRes)) 
-\end{code}
-
-El tipo \texttt{hProjectByLabelsWithPred : DecEq lty => \{ts1 : LabelList lty\} -> (ls : List lty) -> Record ts1 -> IsSet ls -> (ts2 : LabelList lty ** (Record ts2, IsProjectLeft ls ts1 ts2))} toma un record \texttt{Record ts1}, una lista de etiquetas \texttt{ls} no repetidas (con una prueba de \texttt{IsSet ls}), y retorna un nuevo record \texttt{Record ts2} con una prueba de que \texttt{ts2} es una proyeccion, con \texttt{IsProjectLeft ls ts1 ts2}.
-
-La implementacion toma la lista heterogenea del record y llama a \texttt{hProjectByLabelsHList ls hs} obteniendo el nuevo HList y la prueba \texttt{IsProjectLeft ls ts1 ts2}. Sabiendo que \texttt{rec} es un record se sabe que \texttt{IsLabelSet ts1}, por lo que, utilizando el lema \texttt{hProjectByLabelsLeftIsSet\_Lemma2}, se sabe que \texttt{IsLabelSet ts2}. Con esos dos datos es posible crear el nuevo record \texttt{Record ts2}.
-
-Para no tener que pasar una prueba manual de \texttt{IsSet ls} se define la siguiente funcion, utilizando el mismo truco definido anteriormente.
-
-\begin{code}
-hProjectByLabelsWithPredAuto : DecEq lty => 
-  {ts1 : LabelList lty} -> (ls : List lty) -> 
-  Record ts1 ->  TypeOrUnit (isSet ls) 
-  ((ts2 : LabelList lty ** 
-    (Record ts2, IsProjectLeft ls ts1 ts2)))
-hProjectByLabelsWithPredAuto ls rec = 
-  mkTypeOrUnit (isSet ls) 
-  (\isSet => hProjectByLabelsWithPred ls rec isSet)
-\end{code}
-
-Esta funcion utiliza el tipo \texttt{TypeOrUnit} para encapsular un predicado decidible que se debe calcular en tiempo de compilacion. A diferencia de \texttt{RecordOrUnit}, cuyo predicado era \texttt{IsLabelSet ts}, en este caso el predicado a calcular es \texttt{IsSet ls}.
-
-\texttt{TypeOrUnit (isSet ls) rest} esconde la necesidad de calcular \texttt{isSet ls : IsSet ls} a mano y le permite a \texttt{rest} utilizar esa prueba.
-
-\subsection{Computacion de funcion en el tipo del record}
-
-Esta definicion es suficiente para realizar la proyeccion izquierda de una lista de etiquetas, pero resulta dificil de utilizar en la practica. Esta funcion retorna una lista de etiquetas arbitraria, el record resultante y una prueba de que es la proyeccion, pero no retorna ninguna otra informacion que permita a uno utilizar ese record directamente.
-
-Su uso seria el siguiente
-
-\begin{code}
-rec : Record [("Nombre", String), ("Edad", Nat),
-               ("Apellido", String)]
-rec = consRecAuto "Nombre" "Juan" $ 
-      consRecAuto "Edad" 24 $
-      consRecAuto "Apellido" "Sanchez" $
-      emptyRec
-
-projRec : (ts2 : LabelList String ** 
-  (Record ts2, IsProjectLeft ["Apellido", "Edad"] 
-  [("Nombre", String), ("Edad", Nat), ("Apellido", String)]
-  ts2))
-projRec = hProjectByLabelsWithPredAuto 
-  ["Apellido", "Edad"] rec
-\end{code}
-
-Al tener el valor \texttt{projRec} no es posible conocer el valor de \texttt{ts2} en tiempo de compilacion, cuando pareceria obvio que es \texttt{[('Apellido', String), ('Edad', Nat)]}. Para tener informacion sobre esa lista es necesario hacer un analisis de casos sobre la prueba de \texttt{IsProjectLeft}.
-
-Esto resulta util cuando se utiliza en otras funciones que necesitan realizar ese analisis de casos, o tienen en su alcance o contexto otras pruebas y tipos que pueden hacer uso de ese predicado. Pero para la mayoria de sus usos quisieramos utilizarlo de la forma que se indico al comienzo de esta seccion
-
-\begin{code}
-projectedRec : Record [("Apellido", String), 
-  ("Edad", Nat)]
-projectedRec = hProjectByLabelsAuto 
-  ["Apellido", "Edad"] rec
-\end{code}
-
-Para ello es necesario computar la lista resultante en el tipo mismo del record. Es decir, se necesita que en tiempo de compilacion la funcion de proyeccion tome la lista de etiquetas del record, la lista de etiquetas que se quieren proyectar, y en el tipo del record compute tal proyeccion y retorne la lista resultante.
-
-Esto es posible gracias a estas dos funciones definidas anteriormente
-
-\begin{code}
-projectLeft : DecEq lty => List lty -> LabelList lty -> 
-  LabelList lty 
-
-fromIsProjectLeftToComp : DecEq lty => 
-  {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
-  IsProjectLeft ls ts1 ts2 -> 
+fromIsProjectLeftToComp : DecEq lty => {ls : List lty} -> 
+  {ts1, ts2 : LabelList lty} -> IsProjectLeft ls ts1 ts2 -> 
   IsSet ls -> ts2 = projectLeft ls ts1
 \end{code}
 
-\texttt{projectLeft} permite computar la lista resultante en el tipo, y \texttt{fromIsProjectLeftToComp} permite tomar una prueba del predicado \texttt{IsProjectLeft ls ts1 ts2} y asegurar que su resultado sea identico a la computacion \texttt{projectLeft ls ts1}. Con estas funciones se puede definir la siguiente funcion
+Esta función representa la propiedad que debe cumplir \texttt{IsProjectLeft} en relacion a \texttt{projectLeft} que vimos anteriormente. Se le agrega el hecho de que \texttt{ls} no debe tener repetidos, que es necesario para que esta función pueda ser implementada. Su implementación también está en el apéndice.
 
 \begin{code}
-hProjectByLabels : DecEq lty => 
-  {ts : LabelList lty} -> (ls : List lty) -> 
-  Record ts -> IsSet ls -> 
-  Record (projectLeft ls ts)
-hProjectByLabels {ts} ls rec lsIsSet =
-  let 
-    isLabelSet = recLblIsSet rec
-    hs = recToHList rec
-    (lsRes ** (hsRes, prjLeftRes)) = 
-      fst $ hProjectByLabelsHList ls hs
-    isLabelSetRes = hProjectByLabelsLeftIsSet_Lemma2 
-      prjLeftRes isLabelSet
-    resIsProjComp = 
-      fromIsProjectLeftToComp prjLeftRes lsIsSet
-    recRes = hListToRec {prf=isLabelSetRes} hsRes
-  in rewrite (sym resIsProjComp) in recRes
+recRes = hListToRec {prf=isLabelSetRes} hsRes
 \end{code}
 
-La funcion es similar a \texttt{hProjectByLabelsWithPred}, pero en vez de retornar \texttt{(ts2 : LabelList lty ** (Record ts2, IsProjectLeft ls ts1 ts2))} realiza la computacion de la lista resultado en el tipo mismo y la retorna en \texttt{Record (projectLeft ls ts)}.
-
-Su implementacion es identica a \texttt{hProjectByLabelsWithPred}, realizando la proyeccion sobre la lista heterogenea con \texttt{hProjectByLabelsHList} y obteniendo una prueba de etiquetas no repetidas con \texttt{hProjectByLabelsLeftIsSet\_Lemma2}. Sin embargo, como la proyeccion sobre HList retorno una prueba de \texttt{IsProjectLeft ls ts ts2} en \texttt{prjLeftRes}, se puede llamar a \texttt{fromIsProjectLeftToComp prjLeftRes lsIsSet} para tener la igualdad \texttt{ts2 = projectLeft (ls ts)}. La llamada a \texttt{hListToRec \{prf=isLabelSetRes\} hsRes} retorna un record utilizando esa misma lista \texttt{ts2} (ya que \texttt{isLabelSetRes} es una prueba de \texttt{IsLabelSet ts2}). Por lo tanto, teniendo esa igualdad se puede utilizar la herramienta \texttt{rewrite (sym resIsProjComp) in recRes} para modificar el tipo de \texttt{recRes} de \texttt{Record ts2} a \texttt{Record (projectLeft ls ts)}.
-
-In Idris, \texttt{rewrite proof in rest} toma una prueba de igualdad \texttt{proof} (\texttt{projectLeft (ls ts) = ts2} en este caso) y realiza una sustitucion del termino de la derecha con el de la izquierda en \texttt{rest} (\texttt{recRes} en este caso).
-
-Siguiendo con la estrategia de \texttt{hProjectByLabelsWithPredAuto}, se define otra funcion que evita tener que calcular \texttt{IsSet ls} a mano
+La función \texttt{hListToRec} construye un record a partir de una lista heterogénea y una prueba de etiquetas no repetidas. Su implementación es trivial:
 
 \begin{code}
-hProjectByLabelsAuto : DecEq lty => 
-  {ts : LabelList lty} -> (ls : List lty) -> 
-  Record ts -> TypeOrUnit (isSet ls) 
-  (Record (projectLeft ls ts))
-hProjectByLabelsAuto {ts} ls rec = 
-  mkTypeOrUnit (isSet ls) 
-  (\lsIsSet => hProjectByLabels {ts=ts} ls rec lsIsSet)
+hListToRec : DecEq lty => {ts : LabelList lty} -> 
+  {prf : IsLabelSet ts} -> HList ts -> Record ts
+hListToRec {prf} hs = MkRecord prf hs
 \end{code}
 
-Esta implementacion es identica a \texttt{hProjectByLabelsWithPredAuto}.
-
-Con estas nuevas funciones, por fin es posible realizar la proyeccion de la siguiente manera
+Por último se tiene esta línea de código:
 
 \begin{code}
-projectedRec: Record [("Apellido", String), 
+in rewrite (sym resIsProjComp) in recRes
+\end{code}
+
+En Idris este es un caso de reescribir un término teniendo una prueba de igualdad. Por la llamada a \texttt{hProjectByLabelsHList} y \texttt{hListToRec} se tiene un término \texttt{recRes : Record ts2}. Por la llamada a \texttt{fromIsProjectLeftToComp} se tiene un término \texttt{resIsProjComp : ts2 = projectLeft ls ts1}. Por lo tanto, con esta técnica de reescritura se puede obtener un término de tipo \texttt{Record (projectLeft ls ts1)}, tal como lo indica el tipo de la función.
+
+\subsection{Búsqueda de un elemento en un record}
+
+Al comienzo de la sección vimos un ejemplo de buscar el valor de un campo en particular de un record
+
+\begin{code}
+persona : Record [("Clave", Nat), ("Nombre", String), 
   ("Edad", Nat)]
-projectedRec = hProjectByLabelsAuto 
-  ["Apellido", "Edad"] rec
+
+nombre : String
+nombre = hLookupByLabelAuto "Nombre" persona
 \end{code}
-
-\section{Busqueda de un elemento en un record}
-
-En la seccion anterior se definio la proyeccion de un record dada una lista de etiquetas. Sin embargo falta definir otra funcionalidad muy importante: Obtener el valor de un record dada una etiqueta.
 
 La funcionalidad de lookup se puede definir de forma muy similar a las anteriores. Primero se comienza con un predicado que indica que una lista de etiquetas contiene a otra etiqueta con un determinado tipo en particular
 
@@ -898,18 +991,218 @@ hLookupByLabelAuto {ts} {ty} l rec {hasField} =
 
 Por ejemplo, si se quisiera obtener una prueba de \texttt{HasField 'Edad' [('Nombre', String), ('Edad', Nat)] Nat}, Idris primero va a construir \texttt{HasFieldHere}. Como \texttt{HasFieldHere} no puede unificarse con el tipo deseado, sigue con el siguiente caso. Proximamente, Idris intenta construir \texttt{HasFieldThere HasFieldHere}. Idris consigue unificar el tipo de ese valor con el esperado, entonces proporciona el valor \texttt{HasFieldThere HasFieldHere} a la funcion \texttt{hLookupByLabelAuto}.
 
-Esta funcion \texttt{hLookupByLabel} se utiliza de la siguiente forma:
+Como conclusion, utilizar \texttt{TypeOrUnit} es muy util para definir estas funciones con calculo automatico, pero solo puede usarse si el predicado no depende de un valor \texttt{a : Type}. Si es asi, se deben utilizar funcionalidades propias del lenguaje como \texttt{auto}.
+
+\subsection{Unión izquierda}
+
+En esta sección describiremos la unión por izquierda de records. 
+
+Al comienzo de la sección se vió el siguiente ejemplo:
 
 \begin{code}
-rec : Record [("Nombre", String), ("Edad", Nat),
-               ("Apellido", String)]
-rec = consRecAuto "Nombre" "Juan" $ 
-      consRecAuto "Edad" 24 $
-      consRecAuto "Apellido" "Sanchez" $
-      emptyRec
-
-val : Nat
-val = hLookupByLabelAuto "Edad" rec
+persona : Record [("Clave", Nat), ("Nombre", String), 
+  ("Edad", Nat)]
+persona = hLeftUnion personaConNombre personaConEdad
 \end{code}
 
-Como conclusion, utilizar \texttt{TypeOrUnit} es muy util para definir estas funciones con calculo automatico, pero solo puede usarse si el predicado no depende de un valor \texttt{a : Type}. Si es asi, se deben utilizar funcionalidades propias del lenguaje como \texttt{auto}.
+\texttt{hLeftUnion} toma dos records cualesquiera, y retorna uno nuevo con todos los campos del de la izquierda, más los campos del de la derecha que no están repetidos en el de la izquierda. Básicamente realiza una unión de los campos de ambos records, pero si hay campos con etiquetas repetidas toma el valor del de la izquierda.
+
+Su definición es la siguiente:
+
+\begin{code}
+hLeftUnion : DecEq lty => {ts1, ts2 : LabelList lty} -> 
+  Record ts1 -> Record ts2 -> Record (hLeftUnion_List ts1 ts2)
+hLeftUnion ts1 ts2 =
+  let (tsRes ** (resUnion, isLeftUnion)) = 
+        hLeftUnionPred ts1 ts2
+      leftUnionEq = fromHLeftUnionPredToFunc isLeftUnion
+  in rewrite (sym leftUnionEq) in resUnion 
+\end{code}
+
+Antes que nada, al obtener un record nuevo se debe computar la lista de sus campos. Esto se hace con la función \texttt{hLeftUnion\_List}:
+
+\begin{code}
+deleteLabelAt : DecEq lty => lty -> LabelList lty -> 
+  LabelList lty
+deleteLabelAt l [] = []
+deleteLabelAt l1 ((l2,ty) :: ts) with (decEq l1 l2)
+  deleteLabelAt l1 ((l2,ty) :: ts) | Yes l1EqL2 = ts
+  deleteLabelAt l1 ((l2,ty) :: ts) | No notL1EqL2 = 
+    (l2,ty) :: deleteLabelAt l1 ts
+
+deleteLabels : DecEq lty => List lty -> LabelList lty -> 
+  LabelList lty
+deleteLabels [] ts = ts
+deleteLabels (l :: ls) ts = 
+  let subDelLabels = deleteLabels ls ts
+  in deleteLabelAt l subDelLabels
+
+hLeftUnion_List : DecEq lty => LabelList lty -> 
+  LabelList lty -> LabelList lty
+hLeftUnion_List ts1 ts2 = 
+  ts1 ++ (deleteLabels (labelsOf ts1) ts2)
+\end{code}
+
+Esta función es un poco más compleja que las anteriores. Esta función define a la unión de dos listas tomando la primera, y agregandole todos los campos de la segunda, pero primero eliminandole los campos de la primera.
+
+Esta eliminación se realiza con \texttt{deleteLabels}, que simplemente recorre toda la lista de campos a eliminar y lo elimina (si pertenece a la segunda lista).
+
+Al igual que en \texttt{hProjectByLabels}, \texttt{hLeftUnion} hace uso de un predicado que representa la computación de la unión de los campos del record, y realiza la unión misma utilizando ese predicado.
+
+\begin{code}
+hLeftUnionPred : DecEq lty => {ts1, ts2 : LabelList lty} -> 
+  Record ts1 -> Record ts2 ->
+  (tsRes : LabelList lty ** (Record tsRes, 
+    IsLeftUnion ts1 ts2 tsRes))
+\end{code}
+
+Al igual que \texttt{IsProjectLeft}, \texttt{IsLeftUnion} es el predicado que cumple estas propiedades:
+
+\begin{code}
+IsLeftUnion ts1 ts2 ts3 -> ts3 = hLeftUnion_List ts1 ts2
+
+IsLeftUnion ts1 ts2 (hLeftUnion_List ts1 ts2)
+\end{code}
+
+Una de esas propiedades es la utilizada en la siguiente función vista más arriba:
+
+\begin{code}
+fromHLeftUnionFuncToPred : DecEq lty => 
+  {ts1, ts2 : LabelList lty} -> 
+  IsLeftUnion ts1 ts2 (hLeftUnion_List ts1 ts2)  
+\end{code}
+
+A continuación se muestra la definición del tipo \texttt{IsLeftUnion}, que al igual que \texttt{IsProjectLeft}, se corresponde uno a uno con la definición de su función análoga (\texttt{hLeftUnion\_List} en este caso):
+
+\begin{code}
+data DeleteLabelAtPred : DecEq lty => lty -> LabelList lty -> 
+  LabelList lty -> Type where
+  EmptyRecord : DecEq lty => {l : lty} -> 
+    DeleteLabelAtPred l [] []
+  IsElem : DecEq lty => {l : lty} -> 
+    DeleteLabelAtPred l ((l,ty) :: ts) ts
+  IsNotElem : DecEq lty => {l1 : lty} -> Not (l1 = l2) -> 
+    DeleteLabelAtPred l1 ts1 ts2 -> 
+    DeleteLabelAtPred l1 ((l2,ty) :: ts1) ((l2,ty) :: ts2)
+
+data DeleteLabelsPred : DecEq lty => List lty -> LabelList lty -> 
+  LabelList lty -> Type where
+  EmptyLabelList : DecEq lty =>  
+    DeleteLabelsPred {lty=lty} [] ts ts
+  DeleteFirstOfLabelList : DecEq lty => 
+    DeleteLabelAtPred l tsAux tsRes -> 
+    DeleteLabelsPred ls ts tsAux ->
+    DeleteLabelsPred {lty=lty} (l :: ls) ts tsRes
+
+data IsLeftUnion : DecEq lty => LabelList lty -> LabelList lty -> 
+  LabelList lty -> Type where
+  IsLeftUnionAppend : DecEq lty => 
+    {ts1, ts2, ts3 : LabelList lty} -> 
+    DeleteLabelsPred (labelsOf ts1) ts2 ts3 -> 
+    IsLeftUnion ts1 ts2 (ts1 ++ ts3)
+\end{code}
+
+El resto de la implementación de \texttt{hLeftUnion} se puede ver en el apéndice.
+
+\section{Comparación con otros lenguajes}
+
+En esta sección compararemos esta implementación de records extensibles en Idris con las vistas en la sección de \textit{'Estado del Arte'} para otros lenguajes.
+
+\subsection{Elm}
+
+El ejemplo visto para Elm era el siguiente:
+
+\begin{code}
+type alias Positioned a =
+  { a | x : Float, y : Float }
+
+type alias Named a =
+  { a | name : String }
+
+type alias Moving a =
+  { a | velocity : Float, angle : Float }
+
+lady : Named { age:Int }
+lady =
+  { name = "Lois Lane"
+  , age = 31
+  }
+
+dude : Named (Moving (Positioned {}))
+dude =
+  { x = 0
+  , y = 0
+  , name = "Clark Kent"
+  , velocity = 42
+  , angle = degrees 30
+  }
+\end{code}
+
+Este código puede ser escrito en Idris de la siguiente forma:
+
+\begin{code}
+Positioned : LabelList String -> LabelList String 
+Positioned ts = ("x", Double) :: ("y", Double) :: ts
+
+Named : LabelList String -> LabelList String
+Named ts = ("name", String) :: ts
+
+Moving : LabelList String -> LabelList String
+Moving ts = ("velocity", Double) :: ("angle", Double) :: ts
+
+lady : Record (Named [("age", Nat)])
+lady = consRecAuto "name" "Lois Lane" $
+  consRecAuto "age" 31 $
+  emptyRec  
+      
+dude : Record (Named . Moving . Positioned $ [])
+dude = consRecAuto "name" "Clark Kent" $
+  consRecAuto "velocity" 42 $
+  consRecAuto "angle" 30 $
+  consRecAuto "x" 0 $
+  consRecAuto "y" 0 $
+  emptyRec
+\end{code}
+
+Esta es la traducción más directa del ejemplo de Elm. Sin embargo, si se quiere mejorar el diseño, se puede utilizar la flexibilidad de Idris para diseñarlo de otra forma (utilizando typeclasses, tipos de datos, etc).
+
+\subsection{Purescript}
+
+El ejemplo visto para Purescript era el siguiente:
+
+\begin{code}
+fullname :: forall t. { firstName :: String, 
+  lastName :: String | t } -> String 
+fullName person = person.firstName ++ " " ++ person.lastName
+\end{code}
+
+Esto puede traducirse a Idris de la siguiente forma:
+
+\begin{code}
+fullName : {ts : LabelList String} -> 
+  {auto hasFirst : HasField "firstName" ts String} -> 
+  {auto hasLast : HasField "lastName" ts String} -> 
+  Record ts -> String
+fullName {hasFirst} {hasLast} rec =
+  let firstName = hLookupByLabel "firstName" rec hasFirst
+      lastName = hLookupByLabel "lastName" rec hasLast
+  in firstName ++ " " ++ lastName
+\end{code}
+
+Un ejemplo de su uso sería el siguiente:
+
+\begin{code}
+persona : Record [("firstName", String), ("age", Nat), 
+  ("lastName", String)] 
+persona = consRecAuto "firstName" "Juan" $ 
+  consRecAuto "age" 23 $ 
+  consRecAuto "lastName" "Sanchez" $ 
+  emptyRec
+
+fullName persona : String
+-- "Juan Sanchez"
+\end{code}
+
+En Idris se puede parametrizar por cualquier predicado, en particular por \texttt{HasField}, permitiendo la programación con \textit{row polymorphism} de forma similar a Purescript y otros lenguajes.
+
+Comparando con Elm y Purescript, al ser todos los resultados del tipo \texttt{Record} se pueden utilizar todas las operaciones vistas hasta ahora en esta sección, lo cual estos lenguajes no soportan.
