@@ -738,12 +738,10 @@ hProjectByLabelsHList : DecEq lty => {ts : LabelList lty} ->
 
 Esta función realiza la proyección a nivel de HList. También contiene otro mecanismo del manejo de tipos: En vez de retornar la computación en el tipo mismo, retorna un predicado que representa esa computación.
 
-El tipo \texttt{IsProjectLeft} es el tipo que cumple las siguientes propiedades:
+El tipo \texttt{IsProjectLeft} es el tipo que cumple la siguiente propiedad:
 
 \begin{code}
-IsProjectLeft ls ts1 ts2 -> ts2 = projectLeft ls ts1
-
-IsProjectLeft ls ts (projectLeft ls ts) 
+IsProjectLeft ls ts1 ts2 <-> ts2 = projectLeft ls ts1
 \end{code}
 
 Es la representación de la proposición \textit{'Si se proyecta ls sobre ts1, el resultado es ts2'}. \texttt{IsProjectRight} cumple el mismo propósito, pero realiza la proyección por la derecha (retorna todos los elementos que no fueron proyectados por \texttt{projectLeft}).

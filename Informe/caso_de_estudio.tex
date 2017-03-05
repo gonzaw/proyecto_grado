@@ -165,15 +165,22 @@ eLet {var} {fvs} varDec e = Let varDec e
   (fromDeleteLabelAtListFuncToPred {l=var} {ls=fvs})
 \end{code}
 
-Las cuatro funciones simplemente realizan la aplicación del constructor correspondiente. \texttt{add} y \texttt{eLet} tienen la particularidad de que realizan las computaciones sobre las listas de variables, y construyen los predicados correspondientes dada esas computaciones. \texttt{leftUnion} y \texttt{deleteAtList} son las computaciones análogas a \texttt{IsLeftUnion\_List} y \texttt{DeleteAtLabel\_List}, cumpliendo con los siguientes lemas:
+Las cuatro funciones simplemente realizan la aplicación del constructor correspondiente. \texttt{add} y \texttt{eLet} tienen la particularidad de que realizan las computaciones sobre las listas de variables, y construyen los predicados correspondientes dada esas computaciones. \texttt{leftUnion} y \texttt{deleteAtList} son las computaciones análogas a \texttt{IsLeftUnion\_List} y \texttt{DeleteAtLabel\_List}, cumpliendo con las siguientes propiedades:
+
+\begin{code}
+ls2 = deleteAtList l ls1 <-> DeleteLabelAtPred_List l ls ls2
+
+ls3 = leftUnion ls1 ls2 <-> IsLeftUnion_List ls1 ls2 ls3
+\end{code}
+
+Las funciones \texttt{fromLeftUnionFuncToPred} y \texttt{fromDeleteLabelAtListFuncToPred} son las que representan las propiedades anteriores:
 
 \begin{code}
 fromDeleteLabelAtListFuncToPred : DecEq lty => {l : lty} -> 
-  {ls : List lty} -> 
-  DeleteLabelAtPred_List l ls (deleteAtList l ls)
+  {ls : List lty} -> DeleteLabelAtPred_List l ls (deleteAtList l ls)
 
 fromLeftUnionFuncToPred : DecEq lty => {ls1, ls2 : List lty} -> 
-  IsLeftUnion_List {lty} ls1 ls2 (leftUnion ls1 ls2)   
+  IsLeftUnion_List {lty} ls1 ls2 (leftUnion ls1 ls2)  
 \end{code}
 
 A continuación se muestran ejemplos de expresiones construidas con las funciones anteriores:
@@ -189,7 +196,19 @@ exp3 : Exp []
 exp3 = eLet ("y" := 5) exp4
 \end{code}
 
-También se decidió incluir otra función útil para construir expresiones. Se trata de \textit{local}, que permite definir un binding local de declaración de variables:
+También se decidió incluir otra función útil para construir expresiones. Se trata de \textit{local}, que permite definir un binding local de declaración de variables. Su uso sería el siguiente:
+
+\begin{code}
+exp1 : Exp []
+exp1 = local ["x" := 10] $ cons 1
+
+exp2 : Exp []
+exp2 = local ["x" := 10, "y" := 9] $ add (var "x") (var "y")
+\end{code}
+
+\texttt{local} permite declarar varias variables simultáneamente.
+
+Su implementación es la siguiente:
 
 \begin{code}
 data LocalVariables : List String -> Type where
@@ -199,32 +218,32 @@ data LocalVariables : List String -> Type where
 
 localPred : (vars : LocalVariables localVars) -> 
   (innerExp : Exp fvsInner) -> {isSet : IsSet localVars} -> 
-  Exp (projectRightList localVars fvsInner)
+  Exp (deleteList localVars fvsInner)
 
-local : (vars : LocalVariables localVars) -> 
-  (innerExp : Exp fvsInner) -> 
-  TypeOrUnit 
-    (isSet localVars) 
-    (Exp (projectRightList localVars fvsInner))
+local : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) ->
+  TypeOrUnit (isSet localVars) (Exp (deleteList localVars fvsInner))
 local {localVars} {fvsInner} vars innerExp = 
   mkTypeOrUnit (isSet localVars)
-    (\localIsSet => localPred vars innerExp {isSet=localIsSet}) 
+    (\localIsSet => localPred vars innerExp {isSet=localIsSet})
 \end{code}
 
-\texttt{LocalVariables} es un tipo que contiene una lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{['x' := 10, 'y' := 4] : LocalVariables ['x', 'y']}.
+Antes que nada, \texttt{local} utiliza el mismo truco de \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variables varias veces, como \texttt{local ['x' := 1, 'x' := 2]}.
 
-\texttt{localPred} toma la declaración de variables locales, una subexpresión, una prueba de que las variables declaradas no se repiten, y retorna una nueva expresión. Su implementación se encuentra en el anexo, pero en términos simples construye \texttt{Let}s secuencialmente para cada variable declarada en la lista. La prueba \texttt{IsSet localVars} de que las variables no son repetidas nunca es utilizada, simplemente se agrega para restringir el uso de \texttt{local} y no poder incluir variables repetidas (lo cual sí es posible en aplicaciones sucesivas de \texttt{Let}).
+Tal declaración de variables se define en \texttt{LocalVariables}, que es un tipo que contiene la lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{['x' := 10, 'y' := 4] : LocalVariables ['x', 'y']}.
 
-\texttt{local} utiliza el mismo truco definido para \texttt{Record} anteriormente para poder generar la prueba de \texttt{IsSet localVars} de forma automática, utilizando \texttt{TypeOrUnit}.
-
-Con estas definiciones se pueden construir expresiones de la siguiente manera:
+La expresión resultante calcula sus variables libres con \texttt{deleteList}. Esta función es la análoga a \texttt{DeleteLabelsPred\_List} que cumple esta propiedad:
 
 \begin{code}
-exp1 : Exp []
-exp1 = local ["x" := 10] $ cons 1
+ls3 = deleteList ls1 ls2 <-> DeleteLabelsPred_List ls1 ls2 ls3
+\end{code}
 
-exp2 : Exp []
-exp2 = local ["x" := 10, "y" := 9] $ add (var "x") (var "y")
+La implementación de \texttt{localPred} se puede ver en el anexo, pero básicamente realiza una construcción secuencial de \texttt{Let}s para cada variable declarada en el binding. Básicamente, las siguientes expresiones son equivalentes:
+
+\begin{code}
+local ["x" := 10] $ cons 1 <-> eLet ("x" := 10) $ cons 1
+
+local ["x" := 10, "y" := 9] $ add (var "x") (var "y") <->
+ eLet ("x" := 10) $ eLet ("y" := 9) $ add (var "x") (var "y")
 \end{code}
 
 \section{Evaluación de una expresión}

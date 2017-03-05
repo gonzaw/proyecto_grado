@@ -131,23 +131,15 @@ data LocalVariables : List String -> Type where
   Nil : LocalVariables []
   (::) : VarDec l -> LocalVariables ls -> LocalVariables (l :: ls)  
 
-
-deleteLabelIsProjectingCons : DecEq lty => {ls1, ls2 : List lty} -> DeleteLabelAtPred_List l (projectRightList ls1 ls2) (projectRightList (l :: ls1) ls2)
-deleteLabelIsProjectingCons {ls1} {ls2=[]} = EmptyRecord_List
-deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} with (isElem l2 ls1)
-  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | Yes l2InLs1 = ?delLabelCons_1
-  deleteLabelIsProjectingCons {ls1} {ls2=l2 :: ls2} | No notL2InLs1 = ?delLabelCons_2
-
 localPred : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) -> 
-  {isSet : IsSet localVars} -> Exp (projectRightList localVars fvsInner)
-localPred {localVars=[]} {fvsInner} _ innerExp = rewrite (projectRightOfEmptyIsTheOther {ls=fvsInner}) in innerExp
-localPred {localVars=l :: localVars} {fvsInner = fvsInner} (varDec :: vars) innerExp {isSet = (IsSetCons _ isSet)} = 
-  let subExp = localPred vars innerExp {isSet}  
-  in Let varDec subExp deleteLabelIsProjectingCons    
-    
+  {isSet : IsSet localVars} -> Exp (deleteList localVars fvsInner)
+localPred {localVars=[]} {fvsInner} _ innerExp = innerExp
+localPred {localVars=l :: localVars} (varDec :: vars) innerExp {isSet = (IsSetCons _ isSet)} = 
+  let subExp = localPred vars innerExp {isSet}
+  in eLet varDec subExp
 
 local : (vars : LocalVariables localVars) -> (innerExp : Exp fvsInner) ->
-  TypeOrUnit (isSet localVars) (Exp (projectRightList localVars fvsInner))
+  TypeOrUnit (isSet localVars) (Exp (deleteList localVars fvsInner))
 local {localVars} {fvsInner} vars innerExp = 
   mkTypeOrUnit (isSet localVars)
     (\localIsSet => localPred vars innerExp {isSet=localIsSet})
@@ -199,8 +191,7 @@ ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem IsElem_List =
   let
     (ls1SubSetLs3, ls2SubSetLs3) = ifAppendIsSubSetThenSoIsEach subSet
     ls2ConsSubSetLs3 = IsSubSetCons ls2SubSetLs3 elem
-    appendSubSet = ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls2ConsSubSetLs3
-  in appendSubSet
+  in ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls2ConsSubSetLs3
 ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet lInLs3 (IsNotElem_List notEq delAt) = 
   let
     (ls1SubSetLs3, ls2ConsSubSetLs3) = ifAppendIsSubSetThenSoIsEach subSet
@@ -209,17 +200,15 @@ ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet lInLs3 (IsNotElem_List notEq delA
     subPrf = ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 ls1AppLs2SubSetLs3 lInLs3 delAt
     (_, ls4SubSetLs3) = ifAppendIsSubSetThenSoIsEach subPrf
     ls4ConsSubSetLs3 = IsSubSetCons ls4SubSetLs3 l2InLs3
-    res = ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls4ConsSubSetLs3
-  in res
-
+  in ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls4ConsSubSetLs3
+  
 ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 : DecEq lty => {ls1, ls2, ls3, ls4 : List lty} -> IsSubSet (ls1 ++ ls2) ls3 ->
   DeleteLabelsPred_List ls1 ls4 ls2 -> IsSubSet ls4 ls3
 ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 {ls1=[]} subSet EmptyLabelList_List = subSet
 ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 {ls1=l1 :: ls1} (IsSubSetCons subSet elem) (DeleteFirstOfLabelList_List delAt delLabels) = 
   let isSubSetAux = ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem delAt
-      subPrf = ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 isSubSetAux delLabels 
-  in subPrf
-
+  in ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 isSubSetAux delLabels 
+  
 ifIsSubSetThenLeftUnionIsSubSet : DecEq lty => {ls1, ls2, lsSub1, lsSub2 : List lty} -> IsSubSet ls1 ls2 -> 
   IsLeftUnion_List lsSub1 lsSub2 ls1 -> (IsSubSet lsSub1 ls2, IsSubSet lsSub2 ls2)
 ifIsSubSetThenLeftUnionIsSubSet subSet (IsLeftUnionAppend_List delLabels) = (isSubSetLeft subSet delLabels, isSubSetRight subSet delLabels)
@@ -233,10 +222,8 @@ ifIsSubSetThenLeftUnionIsSubSet subSet (IsLeftUnionAppend_List delLabels) = (isS
     isSubSetRight {rsSub1 = []} subSet2 EmptyLabelList_List = subSet2
     isSubSetRight {rsSub1 = r :: rsSub1} (IsSubSetCons subSet elem) (DeleteFirstOfLabelList_List delAt delLabels) = 
       let auxIsSubSet = ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem delAt
-          res = ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 auxIsSubSet delLabels
-      in res
-  
-
+      in ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 auxIsSubSet delLabels
+      
 -- NOTA: No puede parametrizarse por cualquier tipo Type porque necesitaria poder comparar sus tipos. Ej un "t1 : Type" y "t2 : Type" no necesariamente serian el mismo, y no es decidible igualarlos
 ifHasFieldInElemThenItHasThere : DecEq lty => {ls : List lty} -> Elem l ls -> HasField l (AllNats ls) Nat
 ifHasFieldInElemThenItHasThere {ls = []} elem = absurd $ noEmptyElem elem
