@@ -5,7 +5,9 @@
 \chapter{Records Extensibles en Idris}
 \label{ch:3}
 
-Para describir de este trabajo, se comenzará mostrando ejemplos de creación y uso de records y luego se explicará más a fondo la implementación detrás de ellos.
+En este capítulo se describiá cómo se implementaron los records extensibles en Idris. Se comenzará mostrando ejemplos de creación y uso de records. Luego se explicará el diseño de los records y cuáles funcionalidades de Idris lo hicieron posible. En otra sección se mostrará la implementación de algunas de las funciones sobre records extensibles. No se mostrarán sus implementaciones en su completitud, sino que se describirán los rasgos más importantes de la implementación, dejando los detalles y funciones auxiliares para ver en el apéndice. El capítulo terminará comparando esta solución de records extensibles con otras vistas en el capítulo \textit{'Estado del Arte'}.
+
+\section{Primer pantallazo de records extensibles en Idris}
 
 En este trabajo se decidió seguir el diseño de HList de Haskell para extender records. Como ejemplo, podemos tomar el siguiente caso de HList descrito en la sección anterior:
 
