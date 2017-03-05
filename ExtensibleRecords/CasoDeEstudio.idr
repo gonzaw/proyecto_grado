@@ -111,15 +111,15 @@ infixr 2 :=
 data Exp : List String -> Type where
   Add : Exp fvs1 -> Exp fvs2 -> IsLeftUnion_List fvs1 fvs2 fvsRes -> Exp fvsRes 
   Var : (l : String) -> Exp [l]
-  Cons : Nat -> Exp []
+  Lit : Nat -> Exp []
   Let : VarDec var -> Exp fvsInner -> DeleteLabelAtPred_List var fvsInner fvsOuter -> Exp fvsOuter
   
 -- DSL del lenguaje
 var : (l : String) -> Exp [l]
 var l = Var l
 
-cons : Nat -> Exp []
-cons n = Cons n
+lit : Nat -> Exp []
+lit n = Lit n
 
 add : Exp fvs1 -> Exp fvs2 -> Exp (leftUnion fvs1 fvs2)
 add {fvs1} {fvs2} e1 e2 = Add e1 e2 (fromLeftUnionFuncToPred {ls1=fvs1} {ls2=fvs2})
@@ -178,21 +178,64 @@ ifNotElemThenNotInNats {xs = x1 :: xs} notXInXs (There there) =
 data Ambiente : List String -> Type where
   MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
 
-ifAppendIsSubSetThenSoIsTheRight : DecEq lty => {ls1, ls2, ls3 : List lty} -> IsSubSet (ls1 ++ ls2) ls3 -> IsSubSet ls2 ls3
+ifAppendIsSubSetThenSoIsEach : DecEq lty => {ls1, ls2, ls3 : List lty} -> IsSubSet (ls1 ++ ls2) ls3 ->
+  (IsSubSet ls1 ls3, IsSubSet ls2 ls3)
+ifAppendIsSubSetThenSoIsEach {ls1=[]} subSet = (IsSubSetNil, subSet)
+ifAppendIsSubSetThenSoIsEach {ls1=l1::ls1} {ls2} {ls3} (IsSubSetCons subSet elem) = 
+  let (subPrfLeft, subPrfRight) = ifAppendIsSubSetThenSoIsEach {ls1} {ls2} {ls3} subSet
+  in (IsSubSetCons subPrfLeft elem, subPrfRight)
+
+ifIsSubSetOfEachThenIsSoAppend : DecEq lty => {ls1, ls2, ls3 : List lty} -> IsSubSet ls1 ls3 -> 
+  IsSubSet ls2 ls3 -> IsSubSet (ls1 ++ ls2) ls3
+ifIsSubSetOfEachThenIsSoAppend {ls1 = []} subSetLs1 subSetLs2 = subSetLs2
+ifIsSubSetOfEachThenIsSoAppend {ls1 = l1 :: ls1} (IsSubSetCons subSetLs1 l1InLs3) subSetLs2 = 
+  let subPrf = ifIsSubSetOfEachThenIsSoAppend subSetLs1 subSetLs2
+  in IsSubSetCons subPrf l1InLs3
+  
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 : DecEq lty => {ls1, ls2, ls3, ls4 : List lty} -> IsSubSet (ls1 ++ ls2) ls3 -> 
+  Elem l ls3 -> DeleteLabelAtPred_List l ls4 ls2 -> IsSubSet (ls1 ++ ls4) ls3
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem EmptyRecord_List = subSet
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem IsElem_List = 
+  let
+    (ls1SubSetLs3, ls2SubSetLs3) = ifAppendIsSubSetThenSoIsEach subSet
+    ls2ConsSubSetLs3 = IsSubSetCons ls2SubSetLs3 elem
+    appendSubSet = ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls2ConsSubSetLs3
+  in appendSubSet
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet lInLs3 (IsNotElem_List notEq delAt) = 
+  let
+    (ls1SubSetLs3, ls2ConsSubSetLs3) = ifAppendIsSubSetThenSoIsEach subSet
+    IsSubSetCons ls2SubSetLs3 l2InLs3 = ls2ConsSubSetLs3
+    ls1AppLs2SubSetLs3 = ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls2SubSetLs3
+    subPrf = ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 ls1AppLs2SubSetLs3 lInLs3 delAt
+    (_, ls4SubSetLs3) = ifAppendIsSubSetThenSoIsEach subPrf
+    ls4ConsSubSetLs3 = IsSubSetCons ls4SubSetLs3 l2InLs3
+    res = ifIsSubSetOfEachThenIsSoAppend ls1SubSetLs3 ls4ConsSubSetLs3
+  in res
+
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 : DecEq lty => {ls1, ls2, ls3, ls4 : List lty} -> IsSubSet (ls1 ++ ls2) ls3 ->
+  DeleteLabelsPred_List ls1 ls4 ls2 -> IsSubSet ls4 ls3
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 {ls1=[]} subSet EmptyLabelList_List = subSet
+ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 {ls1=l1 :: ls1} (IsSubSetCons subSet elem) (DeleteFirstOfLabelList_List delAt delLabels) = 
+  let isSubSetAux = ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem delAt
+      subPrf = ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 isSubSetAux delLabels 
+  in subPrf
 
 ifIsSubSetThenLeftUnionIsSubSet : DecEq lty => {ls1, ls2, lsSub1, lsSub2 : List lty} -> IsSubSet ls1 ls2 -> 
   IsLeftUnion_List lsSub1 lsSub2 ls1 -> (IsSubSet lsSub1 ls2, IsSubSet lsSub2 ls2)
 ifIsSubSetThenLeftUnionIsSubSet subSet (IsLeftUnionAppend_List delLabels) = (isSubSetLeft subSet delLabels, isSubSetRight subSet delLabels)
   where
-    isSubSetLeft :  DecEq lty => {rs2, rs3, rsSub1, rsSub2 : List lty} -> IsSubSet (rSub1 ++ rs3) rs2 -> 
+    isSubSetLeft :  DecEq lty => {rs2, rs3, rsSub1, rsSub2 : List lty} -> IsSubSet (rsSub1 ++ rs3) rs2 -> 
   DeleteLabelsPred_List rsSub1 rsSub2 rs3 -> IsSubSet rsSub1 rs2
-    isSubSetLeft {rsSub1 = []} _ _ = IsSubSetNil
-    isSubSetLeft {rsSub1 = r :: rsSub1} subSet1 (DeleteFirstOfLabelList_List delAt delLabels) = ?isSubSetLeft_rhs_2_2x
+    isSubSetLeft {rsSub1} {rs3} {rs2} subSet delLabels = fst $ ifAppendIsSubSetThenSoIsEach subSet
     
-    isSubSetRight :  DecEq lty => {rs2, rs3, rsSub1, rsSub2 : List lty} -> IsSubSet (rSub1 ++ rs3) rs2 -> 
+    isSubSetRight :  DecEq lty => {rs2, rs3, rsSub1, rsSub2 : List lty} -> IsSubSet (rsSub1 ++ rs3) rs2 -> 
   DeleteLabelsPred_List rsSub1 rsSub2 rs3 -> IsSubSet rsSub2 rs2
-    isSubSetRight {rsSub1 = []} subSet2 EmptyLabelList_List = ifAppendIsSubSetThenSoIsTheRight subSet2
-    isSubSetRight {rsSub1 = r :: rsSub1} subSet2 (DeleteFirstOfLabelList_List delAt delLabels) = ?isSubSetRight_rhs_1_2
+    isSubSetRight {rsSub1 = []} subSet2 EmptyLabelList_List = subSet2
+    isSubSetRight {rsSub1 = r :: rsSub1} (IsSubSetCons subSet elem) (DeleteFirstOfLabelList_List delAt delLabels) = 
+      let auxIsSubSet = ifIsSubSetThenLeftUnionIsSubSet_Lemma_1 subSet elem delAt
+          res = ifIsSubSetThenLeftUnionIsSubSet_Lemma_2 auxIsSubSet delLabels
+      in res
+  
 
 -- NOTA: No puede parametrizarse por cualquier tipo Type porque necesitaria poder comparar sus tipos. Ej un "t1 : Type" y "t2 : Type" no necesariamente serian el mismo, y no es decidible igualarlos
 ifHasFieldInElemThenItHasThere : DecEq lty => {ls : List lty} -> Elem l ls -> HasField l (AllNats ls) Nat
@@ -217,24 +260,24 @@ ifIsSubSetThenIsSubSetOfCons {l=l1} (IsSubSetCons {l=l2} subSet l1InLs2) =
   let subPrf = ifIsSubSetThenIsSubSetOfCons subSet
   in IsSubSetCons subPrf (There l1InLs2)
 
-ifDeleteLabelFromSetThenIsNotElem : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> Not (Elem l ls2)
+ifIsSubSetThenIsSubSetWhenAddingElem : IsSubSet ls1 ls2 -> IsSubSet (l :: ls1) (l :: ls2)
+ifIsSubSetThenIsSubSetWhenAddingElem subSet = IsSubSetCons (ifIsSubSetThenIsSubSetOfCons subSet) Here
 
 ifConsIsElemThenIsSubSet : IsSubSet ls1 (l :: ls2) -> Elem l ls2 -> IsSubSet ls1 ls2
+ifConsIsElemThenIsSubSet IsSubSetNil isElem = IsSubSetNil
+ifConsIsElemThenIsSubSet (IsSubSetCons isSubSet Here) isElem = 
+  let subPrf = ifConsIsElemThenIsSubSet isSubSet isElem
+  in IsSubSetCons subPrf isElem
+ifConsIsElemThenIsSubSet (IsSubSetCons isSubSet (There later)) isElem = 
+  let subPrf = ifConsIsElemThenIsSubSet isSubSet isElem
+  in IsSubSetCons subPrf later
 
 ifIsSubSetThenSoIfYouDeleteLabel : DeleteLabelAtPred_List l ls1 ls3 -> IsSubSet ls3 ls2 -> IsSubSet ls1 (l :: ls2)
-
-ifListsAreSetThenLeftUnionIsSet : IsLeftUnion_List ls1 ls2 ls3 -> IsSet ls1 -> IsSet ls2 -> IsSet ls3
-
-ifIsSetThenDeleteAtIsSet : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> IsSet ls2
-
-expIsSet : Exp fvs -> IsSet fvs
-expIsSet (Add e1 e2 fvsLeftUnion) =
-  let e1IsSet = expIsSet e1
-      e2IsSet = expIsSet e2
-  in ifListsAreSetThenLeftUnionIsSet fvsLeftUnion e1IsSet e2IsSet
-expIsSet (Var l) = IsSetCons noEmptyElem IsSetNil
-expIsSet (Cons n) = IsSetNil
-expIsSet (Let (v := n) e delAt) = ifIsSetThenDeleteAtIsSet delAt $ expIsSet e
+ifIsSubSetThenSoIfYouDeleteLabel EmptyRecord_List subSet = IsSubSetNil
+ifIsSubSetThenSoIfYouDeleteLabel IsElem_List subSet = ifIsSubSetThenIsSubSetWhenAddingElem subSet
+ifIsSubSetThenSoIfYouDeleteLabel (IsNotElem_List notEq delAt) (IsSubSetCons subSet elem) = 
+  let subPrf = ifIsSubSetThenSoIfYouDeleteLabel delAt subSet
+  in IsSubSetCons subPrf (There elem)
 
 ifIsElemThenHasFieldNat : Elem l ls -> HasField l (AllNats ls) Nat
 ifIsElemThenHasFieldNat Here = HasFieldHere
@@ -253,7 +296,7 @@ interpEnv {fvsEnv} (MkAmbiente rec) subSet (Var l) =
   let hasField = HasFieldHere {l} {ty = Nat} {ts = []}
       hasFieldInEnv = ifIsSubSetThenHasFieldInIt  subSet hasField
   in hLookupByLabel l rec hasFieldInEnv
-interpEnv env subSet (Cons c) = c
+interpEnv env subSet (Lit c) = c
 interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) with (isElem var fvsEnv)
   -- Si la variable existe en el ambiente, entonces se sustituye su valor y se interpreta la subexpresion con ese nuevo ambiente
   interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) | Yes varInEnv = 
@@ -265,8 +308,6 @@ interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) with (isElem var fvsEnv)
         newEnv = MkAmbiente newRec
         
         -- Conociendo que las variables libres son un conjunto, se prueba que el inner es subconjunto del ambiente
-        fvsInnerIsSet = expIsSet e
-        notVarInFvs = ifDeleteLabelFromSetThenIsNotElem delAt fvsInnerIsSet
         consSubSet = ifIsSubSetThenSoIfYouDeleteLabel delAt subSet {l = var}
         newSubSet = ifConsIsElemThenIsSubSet consSubSet varInEnv
     in interpEnv newEnv newSubSet e
@@ -281,177 +322,3 @@ interpEnv {fvsEnv} env subSet (Let (var := n) e delAt) with (isElem var fvsEnv)
   
 interp : Exp [] -> Nat
 interp = interpEnv (MkAmbiente {ls=[]} emptyRec) IsSubSetNil
-
-{-
-
-ifNotElemThenNotElemNats : Not (Elem x xs) -> Not (ElemLabel x (AllNats xs))
-ifNotElemThenNotElemNats {xs = []} notXInXs xInLabelXs = absurd $ noEmptyElem xInLabelXs
-ifNotElemThenNotElemNats {xs = x1 :: xs} notXInXs Here = notXInXs Here
-ifNotElemThenNotElemNats {xs = x1 :: xs} notXInXs (There there) = 
-  let notInCons = notElemInCons notXInXs
-      subPrf = ifNotElemThenNotElemNats notInCons
-  in absurd $ subPrf there
-
-getTailFromRecord : Record (l :: ls) -> Record ls
-getTailFromRecord (MkRecord (IsSetCons notElem isSet) (n :: ns)) = MkRecord isSet ns
-
-ifDelLabelAtThenNotElemInRes : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> Not (Elem l ls2)
-ifDelLabelAtThenNotElemInRes EmptyRecord_List _ lInLs2 = noEmptyElem lInLs2
-ifDelLabelAtThenNotElemInRes IsElem_List (IsSetCons notLInLs2 _) lInLs2 = notLInLs2 lInLs2
-ifDelLabelAtThenNotElemInRes (IsNotElem_List notEq _) (IsSetCons _ _) Here = notEq Refl
-ifDelLabelAtThenNotElemInRes (IsNotElem_List _ delAt) (IsSetCons _ ls1IsSet) (There there) = 
-  ifDelLabelAtThenNotElemInRes delAt ls1IsSet there
-
-ifNotInEitherThenNotInAppendList : Not (Elem x xs1) -> Not (Elem x xs2) -> Not (Elem x (xs1 ++ xs2))
-ifNotInEitherThenNotInAppendList {xs1 = []} _ notXInXs2 xInAppend = notXInXs2 xInAppend
-ifNotInEitherThenNotInAppendList {xs1 = x1 :: xs1} notXInXs1 _ Here = notXInXs1 Here
-ifNotInEitherThenNotInAppendList {xs1 = x1 :: xs1} notXInXs1 notXInXs2 (There there) =
-  ifNotInEitherThenNotInAppendList (notElemInCons notXInXs1) notXInXs2 there
-
-
-ifNotInAppendThenNotInLists : Not (Elem x (xs1 ++ xs2)) -> (Not (Elem x xs1), Not (Elem x xs2))
-ifNotInAppendThenNotInLists notElem = (lemmaLeft notElem, lemmaRight notElem)
-  where
-    lemmaLeft : Not (Elem y (ys1 ++ ys2)) -> Not (Elem y ys1)
-    lemmaLeft {ys1 = []} notYInApp yInYs1 = noEmptyElem yInYs1
-    lemmaLeft {ys1 = y1 :: ys1} notYInApp Here = notYInApp Here
-    lemmaLeft {ys1 = y1 :: ys1} notYInApp (There there) = 
-      let subPrf = lemmaLeft {ys1} (notElemInCons notYInApp) 
-      in subPrf there
-    
-    lemmaRight : Not (Elem y (ys1 ++ ys2)) -> Not (Elem y ys2)
-    lemmaRight {ys1 = []} notYInApp yInYs1 = notYInApp yInYs1
-    lemmaRight {ys1 = y1 :: ys1} notYInApp yInYs1 = lemmaRight (notElemInCons notYInApp) yInYs1
-
-ifAppendIsSetThenListsAreSet : IsSet (xs1 ++ xs2) -> (IsSet xs1, IsSet xs2)
-ifAppendIsSetThenListsAreSet isSet = (lemmaLeft isSet, lemmaRight isSet)
-  where
-    lemmaLeft : IsSet (ys1 ++ ys2) -> IsSet ys1
-    lemmaLeft {ys1 = []} appIsSet = IsSetNil
-    lemmaLeft {ys1 = y1 :: ys1} (IsSetCons notElem appIsSet) = 
-      let subPrf = lemmaLeft appIsSet
-          (notY1InYs1, _) = ifNotInAppendThenNotInLists notElem
-      in  IsSetCons notY1InYs1 subPrf
-    
-    lemmaRight : IsSet (ys1 ++ ys2) -> IsSet ys2
-    lemmaRight {ys1 = []} appIsSet = appIsSet
-    lemmaRight {ys1 = y1 :: ys1} (IsSetCons notElem appIsSet) = lemmaRight appIsSet
-    
-
---ifListsAreSetThenAppendIsSet : IsSet xs1 -> IsSet xs2 -> IsSet (xs1 ++ xs2)
-
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1_1 : Not (Elem x1 (xs1 ++ x :: xs2)) -> Not (Elem x1 (xs1 ++ xs2))
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1_1 {xs1 = []} notElem x1InAppend = notElemInCons notElem x1InAppend
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1_1 {xs1 = x2 :: xs1} notElem Here = notElem Here
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1_1 {xs1 = x2 :: xs1} notElem (There there) =
-  ifListsAreSetThenLeftUnionIsSet_Lemma_1_1_1 (notElemInCons notElem) there
-
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1 : IsSet (xs1 ++ x :: xs2) -> IsSet (xs1 ++ xs2)
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1 {xs1 = []} (IsSetCons _ isSet) = isSet
-ifListsAreSetThenLeftUnionIsSet_Lemma_1_1 {xs1 = x1 :: xs1} (IsSetCons notElem isSet) = 
-  let subPrf = ifListsAreSetThenLeftUnionIsSet_Lemma_1_1 isSet
-      notElemRes = ifListsAreSetThenLeftUnionIsSet_Lemma_1_1_1 notElem
-  in IsSetCons notElemRes subPrf
-
--- ifDelLabelAtThenNotElemInRes : DeleteLabelAtPred_List l ls1 ls2 -> IsSet ls1 -> Not (Elem l ls2)
-
---ifListsAreSetThenLeftUnionIsSet_Lemma_1_2 : IsSet (ls1 ++ ls3) -> IsSet (ls1 ++ l2 :: ls2) -> IsSet (ls1 ++ l2 :: ls3)
-
--- TODO: Ver como probar este de abajo.
-ifListsAreSetThenLeftUnionIsSet_Lemma_1 : DeleteLabelAtPred_List l ls2 ls3 -> IsSet (ls1 ++ ls2) -> IsSet (ls1 ++ ls3)
-ifListsAreSetThenLeftUnionIsSet_Lemma_1 EmptyRecord_List isSetAppend = isSetAppend
-ifListsAreSetThenLeftUnionIsSet_Lemma_1 IsElem_List isSetAppend = ifListsAreSetThenLeftUnionIsSet_Lemma_1_1 isSetAppend
-ifListsAreSetThenLeftUnionIsSet_Lemma_1 {ls1} {ls2 = l2 :: ls2} {ls3 = l2 :: ls3} (IsNotElem_List notEq delAt) isSetAppend = 
-  let ls1AppLs2IsSet = ifListsAreSetThenLeftUnionIsSet_Lemma_1_1 {xs1=ls1} {xs2=ls2} isSetAppend
-      subPrf = ifListsAreSetThenLeftUnionIsSet_Lemma_1 {ls1} delAt ls1AppLs2IsSet
-      --(ls1IsSet, ls2IsSet) = ifAppendIsSetThenListsAreSet ls1AppLs2IsSet
-      --(_, ls3IsSet) = ifAppendIsSetThenListsAreSet subPrf
-      --notL2InLs3 = ifDelLabelAtThenNotElemInRes delAt ls2IsSet
-  --in ifListsAreSetThenLeftUnionIsSet_Lemma_1_2 subPrf isSetAppend
-  in ?listSetDelAt_rhs
-  --in ifListsAreSetThenAppendIsSet ls1IsSet (IsSetCons notL2InLs3 ls3IsSet) 
-
-ifListsAreSetThenLeftUnionIsSet : IsLeftUnion_List ls1 ls2 ls3 -> IsSet ls1 -> IsSet ls2 -> IsSet ls3
-ifListsAreSetThenLeftUnionIsSet (IsLeftUnionAppend_List EmptyLabelList_List) ls1IsSet ls2IsSet = ls2IsSet
-ifListsAreSetThenLeftUnionIsSet {ls1 = l :: ls1} (IsLeftUnionAppend_List (DeleteFirstOfLabelList_List delAt delLabels)) 
-  (IsSetCons notLInLs1 ls1IsSet) ls2IsSet = 
-  let subLeftUnion = (IsLeftUnionAppend_List delLabels)
-      subPrf = ifListsAreSetThenLeftUnionIsSet subLeftUnion ls1IsSet ls2IsSet
-      (_, lsAuxIsSet) = ifAppendIsSetThenListsAreSet subPrf
-      ls1AppLs3IsSet = ifListsAreSetThenLeftUnionIsSet_Lemma_1 {ls1} delAt subPrf
-      notLInLs3 = ifDelLabelAtThenNotElemInRes delAt lsAuxIsSet
-      notLInRes = ifNotInEitherThenNotInAppendList notLInLs1 notLInLs3
-  in IsSetCons notLInRes ls1AppLs3IsSet
-  
-ifNotInListThenNotInProjectRight : IsProjectRight_List ls1 ls2 ls3 -> Not (Elem l ls2) -> Not (Elem l ls3)
-ifNotInListThenNotInProjectRight IPR_EmptyLabels_List notLInLs2 lInLs3 = notLInLs2 lInLs3 
-ifNotInListThenNotInProjectRight IPR_EmptyVect_List notLInLs2 lInLs3 = notLInLs2 lInLs3
-ifNotInListThenNotInProjectRight (IPR_ProjLabelElem_List isElem delElem prjRight) notLInLs2 lInLs3 = 
-  ifNotInListThenNotInProjectRight prjRight (notElemInCons notLInLs2) lInLs3
-ifNotInListThenNotInProjectRight (IPR_ProjLabelNotElem_List notElem prjRight) notLInLs2 Here = notLInLs2 Here
-ifNotInListThenNotInProjectRight (IPR_ProjLabelNotElem_List notElem prjRight) notLInLs2 (There there) = 
-  ifNotInListThenNotInProjectRight prjRight (notElemInCons notLInLs2) there
- 
-
-ifListIsSetThenProjectRightIsSet : IsProjectRight_List ls1 ls2 ls3 -> IsSet ls2 -> IsSet ls3
-ifListIsSetThenProjectRightIsSet IPR_EmptyLabels_List isSet = isSet
-ifListIsSetThenProjectRightIsSet IPR_EmptyVect_List isSet = isSet
-ifListIsSetThenProjectRightIsSet (IPR_ProjLabelElem_List lInLs1 delElem prjRight) (IsSetCons notLInLs2 ls2IsSet) = 
-  ifListIsSetThenProjectRightIsSet prjRight ls2IsSet
-ifListIsSetThenProjectRightIsSet (IPR_ProjLabelNotElem_List notLInLs1 prjRight) (IsSetCons notLInLs2 ls2IsSet) =
-  let subPrf = ifListIsSetThenProjectRightIsSet prjRight ls2IsSet
-      notLInRes = ifNotInListThenNotInProjectRight prjRight notLInLs2
-  in IsSetCons notLInRes subPrf
-  
-expIsSet : {fvs : List String} -> Exp fvs -> IsSet fvs
-expIsSet (Add e1 e2 fvsLeftUnion) =
-  let e1IsSet = expIsSet e1
-      e2IsSet = expIsSet e2
-  in ifListsAreSetThenLeftUnionIsSet fvsLeftUnion e1IsSet e2IsSet
-expIsSet (Var l) = IsSetCons noEmptyElem IsSetNil
-expIsSet (Cons n) = IsSetNil
-expIsSet (Local vars e varsIsSet prjRight) = 
-  let eIsSet = expIsSet e
-  in ifListIsSetThenProjectRightIsSet prjRight eIsSet
-
-
--- Interpreta una expresion dado un ambiente con valores para cada variable
-interpEnv : Ambiente fvs -> Exp fvs -> Nat
-interpEnv (MkAmbiente rec) (Add e1 e2 isUnionFvs) = 
-  let (recE1, recE2) = splitRecordByUnionList isUnionFvs rec
-      interpE1 = interpEnv (MkAmbiente recE1) e1
-      interpE2 = interpEnv (MkAmbiente recE2) e2
-   in interpE1 + interpE2
-interpEnv (MkAmbiente rec) (Var l) = hLookupByLabel l rec HasFieldHere
-interpEnv env (Cons c) = c
-interpEnv env (Local vars subExp isSet prjRight) = 
-  let isSetInner = expIsSet subExp
-      newEnv = addLocalVarsToEnv env prjRight vars isSetInner
-  in interpEnv newEnv subExp
-  
-  
-interp : Exp [] -> Nat
-interp = interpEnv (MkAmbiente {ls=[]} emptyRec)
-    
-
--}
-
-
--- *** Ejemplos ***
-expTest1 : Exp ["x", "y"]
-expTest1 = add (var "x") (add (cons 1) (var "y"))
-
-expTest2 : Exp []
-expTest2 = local ["x" := 10] $ cons 1
-
-expTest3 : Exp []
-expTest3 = local (["x" := 10, "y" := 9]) $ add (var "x") (var "y")
-
-expTest4 : Exp []
-expTest4 = eLet ("x" := 10) $ var "x"
-
-expTest5 : Exp ["y"]
-expTest5 = eLet ("x" := 10) $ add (var "x") (var "y")
-
-expTest6 : Exp []
-expTest6 = eLet ("y" := 5) expTest5
