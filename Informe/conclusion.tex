@@ -2,12 +2,70 @@
 % Conclusion
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\chapter{Conclusión}
+\chapter{Conclusiones}
 \label{ch:5}
 
-PENDIENTE
+El objetivo principal de este trabajo era el de poder implementar una biblioteca de records extensibles en un lenguaje con tipos dependientes, de tal forma que su desarrollo y uso sean más sencillos o adecuados gracias a tales tipos dependientes (y gracias al lenguaje utilizado, Idris en este caso). Por lo que se vió en este trabajo, este objetivo se cumplió satisfactoriamente. Es posible tener una solución al problema de records extensibles en un lenguaje como Idris, y éste presenta muchas ventajas sobre otras soluciones que vale la pena tener en cuenta.
 
-%\section{Introducción}
+A continuación se discutirán los problemas y facilidades que se encontraron en este trabajo
+
+\section{Viabilidad de implementar records extensibles con tipos dependientes}
+
+En este trabajo se vió que implementar records extensibles con tipos dependientes es viable. Una vez que se tienen claro los conceptos del lenguaje, el desarrollo y diseño de la solución se realizan con bastante simpleza y sencillez. No se utilizan técnicas muy avanzadas ni poco entendibles, y el diseño final queda entendible también.
+
+Por ejemplo, la definición de records misma se realiza con solo dos líneas de código bastante entendibles:
+
+\begin{code}
+data Record : LabelList lty -> Type where
+  MkRecord : IsLabelSet ts -> HList ts -> Record ts
+\end{code}
+
+Por otra parte, este trabajo constó en intentar traducir la implementación de HList (la biblioteca de Haskell) a Idris. En ese aspecto, la traducción final resultó muy similar a la de HList, y no se encontraron problemas mayores en traducir conceptos, tipos y funciones de uno a otro. El diseño actual, basado en HList, permite tener una solución adecuada de records extensibles en Idris que cumple con todos los requisitos de éste.
+
+El objetivo de hacer la biblioteca amigable para el usuario también se cumplió bastante. Con esta biblioteca crear records y manipularlos se puede realizar sin tener que utilizar funcionalidades avanzadas del lenguaje, ni recurrir a técnicas complejas. Con funciones como \texttt{consRecAuto} y otras se pueden crear records de forma sencilla, garantizando que el record final cumpla con las propiedades deseadas (e.g que no contenga etiquetas repetidas). 
+
+Algunos aspectos que no resultan amigables al usuario es cuando se necesita manipular el record de forma genérica. Es decir, si el usuario tiene un record en particular, como \texttt{\{ 'x' : 10, 'y' : 15 \}}, puede manipularlo de forma sencilla. Sin embargo, si el usuario tiene un record como argumento o resultado de una función, para poder manipularlo va a necesitar manipular las pruebas de sus propiedades de forma manual. Como se vió en el caso de estudio, en la implementación del evaluador de expresiones era necesario que el usuario genere las pruebas de \texttt{HasField}, \texttt{Not (ElemLabel l ls)}, etc. A diferencia de otros lenguajes y soluciones de records extensibles, esto le agrega un nivel de complejidad mayor al uso de ellos, ya que el usuario necesita estar familiarizado con esas definiciones de propiedades y debe estar familiarizado con Idris para saber cómo crear sus pruebas y manipularlas.
+
+En términos generales, se vió que esta solución de records extensibles tiene ventajas sobre otras realizadas en otros lenguajes. Comparándola con HList de Haskell, esta solución tiene el mismo poder de expresión de ella (al ser una traducción casi directa). Comparándola con otros lenguajes como Elm y Purescript, como se vió en el capítulo \textit{'Records extensibles en Idris'} esta solución permite modelar las mismas funcionalidades de ellos, pero a su vez le da una mayor cantidad de funcionalidades y flexibilidad al usuario.
+
+\section{Desarrollo en Idris y con tipos dependientes}
+
+En esta sección se describirán algunos problemas que se encontraron en la forma de desarrollar en Idris y utilizando tipos dependientes.
+
+El primer aspecto importante que se vió, es que el trabajo mayor de desarrollo no se encontraba en las definiciones de tipos y funciones más importantes, sino en el desarrollo de las pruebas de teoremas y lemas auxiliares o intermedios. En este trabajo se mencionaron varios teoremas sin mostrar su implementación (que se encuentra en el apéndice), pero varios de esos teoremas, para poder ser probados, necesitan de varios sub-lemas, necesitan realizar muchos análisis de casos, y en general resulta más difícil solucionarlos, ya que se entra en el territorio de pruebas formales e inductivas.
+
+A su vez, cuantos más predicados y funciones se agregan, se encontró que la cantidad de lemas y teoremas necesarios aumenta considerablemente. Por ejemplo, al agregar predicados como \texttt{IsLeftUnion} o \texttt{HasField}, o funciones como \texttt{(++)} (append), es necesario crear teoremas que relacionen esos predicados y funciones con otras previamente creadas. Por ejemplo:
+
+\begin{code}
+ifNotInEitherThenNotInAppend : DecEq lty => 
+  {ts1, ts2 : LabelList lty} -> {l : lty} -> 
+  Not (ElemLabel l ts1) -> Not (ElemLabel l ts2) -> 
+  Not (ElemLabel l (ts1 ++ ts2))
+\end{code}
+
+En el caso de estudio se definió el predicado \texttt{IsSubSet} para indicar que una lista es un subconjunto de otra. En este caso también era necesario tener que crear varios teoremas que relacionaran este predicado con los otros utilizados en la biblioteca. Por ejemplo:
+
+\begin{code}
+ifIsSubSetOfEachThenIsSoAppend : DecEq lty => 
+  {ls1, ls2, ls3 : List lty} -> 
+  IsSubSet ls1 ls3 -> IsSubSet ls2 ls3 -> 
+  IsSubSet (ls1 ++ ls2) ls3
+\end{code}
+
+Esto resulta en varios problemas:
+
+\begin{itemize}
+\item El trabajo del desarrollador de la biblioteca se multiplica cada vez que quiera agregar nuevas funcionalidades sobre los records, o cuando quiera agregar nuevos predicados o funciones sobre ellos. Por ejemplo, si se quisiera agregar la funcionalidad \texttt{unzipRecord} de HList, se deberían agregar nuevos predicados y funciones para las listas de campos. Esto requeriría agregar varios teoremas de cómo se relacionan estos predicados y funciones con \texttt{ElemLabel}, \texttt{IsLeftUnion}, \texttt{IsLabelSet}, \texttt{IsProjectLeft}, entre otros.
+\item El usuario va a tener que implementar sus propios teoremas para cualquier predicado nuevo que él cree. En el caso de estudio, el nuevo predicado fue \texttt{IsSubSet}. Al crear este nuevo predicado era necesario agregar nuevos teoremas, como el teorema \texttt{ifIsSubSetOfEachThenIsSoAppend} descrito anteriormente. Esto puede resultar muy costoso para el usuario.
+\end{itemize}
+
+En relación a los teoremas y predicados, la biblioteca en sí debería proporcionar todos los predicados y teoremas que pueda. Para poder tener las definiciones de los tipos y predicados encapsulados, sin que sea necesario que el usuario tenga que conocer sus implementaciones, no se debe poder esperar que el usuario mismo cree teoremas sobre estos predicados de tal forma que tenga que operar con su definición o implementación explícitamente. Esto requiere de un mayor trabajo para el desarrollador de la biblioteca, ya que debe crear teoremas para cualquier posible caso y uso de sus predicados y funciones, todo con el afán de facilitarle su uso al usuario. De lo contrario, los usuarios mismos tienen que conocer la implementación interna de la biblioteca y crear sus propios teoremas, lo cual resulta inviable.
+
+En el desarrollo de este trabajo hubo algunos problemas de diseño que surgieron a causa de los tipos dependientes. En algunos momentos hubo algunos predicados sobre listas que tuvieron código duplicado. Los predicados \texttt{IsLeftUnion} trabajan sobre listas de tipo \texttt{LabelList lty} mientras que predicados \texttt{IsLeftUnion\_List} trabajan sobre listas de tipo \texttt{List lty}. Parametrizar tales predicados por cualquier tipo de lista no es trivial y requiere de un rediseño de la solución. Varios de estos problemas surgen en una etapa avanzada del desarrollo (e.j el problema de \texttt{IsLeftUnion} descrito anteriormente surgió al momento de implementar el caso de estudio), lo cual hace más costoso su cambio.
+
+Otro problema que surgió en el desarrollo es que la lectura del código no proporciona la información necesaria al programador. Las pruebas de los teoremas y lemas se realiza paso a paso. En cada rama del código, se tienen términos de prueba y valores con distintos tipos complejos, y se deben combinar ellos para poder obtener la prueba final. Muchos de estos términos son implícitos y no aparecen en el código (por ejemplo al utilizar la sintaxis \texttt{\{\}} de Idris). Una vez finalizada la prueba, es imposible conocer los tipos y el estado de esos términos en tales ramas, ya que o son términos implícitos o sus tipos no se muestran explícitamente en el código. Esto dificulta no solo la tarea de lectura y entendimiento de las pruebas, sino que si se realiza un cambio en la definición de un predicado o función, al desarrollador le resulta difícil entender donde tiene que realizar los cambios correspondientes para adaptarse a ese cambio de definición.
+
+Sin ser por los problemas descritos, el desarrollo en Idris es bastante placentero y sencillo. Al tener tipos más ricos, la implementación de los teoremas y funciones se simplifica bastante con la ayuda del compilador, que previene que uno tome en cuenta casos inválidos (como \texttt{Elem x []}). Los tipos dependientes ayudan mucho en este aspecto, ya que cuanta más información se tenga en el tipo que permita restringir los posibles estados de sus valores, el programador debe realizar menos análisis de casos, y se reduce la chance de introducir defectos por olvidarse de manejar alguno de tales casos, o por manejarlos de forma errónea.
 
 \section{Alternativas de HList en Idris}
 
