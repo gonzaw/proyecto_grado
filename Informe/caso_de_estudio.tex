@@ -31,7 +31,13 @@ let y := 10 in (let x := 3 in x + 3)
 
 Su gramática en BNF es:
 
-PENDIENTE
+\begin{bnf*}
+  \bnfprod{Exp} {\bnfpn{Nat} \bnfor \bnfpn{Var} \bnfor \bnfpn{Add} \bnfor \bnfpn{Let}}\\
+  \bnfprod{Nat} {\bnftd{Número natural}}\\
+  \bnfprod{Var} {\bnftd{Caracter o string}}\\
+  \bnfprod{Add} {\bnfpn{Exp} \bnfsp \bnfts{+} \bnfsp \bnfpn{Exp}}\\
+  \bnfprod{Let} {\bnfts{let} \bnfsp \bnfpn{Var} \bnfsp \bnfts{:=} \bnfsp \bnfpn{Nat} \bnfsp \bnfts{in} \bnfsp \bnfts{(} \bnfsp \bnfpn{Exp} \bnfsp \bnfts{)}}\\
+\end{bnf*}
 
 Se decidió utilizar records extensibles e Idris en este caso de estudio para poder verificar que las expresiones estén bien formadas, y que las llamadas al evaluador sean válidas, todo en tiempo de compilación.
 
@@ -43,13 +49,77 @@ Sin records extensibles ni tipos dependientes, tales garantías no existen en ti
 
 \section{Definición de una expresión}
 
-Las expresiones de este lenguaje deben seguir las siguientes reglas de buena formación:
+Las expresiones de este lenguaje deben seguir las siguientes reglas de buena formación, como se indica en \ref{fig:RulesWellFormed}
 
-PENDIENTE
+\begin{figure}[h]
 
-A su vez, toda expresión tiene un conjunto de variables libres, que se definen con las siguientes reglas:
+\centering
 
-PENDIENTE
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[lit]{n : Nat}{\Gamma \vdash n}
+\end{subfigure}%
+
+\bigskip
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[var]{v : String}{\Gamma \vdash v}
+\end{subfigure}%
+
+\bigskip
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[add]{\Gamma \vdash e1 & \Gamma \vdash e2}{\Gamma \vdash e1 + e2}
+\end{subfigure}%
+
+\bigskip
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[let]{\Gamma \vdash e & n : Nat & v : String}{\Gamma \vdash \textbf{let} \, v := n \, \textbf{in} \, e}
+\end{subfigure}%
+
+\caption{Reglas de buena formación}
+\label{fig:RulesWellFormed}
+\end{figure}
+
+A su vez, toda expresión tiene un conjunto de variables libres, que se definen con las reglas \ref{fig:RulesFreeVariables}.
+
+\begin{figure}[h]
+
+\centering
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[lit]{n : Nat}{\vdash n : \emptyset}
+\end{subfigure}%
+
+\bigskip
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[var]{v : String}{\vdash v : \{v\}}
+\end{subfigure}%
+
+\bigskip
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[add]{\vdash e1 : \Delta1 & \vdash e2 : \Delta2}{\vdash e1 + e2 : \Delta1 \cup \Delta2 }
+\end{subfigure}%
+
+\bigskip
+
+\begin{subfigure}{0.5\linewidth}
+\centering
+\inference[let]{\vdash e : \Delta & n : Nat & v : String}{\vdash \textbf{let} \, v := n \, \textbf{in} \, e : \Delta \setminus \{v\}}
+\end{subfigure}%
+
+\caption{Reglas de variables libres}
+\label{fig:RulesFreeVariables}
+\end{figure}
 
 Estas reglas pueden implementarse en Idris en un único tipo \texttt{Exp}:
 
