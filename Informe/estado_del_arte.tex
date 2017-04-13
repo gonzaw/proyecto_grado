@@ -4,7 +4,7 @@
 
 \chapter{Estado del arte}
 \label{ch:2}
-En este capítulo se van a presentar varias implementaciones de records extensibles en varios lenguajes. Se enfocará en lenguajes fuertemente tipados. Existen implementaciones de records extensibles en lenguajes dinámicamente tipados, pero no entran en el alcance de este trabajo ni de lo que se quiere investigar.
+En este capítulo se van a presentar varias implementaciones de records extensibles en varios lenguajes. Se enfocará en lenguajes fuertemente tipados. Existen implementaciones de records extensibles en lenguajes dinámicamente tipados, pero no entran en el alcance de este trabajo.
 
 En términos generales, las implementaciones de records extensibles se dividen según si son proporcionadas por el lenguaje como primitivas, o si son proporcionadas por bibliotecas. Se describirán ambas alternativas, incluyendo ejemplos de lenguajes e implementaciones de cada uno.
 
@@ -25,7 +25,11 @@ type alias Named a =
 
 type alias Moving a =
   { a | velocity : Float, angle : Float }
+\end{code}
 
+Elm permite definir tipos que equivalen a records, pero agregándole campos adicionales, como es el caso de los tipos descritos arriba. Este tipo de record extensible hace uso de \textit{row polymorphism}. Básicamente, al definir un record, éste se hace polimórfico sobre el resto de los campos (o \textit{rows}, como es descrito en la literatura). Es decir, se puede definir un record que tenga como mínimo unos determinados campos, pero el resto de éstos puede variar. Su uso sería el siguiente:
+
+\begin{code}
 lady : Named { age : Int }
 lady =
   { name = "Lois Lane"
@@ -42,9 +46,9 @@ dude =
   }
 \end{code}
 
-Elm permite definir tipos que equivalen a records, pero agregándole campos adicionales, como es el caso de los tipos descritos arriba. Este tipo de record extensible hace uso de \textit{row polymorphism}. Básicamente, al definir un record, éste se hace polimórfico sobre el resto de los campos (o \textit{rows}, como es descrito en la literatura). Es decir, se puede definir un record que tenga como mínimo unos determinados campos, pero el resto de éstos puede variar. En el ejemplo de arriba, el record \texttt{lady} es definido extendiendo \texttt{Named} con otro campo adicional, sin necesidad de definir un tipo nuevo.
+En el ejemplo de arriba, el record \texttt{lady} es definido extendiendo \texttt{Named} con otro campo adicional, sin necesidad de definir un tipo nuevo.
 
-Una desventaja es que por el poco uso de records extensibles, en la versión 0.16 se decidió eliminar la funcionalidad de agregar y eliminar campos a records de forma dinámica \cite{ElmReducedRecordSyntax}.
+Por el poco uso de records extensibles, en la versión 0.16 se decidió eliminar la funcionalidad de agregar y eliminar campos a records de forma dinámica \cite{ElmReducedRecordSyntax}.
 
 Otro lenguaje con esta particularidad es \textit{Purescript} \cite{PurescriptByExample}. A continuación se muestra uno de los ejemplos de su documentación \cite{PurescriptRecords}:
 
@@ -56,7 +60,7 @@ fullname person = person.firstName ++ " " ++ person.lastName
 
 Purescript permite definir records con determinados campos, y luego definir funciones que solo actúan sobre los campos necesarios. Utiliza \textit{row polymorphism} al igual que Elm.
 
-Ambos lenguajes basan su implementación de records extensibles, aunque sea parcialmente, en el paper \textit{'Extensible records with scoped labels'} \cite{Leijen:scopedlabels}, de Daan Leijen.
+Ambos lenguajes basan su implementación de records extensibles, aunque sea parcialmente, en el paper \textit{'Extensible records with scoped labels'} \cite{Leijen:scopedlabels}, de Daan Leijen. En este paper Daan Leijen describe un sistema de tipos donde los records extensibles son una nueva extensión del lenguaje, y permite que éstos puedan contener etiquetas repetidas, asignando un \textit{alcance} a cada etiqueta. Cada acceso a un elemento del record mediante una etiqueta simplemente accede al primer elemento de éste con esa etiqueta. La sintaxis y operaciones sobre records que se definen en este paper es la utilizada en Elm y Purescript, como por ejemplo \texttt{\{ l = e | r \}}, que extiende un record \texttt{r} con la etiqueta \texttt{l} y el valor \texttt{e}. Este paper implementa \textit{row polymorphism} al designar un \textit{kind} (tipo de tipos) llamado \textit{row} y permitiendo definir tipos de records parametrizados por tales rows.
 
 También existen otras propuestas de sistemas de tipos con soporte para records extensibles. En \textit{'First-class labels for extensible records'} \cite{Leijen:fclabels}, Daan Leijen describe un sistema de tipos con etiquetas como \textit{first-class citizens} del lenguaje para permitir construir records extensibles de forma expresiva. 
 
@@ -70,13 +74,13 @@ Otro problema es que, al menos que se explicite, las nuevas funcionalidades del 
 
 Como se vió en el caso de Elm, los diseñadores del lenguaje pueden decidir quitar funcionalidades de records extensibles en versiones futuras del lenguaje. Esto es una desventaja si un usuario depende de tal funcionalidad.
 
-Este trabajo se enfocará en records extensibles como bibliotecas de usuario. Una biblioteca no modifica el lenguaje mismo sino que hace uso de todas sus funcionalidades ya definidas, por lo que no presentan los problemas vistos anteriormente. A su vez, las bibliotecas le dan varias opciones al usuario, ya que puede elegir la implementación de records extensibles que más desea y le resulta mejor para su situación. Otra ventaja es que poder definir records extensibles como una biblioteca evita que uno necesite cambiar el lenguaje para poder soportarlos.
+Este trabajo se enfocará en records extensibles como bibliotecas de usuario. Una biblioteca no modifica el lenguaje mismo sino que hace uso de todas sus funcionalidades ya definidas, por lo que no presentan los problemas vistos anteriormente. A su vez, las bibliotecas le dan varias opciones al usuario, ya que puede elegir la implementación de records extensibles que más desea y le resulta mejor para su situación.
 
 \section{Records extensibles como bibliotecas de usuario}
 
 Las bibliotecas de usuario son componentes de un lenguaje de programación que están escritas en ese mismo lenguaje, proveyendo una funcionalidad al usuario que utiliza este componente. Las implementaciones de records extensibles que utilizan este mecanismo se basan en utilizar funcionalidades avanzadas del lenguaje en cuestión para poder realizar la definición de tales records.
 
-En \textit{'Generic Record Combinators with Static Type Checking'} \cite{Jeltsch:2010:GRC:1836089.1836108}, Wolfgang Jeltsch describe un sistema de records en Haskell definiendo los records como typeclasses, y los tipos y etiquetas del record como tipos producto. Su trabajo fue liberado como una biblioteca de Haskell llamada \textit{records} \cite{HaskellRecords}. Esta implementación es similar a HList, pero no nos enfocaremos en ella en este trabajo.
+En \textit{'Generic Record Combinators with Static Type Checking'} \cite{Jeltsch:2010:GRC:1836089.1836108}, Wolfgang Jeltsch describe un sistema de records en Haskell definiendo los records como typeclasses, y los tipos y etiquetas del record como tipos producto. Su trabajo fue liberado como una biblioteca de Haskell llamada \textit{records} \cite{HaskellRecords}.
 
 Otras propuestas se basan en utilizar extensiones de Haskell para poder definir los records. \textit{rawr} \cite{HaskellRawr} utiliza \textit{type families} y \textit{type-level lists} para definir sus records. \textit{Vinyl} \cite{HaskellVinyl} también utiliza type-level lists, pero define un record como un \textit{GADT} (Generalized Abstract Data Type). \textit{ruin} \cite{HaskellRuin} utiliza \textit{Template Haskell} y metaprogramming para crear instancias de typeclasses específicas. Existen otras propuestas, como \textit{labels} \cite{HaskellLabels}, \textit{named-records} \cite{HaskellNamedRecords}, \textit{bookkeeper} \cite{HaskellBookkeeper}, entre otras. Estas bibliotecas son muy similares en su funcionamiento, difiriendo en qué funcionalidades de GHC (Glasgow Haskell Compiler) y Haskell utilizan, qué funcionalidades de records y records extensibles le proporcionan al usuario, qué sintaxis usan, etc.
 
@@ -84,19 +88,33 @@ Como ejemplo de uso de una biblioteca, se tienen los records de \textit{rawr} qu
 
 \begin{code}
 type Foo = R ( "a" := Int, "b" := Bool )
-let foo = R ( #a := 42, #b := True ) :: Foo
+
+foo :: Foo
+foo = R ( #a := 42, #b := True ) :: Foo
 \end{code}
 
-La definición de un record se realiza llamando a funciones y tipos proporcionados por la biblioteca (como es el caso de las funciones \texttt{R} en este ejemplo). Para realizar la extensión de un record, generalmente también se utilizan operadores definidos en la biblioteca, como en el siguiente caso:
+La definición de un record se realiza llamando a funciones y tipos proporcionados por la biblioteca (como es el caso de las funciones \texttt{R} en este ejemplo). Una diferencia a notar, es que la definición del tipo \texttt{Foo} se utilizaron strings, como \texttt{'a'}, mientras que en la definición de un valor de ese tipo se utilizaron identificadores, como \texttt{\#a}. Esto sucede porque los records en \textit{rawr} hacen uso de \textit{type-level literals}, una funcionalidad del compilador GHC que permiten utilizar strings literales en un tipo (llamados \textit{Symbols}). Por lo que \texttt{'a'} en \texttt{R ( 'a' := Int)} es un string promovido a un tipo. 
+
+Para poder utilizar un valor literal promovido, en GHC se utiliza el tipo \texttt{Proxy t}, el cual solo mantiene una referencia al tipo \texttt{t}. En este caso, \texttt{\#a} es un valor de tipo \texttt{Proxy 'a'}.
+
+Para realizar la extensión de un record, generalmente también se utilizan operadores definidos en la biblioteca, como en el siguiente caso:
 
 \begin{code}
 R ( #foo := True) :*: R ( #bar := False)
 --> R ( bar := False, foo := True )
 \end{code}
 
-Existen muchas alternativas y propuestas, pero el trabajo actual se basó en la biblioteca HList de Haskell. HList muestra las problemáticas de definir records extensibles, a la vez que muestra soluciones a ellas. También tiene varias propiedades que son deseadas tener en un diseño de records extensibles (como flexibilidad para agregar nuevas operaciones sobre records), y el marco de este trabajo es transladarlo a un contexto de tipos dependientes en Idris y hacer uso de esas propiedades.
+El operador \texttt{(:*:)} realiza una unión de dos records. Para poder obtener un elemento de un record, se puede utilizar su etiqueta directamente como función de acceso:
 
-Uno de los mecanismos utilizados por HList y la mayoría de las bibliotecas previamente descritas son las \textit{listas heterogéneas}, que se presentarán en la siguiente sección. Bibliotecas como HList y Records (de Wolfgang Jeltsch) son más viejas y utilizan funcionalidades más básicas de Haskell para definir listas heterogéneas (como type families y type classes). Algunas de las bibliotecas mencionadas (como \textit{vinyl}) son más modernas y utilizan funcionalidades nuevas de GHC, como \textit{DataKinds}, que permite definir listas heterogéneas a nivel de tipos, y así permitir definir records extensibles de una forma más sencilla.
+\begin{code}
+rec = R ( #foo := True)
+#foo rec
+--> True
+\end{code}
+
+El trabajo actual se basó en la biblioteca HList de Haskell. HList muestra las problemáticas de definir records extensibles, a la vez que muestra soluciones a ellas. También tiene varias propiedades que son deseadas tener en un diseño de records extensibles (como flexibilidad para agregar nuevas operaciones sobre records), y el marco de este trabajo es transladarlo a un contexto de tipos dependientes en Idris y hacer uso de esas propiedades.
+
+Uno de los mecanismos utilizados por HList y la mayoría de las bibliotecas previamente descritas son las \textit{listas heterogéneas}, que se presentarán en la siguiente sección. Bibliotecas como HList y Records (de Wolfgang Jeltsch) utilizan funcionalidades más básicas de Haskell para definir listas heterogéneas (como type families y type classes). Algunas de las bibliotecas mencionadas (como \textit{vinyl}) son más modernas y utilizan funcionalidades nuevas de GHC, como \textit{DataKinds}, que permite definir listas heterogéneas a nivel de tipos, y así permitir definir records extensibles de una forma más sencilla.
 
 Las listas heterogéneas son un pilar base de muchas implementaciones de records extensibles, pero en particular son fundamentales para la implementación de HList, y subsecuentemente para la implementación de records extensibles en Idris. A continuación se describirán las listas heterogéneas, luego se mostrará cómo se implementan en la biblioteca HList de Haskell, y al final se presentará cómo son implementadas en Idris.
 
@@ -122,7 +140,7 @@ A continuación se describe la forma de crear listas heterogéneas en Haskell, y
 
 \subsection{HList en Haskell}
 
-Para definir listas heterogéneas en Haskell nos basaremos en la propuesta presentada en \textit{'Strongly Typed Heterogeneous Collections'} \cite{Kiselyov:2004:STH:1017472.1017488}, por Oleg Kiselyov, Ralf L\"{a}mmel y Keean Schupke. Esta propuesta está implementada en el paquete \textit{hlist} de Hackage \cite{HListHackage}.
+Para definir listas heterogéneas en Haskell nos basaremos en la propuesta presentada en \textit{'Strongly Typed Heterogeneous Collections'} \cite{Kiselyov:2004:STH:1017472.1017488}, por Oleg Kiselyov, Ralf L\"{a}mmel y Keean Schupke. Esta propuesta está implementada en el paquete \textit{hlist} de Hackage \cite{HListHackage}. Su implementación es muy similar a la de la biblioteca \textit{records} descrita anteriormente.
 
 Esta biblioteca define HList de la siguiente forma:
 
@@ -135,9 +153,30 @@ data instance HList (x ': xs) = x `HCons` HList xs
 
 Se utilizan \textit{data families} para poder crear una familia de tipos \texttt{HList}, utilizando la estructura recursiva de las listas, definiendo un caso cuando una lista es vacía y otro caso cuando se quiere agregar un elemento a su cabeza.
 
-Esta definición representa una secuencia de tipos separados por \texttt{HCons} y terminados por \texttt{HNil}.
+\textit{data families} son una extensión de Haskell, junto a \textit{type synonym families} (juntas denominadas \textit{type families}), que permiten realizar poliformismo ad-hoc sobre tipos. Cada type family se parametriza sobre un tipo, y permite generar instancias para tipos específicos.
 
-Esto permite, por ejemplo, construir el siguiente valor:
+Las instancias de un \textit{data family} indican que, para cada instancia en particular, ésta se construye con un constructor específico y ningún otro. Como ejemplo:
+
+\begin{code}
+data family MyData a
+data instance MyData Int = 
+  MyDataC1 Int | MyDataC2 String
+data instance MyData String = MyDataC3 [Int]
+\end{code}
+
+Si en algún momento se tiene \texttt{MyData Int}, entonces es posible realizar pattern matching sobre él con los constructores \texttt{MyDataC1} y \texttt{MyDataC2}, pero \textit{no} con \texttt{MyDataC3}. Si se tiene \texttt{MyData String} ocurre lo contrario, se puede realizar pattern matching con el constructor \texttt{MyDataC3} pero no con los demás. Si se tiene \texttt{MyData a} parametrizado por un \texttt{a} arbitrario, no se puede realizar pattern matching hasta conocer más sobre el tipo \texttt{a}.
+
+A diferencia de \textit{data families}, las instancias de un \textit{type synonym family} indican que, para cada instancia en particular, ésta es un sinónimo de tipo del tipo indicado a la derecha. Como ejemplo:
+
+\begin{code}
+type family MyFam a
+type instance MyFam Int = Maybe Int
+type instance MyFam String = [Int]
+\end{code}
+
+En este caso, cada vez que se tiene \texttt{MyFam Int}, éste funciona como un alias para \texttt{Maybe Int}. Cada vez que se tiene \texttt{MyFam String}, éste funciona como un alias de \texttt{[Int]}. Si se tiene \texttt{MyFam a} parametrizado por un \texttt{a} arbitrario, no se puede conocer su sinónimo hasta tener más información sobre el tipo \texttt{a}.
+
+Para el caso de \texttt{HList t}, ésta se define como un data family de dos constructores, \texttt{HNil} y \texttt{HCons}, donde \texttt{HNil} solo puede aplicarse cuando la lista \texttt{t} es vacía, y cuando \texttt{HCons} se aplica le agrega un elemento a la lista \texttt{t}. Esto permite, por ejemplo, construir el siguiente valor:
 
 \begin{code}
 10 `HCons` ("Text" `HCons` HNil) :: HList '[Int, String]
@@ -145,7 +184,7 @@ Esto permite, por ejemplo, construir el siguiente valor:
 
 Esta definición hace uso de una forma de tipos dependientes, al utilizar una lista de tipos como parámetro de \texttt{HList}. La estructura recursiva de \texttt{HList} garantiza que es posible construir elementos de este tipo a la misma vez que se van construyendo elementos de la lista de tipos que se encuentra parametrizada en \texttt{HList}.
 
-Para poder definir funciones sobre este tipo de listas, es necesario utilizar \textit{type families}, como muestra el siguiente ejemplo:
+Para poder definir funciones sobre este tipo de listas, es necesario utilizar \textit{type synonym families}, como muestra el siguiente ejemplo:
 
 \begin{code}
 type family HLength (x :: [k]) :: HNat
@@ -167,10 +206,9 @@ hLength (10 `HCons` ("Texto" `HCons` HNil)) =
   Proxy (HSucc (HSucc HZero))
 \end{code}
 
-
 \subsection{HList en Idris}
 
-Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. Esto evita que uno tenga que recurrir al tipo de construcciones de Haskell (type families, etc) para poder manejar listas heterogéneas. Una de las metas es poder programar utilizando listas heterogéneas con la misma facilidad que uno programa con listas homogéneas.
+Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. Una de las metas es poder programar utilizando listas heterogéneas con la misma facilidad que uno programa con listas homogéneas.
 
 Esto último no ocurre en el caso de HList en Haskell, ya que el tipo de HList es definido con data families, y funciones sobre HList son definidas con type families y typeclasses. Esta definición se contrasta con las listas homogéneas, cuyo tipo se define como un tipo común, y funciones sobre tales se definen como funciones normales también.
 
@@ -210,9 +248,9 @@ Esta definición permite construir listas heterogéneas con relativa facilidad, 
   HList [Nat, String, [Nat]]
 \end{code}
 
-El tipo \texttt{HList} se define como una función de tipo que toma una lista de tipos (e.j \texttt{[Nat, String]}) y retorna un tipo. Éste se construye definiendo una lista vacía que no tiene tipos, o definiendo un operador de \textit{cons} que tome un valor, una lista previa, y agruege ese valor a la lista. En el caso de \textit{cons}, no solo agrega el valor a la lista, sino que agrega el tipo de tal valor a la lista de tipos que mantiene \texttt{HList} en su tipo.
+El tipo \texttt{HList} se define como una función de tipo que toma una lista de tipos (e.j \texttt{[Nat, String]}) y retorna un tipo. Éste se construye definiendo una lista vacía que no tiene tipos, o definiendo un operador de \textit{cons} que tome un valor, una lista previa, y agregue ese valor a la lista. En el caso de \textit{cons}, no solo agrega el valor a la lista, sino que agrega el tipo de tal valor a la lista de tipos que mantiene \texttt{HList} en su tipo.
 
-Cada valor agregado a la lista tiene un tipo asociado que es almacenado en la lista del tipo. \texttt{23 : Nat} guarda \texttt{23} en la lista pero \texttt{Nat} en el tipo, deforma que uno siempre puede recuperar ya sea el tipo o el valor si se quieren utilizar luego.
+Cada valor agregado a la lista tiene un tipo asociado que es almacenado en la lista del tipo. \texttt{23 : Nat} guarda \texttt{23} en la lista pero \texttt{Nat} en el tipo, de forma que uno siempre puede recuperar ya sea el tipo o el valor si se quieren utilizar luego.
 
 A su vez, a diferencia de Haskell, la posición de \textit{first-class citizens} de los tipos dependientes en Idris permite definir funciones con pattern matching sobre HList:
 
@@ -222,7 +260,7 @@ hLength Nil = 0
 hLength (x :: xs) = 1 + (hLength xs)
 \end{code}
 
-Aquí surge una diferencia muy importante con la implementación de HList de Haskell, ya que en Idris \texttt{hLength} puede ser utilizada como cualquier otra función, y en especial opera sobre \textit{valores}, mientras que en Haskell \texttt{HLength} solo puede ser utilizada comp type family, y solo opera sobre \textit{tipos}. Esto permite que el uso de HList en Idris no sea distinto del uso de listas comunes (\texttt{List}), y por lo tanto puedan tener el mismo trato de ellas para los creadores de bibliotecas y los usuarios de tales, disminuyendo la dificultad de su uso para resolver problemas.
+Aquí surge una diferencia muy importante con la implementación de HList de Haskell, ya que en Idris \texttt{hLength} puede ser utilizada como cualquier otra función, y en especial opera sobre \textit{valores}, mientras que en Haskell \texttt{HLength} solo puede ser utilizada como type family, y solo opera sobre \textit{tipos}. Esto permite que el uso de HList en Idris no sea distinto del uso de listas comunes (\texttt{List}), y por lo tanto puedan tener el mismo trato de ellas para los creadores de bibliotecas y los usuarios de tales, disminuyendo la dificultad de su uso para resolver problemas.
 
 A continuación se presentará cómo la biblioteca de Haskell HList define records extensibles utilizando estas listas heterogéneas.
 
@@ -237,7 +275,7 @@ mkRecord :: HRLabelSet r => HList r -> Record r
 mkRecord = Record
 \end{code}
 
-Un record se representa simplemente como una lista heterogénea de un tipo determinado (que se verá más adelante). Un record se puede cosntruir solamente utilizando \texttt{mkRecord}. Esta función toma una lista heterogénea, pero fuerza a que tenga una instancia de \texttt{HRLabelSet}.
+Un record se representa simplemente como una lista heterogénea de un tipo determinado (que se verá más adelante). Un record se puede construir solamente utilizando \texttt{mkRecord}. Esta función toma una lista heterogénea, pero fuerza a que tenga una instancia de \texttt{HRLabelSet}.
 
 Una lista heterogénea con una instancia de \texttt{HRLabelSet} implica que la lista tiene valores con etiquetas, y ninguna etiqueta se repite. Se define de la siguiente forma:
 
@@ -254,51 +292,108 @@ data Tagged s b = Tagged b
 
 Este tipo permite tener un \textit{phantom type} en el tipo \texttt{s}. Esto significa que un valor de tipo \texttt{Tagged s b} va a contener solamente un valor de tipo \texttt{b}, pero en tiempo de compilación se va a tener el tipo \texttt{s} para manipular.
 
-El predicado \texttt{HAllTaggedLV} simplemente verifica que la lista solo contenga elementos del tipo \texttt{Tagged}. Ambos \texttt{Tagges} y \texttt{HAllTaggedLV} pertenecen a la biblioteca \textit{tagged} \cite{HaskellTagged}.
-
-Un ejemplo posible de tal lista sería:
-
-\begin{code}
-Tagged 10 `HCons` (Tagged "John" `HCons` HNil) ::
-  HList '[Tagged s1 Nat, Tagged s2 String]
-\end{code}
-
-El valor en sí no contiene las etiquetas \texttt{s1} ni \texttt{s2}, pero el tipo sí las contiene. Estas etiquetas no deben repetirse, y para ello la lista debe poder tener una instancia de \texttt{HLabelSet (LabelsOf ps)}. \texttt{LabelsOf} es un type family que toma una lista de \texttt{Tagged} y obtiene sus etiquetas:
+El predicado \texttt{HAllTaggedLV} simplemente verifica que la lista solo contenga elementos del tipo \texttt{Tagged}. Ambos \texttt{Tagged} y \texttt{HAllTaggedLV} pertenecen a la biblioteca \textit{tagged} \cite{HaskellTagged}.
+ 
+Estas etiquetas no deben repetirse, y para ello la lista debe poder tener una instancia de \texttt{HLabelSet (LabelsOf ps)}. \texttt{LabelsOf} es un type family que toma una lista de \texttt{Tagged} y obtiene sus etiquetas:
 
 \begin{code}
 type family LabelsOf (ls :: [*]) :: [*]
 type instance LabelsOf '[] = '[]
-type instance LabelsOf (Label l ': r) = Label l ': LabelsOf r
-type instance LabelsOf (Tagged l v ': r) = Label l ': LabelsOf r
+type instance LabelsOf (Label l ': r) = 
+  Label l ': LabelsOf r
+type instance LabelsOf (Tagged l v ': r) = 
+  Label l ': LabelsOf r
 \end{code}
 
-\texttt{LabelsOf ls} toma todos los \textit{phantom types} de \texttt{Tagged} y los retorna en una lista a nivel de tipos. Como en algunas partes de la implementación se permite que la lista heterogénea tenga solo etiquetas (sin valores), tal lista también puede tener un valor del tipo \texttt{Label l}. El tipo \texttt{Label} simplemente permite cosntruir una etiqueta a nivel de tipos para poder identificar los campos del record.
+\texttt{LabelsOf ls} toma todos los \textit{phantom types} de \texttt{Tagged} y los retorna como etiquetas \texttt{Label l}. Como en algunas partes de la implementación se permite que la lista heterogénea tenga solo etiquetas (sin valores), la lista original también puede tener un valor del tipo \texttt{Label l}. El tipo \texttt{Label l} mantiene una referencia al phantom type de \texttt{Tagged}, y representa una etiqueta a nivel de tipos para poder identificar los campos del record. Su definición es la siguiente:
 
-\texttt{HLabelSet} es una typeclass que representa el predicado de que las etiquetas de la lista no estén repetidas. Para ello se aplica la función \texttt{LabelsOf} antes, para poder obtener solo las etiquetas de la lista (y no sus valores). Este predicado se define de forma recursiva definiendo instancias para cada paso base y caso inductivo. Hace uso de predicados de igualdad de tipos para poder realizarlo. No se mostrará su implementación.
+\begin{code}
+data Label l = Label
+\end{code}
 
-La biblioteca también proporciona otra forma de generar records utilizando etiquetas y operadores especiales. Un ejemplo de su uso es:
+\texttt{HLabelSet} es una typeclass que representa el predicado de que las etiquetas de la lista no estén repetidas. Para ello se aplica la función \texttt{LabelsOf} antes, para poder obtener solo las etiquetas de la lista (y no sus valores). Este predicado se define de forma recursiva definiendo instancias para cada paso base y caso inductivo. Hace uso de predicados de igualdad de tipos para poder realizarlo. Su definición es la siguiente:
+
+\begin{code}
+class Fail
+data DuplicatedLabel l
+
+class HLabelSet ls
+instance HLabelSet '[]
+instance HLabelSet '[x]
+instance (HEqK l1 l2 leq, 
+  HLabelSet' l1 l2 leq r,
+  ) => HLabelSet (l1 ': l2 ': r)
+
+class HLabelSet' l1 l2 (leq :: Bool) r
+instance (HLabelSet (l2 ': r),
+  HLabelSet (l1 ': r),
+  ) => HLabelSet' l1 l2 False r
+instance (Fail (DuplicatedLabel l1)) =>
+  HLabelSet' l1 l2 True r
+\end{code}
+
+Como casos base, se define que \texttt{'[]} y \texttt{'[x]} son conjuntos. Para el caso recursivo, se hace uso de una typeclass auxiliar \texttt{HLabelSet' l1 l2 (leq :: Bool) r}. Se fuerza a que \texttt{l1} y \texttt{l2} sean distintos utilizando la igualdad a nivel de tipos \texttt{HEqK l1 l2 leq} y la segunda instancia de \texttt{HLabelSet'}. Si \texttt{l1} y \texttt{l2} fueran iguales, entonces \texttt{HEqK l1 l2 True} sería la instancia obtenida, la cual unificaría con \texttt{HLabelSet' l1 l2 True r}. Sin embargo, esto fallaría en tiempo de compilación ya que utilizaría la segunda instancia de \texttt{HLabelSet'}, la cual necesita de una instancia de \texttt{Fail (DuplicatedLabel l2)}, la cual no existe porque la typeclass \texttt{Fail} se define sin instancias (es una typeclass para indicar casos de error). Esto fuerza a que \texttt{l1} y \texttt{l2} sean distintos. En tal caso, si se cumple que \texttt{(l1 ': r)} y \texttt{(l2 ': r)} son conjuntos sin elementos repetidos, se puede concluir que \texttt{(l1 ': l2 ': r)} no tiene elementos repetidos, representado por la instancia \texttt{HLabelSet (l1 ': l2 ': r)}.
+
+La biblioteca también proporciona otra forma de generar records utilizando etiquetas y operadores especiales. A continuación mostraremos un ejemplo de su uso, adaptando el ejemplo visto en el paper de HList \cite{Kiselyov:2004:STH:1017472.1017488}:
 
 \begin{code}
 data PersonaNamespace = PersonaNamespace
 clave = firstLabel PersonaNamespace "clave"
 nombre = nextLabel clave "nombre"
 edad = nextLabel nombre "edad"
+\end{code}
 
+En primer lugar, es necesario construir las etiquetas a utilizar en el record. Para ello se debe generar un namespace, el cual puede ser cualquier tipo, siempre en cuando sea único. En este caso se utiliza el tipo con un único constructor \texttt{PersonaNamespace}. Luego, se deben definir las etiquetas utilizando las funciones \texttt{firstLabel} y \texttt{nextLabel}:
+
+\begin{code}
+data Lbl (x :: HNat) (ns :: *) (desc :: *)
+
+firstLabel :: ns -> desc -> Label (Lbl HZero ns desc)
+
+nextLabel :: Label (Lbl x ns desc) -> desc' ->
+  Label (Lbl (HSucc x) ns desc')
+\end{code}
+
+El tipo \texttt{Lbl} es un simple contenedor de un tipo de kind \texttt{HNat} (un natural a nivel de tipos), y dos tipos \texttt{ns} y \texttt{desc} cualesquiera. \texttt{firstLabel} y \texttt{nextLabel} generan un \texttt{Label} que contiene la información del namespace \texttt{ns} y de la etiqueta misma \texttt{desc} y la guarda en \texttt{Lbl}. Ambos definen un orden utilizando el primer campo \texttt{x :: HNat} de \texttt{Lbl}. \texttt{firstLabel} define el primer valor con \texttt{HZero}, mientras que \texttt{nextLabel} define el siguiente valor con \texttt{HSucc x}. El campo \texttt{desc} simplemente guarda el texto de la etiqueta.
+
+Con estas herramientas se puede definir el record extensible mismo:
+
+\begin{code}
 persona = clave .=. (3 :: Integer)
   .*. nombre .=. "Juan"
   .*. edad .=. 27
   .*. emptyRecord
 \end{code}
 
-Funciones como \texttt{firstLabel} y \texttt{nextLabel} permiten construir elementos del tipo \texttt{Label t} que luego pueden usarse para definir los campos del record. Los campos del record se definen utilizando el siguiente operador:
+Los campos del record se definen utilizando el siguiente operador:
 
 \begin{code}
 (.=.) :: Label l -> v -> Tagged l v
 \end{code}
 
-A su vez, el operador \texttt{(.*.)} permite extender un record con un nuevo campo. Su implementación no se mostrará, pero cabe notar que ésta termina realizando un llamado a la función \texttt{mkRecord} vista anteriormente.
+A su vez, el operador \texttt{(.*.)} permite extender un record con un nuevo campo. Su tipo es el siguiente:
 
-Todas las funcinose sobre records extensibles se definen utilizando typeclasses para realizar la computación en los tipos. Un ejemplo de ello es la función que obtiene un elemento de un record dada su etiqueta:
+\begin{code}
+(.*.) :: HExtend e l => e -> l -> HExtendR e l
+\end{code}
+
+\texttt{HExtendR e l} es una type family que representa el resultado final de extender el record \texttt{e} con el campo \texttt{l}. Este resultado puede computarse mediante la typeclass \texttt{HExtend}. Su implementación no se mostrará, pero cabe notar que ésta termina realizando un llamado a la función \texttt{mkRecord} vista anteriormente.
+
+Resumiendo los tipos y funciones vistos hasta ahora, en el ejemplo anterior, el tipo del record sería el siguiente:
+
+\begin{code}
+persona :: Record '[
+  Tagged (Lbl HZero 
+    PersonaNamespace String) Integer,
+  Tagged (Lbl (HSucc HZero) 
+    PersonaNamespace String) String,
+  Tagged (Lbl (HSucc (HSucc HZero)) 
+    PersonaNamespace String) Int]
+\end{code}
+
+En HList, dos etiquetas \texttt{Label (Lbl x1 n1 desc)} y \texttt{Label (Lbl x2 n2 desc)} son iguales si sus namespaces y posiciones son idénticas. Es decir, si \texttt{x1 = x2} y \texttt{n1 = n2}. Por este motivo el chequeo de etiquetas repetidas y su búsqueda se realiza tomando valores de \texttt{Label} y verificando su posición en la lista de etiquetas creadas con \texttt{firstLabel} y \texttt{nextLabel}. Los textos en sí (como el string \texttt{'clave'}) no son utilizados.
+
+Todas las funciones sobre records extensibles se definen utilizando typeclasses para realizar la computación en los tipos. Un ejemplo de ello es la función que obtiene un elemento de un record dada su etiqueta:
 
 \begin{code}
 class HasField (l :: k) r v | l r -> v where
@@ -308,4 +403,10 @@ class HasField (l :: k) r v | l r -> v where
 r .! l = hLookupByLabel l r
 \end{code}
 
-Para este trabajo se tomó como motivación esta implementación de records extensibles, realizando una traducción a Idris de cada función, tipo y algoritmo. A continuación se mostrará la implementación realizada en este trabajo.
+Esta typeclass hace uso de \textit{dependencias funcionales}. Las dependencias funcionales son una extensión de Haskell que permiten definir typeclasses donde algunos de sus argumentos determinan de forma única el resto. En el caso anterior, la typeclass \texttt{HasField} tiene 3 dependencias, \texttt{l}, \texttt{r} y \texttt{v}. Sin embargo, tiene una dependencia \texttt{l r -> v} que indica que solo puede existir una única instancia de \texttt{HasField} para cada par de \texttt{l} y \texttt{r}. Esta dependencia indica que, si se tiene \texttt{l} y \texttt{r} fijos, entonces \texttt{v} es único. Su concepto es análogo al de dependencias funcionales de la teoría de bases de datos relacionales.
+
+La función \texttt{hLookupByLabel} toma una etiqueta \texttt{Label l} y verifica si ésta existe en el record \texttt{r}, comparando la posición y namespace de ésta con todas las demás etiquetas del record. Cuando encuentra una etiqueta con el mismo namespace y posición, retorna el valor que se encuentra en la estructura \texttt{Tagged}.
+
+Para este trabajo se tomó como motivación esta implementación de records extensibles, realizando una traducción a Idris de cada función, tipo y algoritmo. Una diferencia de este trabajo con HList es que en Idris se realizó la comparación de etiquetas comparando por el texto de las mismas, mientras que en HList éstas se comparan utilizando su posición y namespace.
+
+A continuación se mostrará la implementación realizada en este trabajo.
