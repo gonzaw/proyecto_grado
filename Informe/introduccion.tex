@@ -5,7 +5,7 @@
 \chapter{Introducción}
 \label{ch:1}
 
-Los records extensibles son una herramienta muy útil en la programación. Surgen como una respuesta a un problema que tienen los lenguajes de programación estáticos en cuanto a records: ¿Cómo puedo modificar la estructura de un record ya definido?
+Los records extensibles son una herramienta muy útil en la programación. Surgen como una respuesta a un problema que tienen los lenguajes de programación con tipado estático en cuanto a records: ¿Cómo puedo modificar la estructura de un record ya definido?
 
 En los lenguajes de programación fuertemente tipados modernos no existe una forma primitiva de definir y manipular records extensibles. Algunos lenguajes ni siquiera permiten definirlos.
 
@@ -43,7 +43,7 @@ data Persona2 = Persona2 {
 
 En ninguno de ambos enfoques es posible obtener el nuevo record extendiendo el anterior de manera dinámica. Es decir, siempre es necesario definir un nuevo tipo, indicando que es un record e indicando sus campos.
 
-Los records extensibles intentan resolver este problema. Si \texttt{Persona} fuera un record extensible, entonces definir un nuevo record idéntico a él, pero con un campo adicional, sería tan fácil como tomar un record de tipo \texttt{Persona} existente, y simplemente agregarle el nuevo campo \texttt{apellido} con su valor correspondiente. A continuación se muestra un ejemplo de record extensibles, con una sintaxis hipotética similar a Haskell:
+Los records extensibles intentan resolver este problema. Si \texttt{Persona} fuera un record extensible, entonces definir un nuevo record idéntico a él, pero con un campo adicional, sería tan fácil como tomar un record de tipo \texttt{Persona} existente, y simplemente agregarle el nuevo campo \texttt{apellido} con su valor correspondiente. A continuación se muestra un ejemplo de records extensibles, con una sintaxis hipotética similar a Haskell:
 
 \begin{code}
 p :: Persona
@@ -57,17 +57,28 @@ El tipo del nuevo record debería reflejar el hecho de que es una copia de \text
 
 Para poder implementar un record extensible, es necesario poder codificar toda la información del record. Esta información incluye las etiquetas que acepta el record, y el tipo de los valores asociados a cada una de esas etiquetas.
 
-Algunos lenguajes permiten implementar records extensibles con primitivas del lenguaje (como en Elm \cite{ElmRecords} o Purescript \cite{PurescriptRecords}), pero requieren de sintaxis y semántica especial para records extensibles, y no es posible implementarlos con primitivas del lenguaje más básicas.
+Algunos lenguajes permiten implementar records extensibles con primitivas del lenguaje (como en Elm \cite{ElmRecords} o Purescript \cite{PurescriptRecords}), pero requieren de sintaxis y semántica especial para los records extensibles, y no es posible implementarlos en términos de primitivas del lenguaje más básicas.
 
 Las propiedades de records extensibles requieren que los campos sean variables y puedan ser agregados a records previamente definidos. En el ejemplo visto más arriba, básicamente se espera poder tener un tipo \texttt{Persona}, y poder agregarle un campo \texttt{apellido} con el tipo \texttt{String}, y que esto sea un nuevo tipo. Esto se puede realizar con \textit{tipos dependientes}.
 
 \section{Tipos dependientes}
 
-\textit{Tipos dependientes} son tipos que dependen de valores, y no solamente de otros tipos. En el ejemplo anterior, el nuevo tipo \texttt{Persona + \{ apellido :: String \}} depende de tipos (\texttt{Persona} y \texttt{String}) pero también de valores. El elemento \texttt{apellido} se puede representar como un valor de tipo \texttt{String}, quedando el tipo final \texttt{Persona + \{ 'apellido' :: String \}}. Con tipos dependientes los tipos son \textit{first-class}, lo que permite que cualquier operación que se puede realizar sobre valores también se puede realizar sobre tipos. En particular, se pueden definir funciones que tengan tipos como parámetros y retornen tipos como resultado. En el ejemplo, \texttt{(+)} funciona como tal función, tomando el tipo \texttt{Persona} y el tipo \texttt{\{ 'apellido' :: String \}} y uniéndolos en un nuevo tipo. \texttt{(::)} funciona como otra función, uniendo el valor \texttt{apellido} y el tipo \texttt{String}.
+\textit{Tipos dependientes} son tipos que dependen de valores, y no solamente de otros tipos. En el ejemplo anterior, el nuevo tipo \texttt{Persona + \{ apellido :: String \}} depende de tipos (\texttt{Persona} y \texttt{String}) pero también de valores. El elemento \texttt{apellido} se puede representar como un valor de tipo \texttt{String}, quedando el tipo final \texttt{Persona + \{ 'apellido' :: String \}}. Al ser un valor, se podría, por ejemplo, guardarlo en una variable y utilizarlo de la siguiente manera:
+
+\begin{code}
+miCampo = String
+miCampo = 'apellido'
+
+pExtensible :: Persona + { miCampo :: String }
+\end{code}
+
+Otro ejemplo de tipo dependiente sería tener un vector parametrizado por su largo. Un valor de tipo \texttt{Vect 0 String} representaría un vector de strings de largo 0, mientras que \texttt{Vect 2 String} representaría un vector de strings de largo 2. El tipo \texttt{Vect} no solo dependería de tipos como \texttt{String}, sino de valores como \texttt{0} o \texttt{2}.
+
+Con tipos dependientes los tipos son \textit{first-class}, lo que permite que cualquier operación que se puede realizar sobre valores también se puede realizar sobre tipos. En particular, se pueden definir funciones que tengan tipos como parámetros y retornen tipos como resultado. En el ejemplo, \texttt{(+)} funciona como tal función, tomando el tipo \texttt{Persona} y el tipo \texttt{\{ 'apellido' :: String \}} y uniéndolos en un nuevo tipo. \texttt{(::)} funciona como otra función, uniendo el valor \texttt{apellido} y el tipo \texttt{String}.
 
 En relación a records extensibles, los tipos dependientes hacen posible que dentro del tipo del record puedan existir valores para poder ser manipulados, como podría ser la lista de etiquetas del record. Como esta información se encuentra en el tipo del record, es posible definir tipos y funciones que accedan a ella y la manipulen para poder definir todas las funcionalidades de records extensibles.
 
-Otra propiedad de los tipos dependientes es que permiten definir propiedades como tipos. Es posible definir proposiciones como tipos, y probar tales proposiciones construyendo valores de ese tipo. Como ejemplo, se puede codificar la propiedad \textit{'Un record extensible no puede tener campos repetidos'} como un tipo \texttt{RecordSinRepetidos record} (donde \texttt{record} es un valor de tipo record), y luego se puede usar un valor \texttt{prueba : RecordSinRepetidos record} en cualquier lugar donde uno quiera que se cumpla esa propiedad. Como se verá más adelante en el trabajo, esto permite tener chequeos y restricciones sobre la construcción de records en tiempo de compilación, ya que si un tipo que representa una propiedad no puede ser construido (lo que significa que no se pudo probar esa propiedad), entonces el código no va a compilar. Esto es una mejora a la alternativa de que se realice un chequeo en tiempo de ejecución, haciendo que falle el programa, ya que uno no necesita correr el programa para saber que éste es correcto y cumple tal propiedad.
+Otra propiedad de los tipos dependientes es que permiten definir predicados como tipos. Es posible definir predicados como tipos, y probar tales predicados construyendo valores de ese tipo. Como ejemplo, se puede codificar la propiedad \textit{'Un record extensible no puede tener campos repetidos'} como un tipo \texttt{RecordSinRepetidos record} (donde \texttt{record} es un valor de tipo record), y luego se puede usar un valor \texttt{prueba : RecordSinRepetidos record} en cualquier lugar donde uno quiera que se cumpla esa propiedad. Como se verá más adelante en el trabajo, esto permite tener chequeos y restricciones sobre la construcción de records en tiempo de compilación, ya que si un tipo que representa una propiedad no puede ser construido (lo que significa que no se pudo probar esa propiedad), entonces el código no va a compilar. Esto es una mejora a la alternativa de que se realice un chequeo en tiempo de ejecución, haciendo que falle el programa, ya que uno no necesita correr el programa para saber que éste es correcto y cumple tal propiedad.
 
 \section{Idris}
 
@@ -83,15 +94,15 @@ La versión de Idris utilizada en este trabajo es la 0.12.0
 
 A continuación se describe la organización del resto del documento:
 
-En el capítulo \textit{'Estado del arte'} se van a mostrar varias implementaciones de records extensibles en otros lenguajes, mostrando sus beneficios e incovenientes. Eventualmente se enfocará en una implementación específica de records extensibles en Haskell.
+En el capítulo \ref{ch:2} se muestran varias implementaciones de records extensibles en otros lenguajes, mostrando sus beneficios e incovenientes. También se muestra una implementación específica de records extensibles en Haskell.
 
-En el capítulo \textit{'Records extensibles en Idris'} se presentará la implementación de records extensibles en Idris llevada a cabo en este proyecto, expandiendo en el uso de Idris y las funcionalidades de éste que hicieron posible este trabajo. También se mostrarán los problemas encontrados en este trabajo y sus respectivas soluciones.
+En el capítulo \ref{ch:3} se presenta la implementación de records extensibles en Idris llevada a cabo en este proyecto, expandiendo en el uso de Idris y las funcionalidades de éste que hicieron posible este trabajo. También se muestran los problemas encontrados en este trabajo y sus respectivas soluciones.
 
-En el capítulo \textit{'Caso de estudio'} se presentará un caso de estudio de construcción y evaluación de expresiones aritméticas, haciendo uso de lo desarrollado en este trabajo, permitiendo ver cómo es el uso de esta implementación de records extensibles y qué se puede llegar a hacer con ella.
+En el capítulo \ref{ch:4} se presenta un caso de estudio de construcción y evaluación de expresiones aritméticas, haciendo uso de lo desarrollado en este trabajo, permitiendo ver cómo es el uso de esta implementación de records extensibles y qué se puede llegar a hacer con ella.
 
-En el capítulo \textit{'Conclusiones'} se tomarán las experiencias del desarrollo del trabajo y el caso de estudio y se analizarán los problemas encontrados, el aporte que puede llegar a tener este trabajo sobre el problema de records extensibles, entre otras cosas.
+En el capítulo \ref{ch:5} se toman las experiencias del desarrollo del trabajo y el caso de estudio y se analizan los problemas encontrados, el aporte que puede llegar a tener este trabajo sobre el problema de records extensibles, entre otras cosas.
 
-En el capítulo \textit{'Trabajo a futuro'} se indicarán aspectos de diseño e implementación que pueden realizarse sobre este trabajo para mejorarlo, como posibles tareas que surgieron y se pueden llevar a cabo.
+En el capítulo \ref{ch:6} se indican aspectos de diseño e implementación que pueden realizarse sobre este trabajo para mejorarlo, como posibles tareas que surgieron y se pueden llevar a cabo.
 
-En el \textit{'Apéndice'} se encontrarán recursos adicionales, como el código fuente de este trabajo.
+En el capítulo \ref{ch:7} se encuentran recursos adicionales, como el código fuente de este trabajo.
 
