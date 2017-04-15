@@ -138,9 +138,9 @@ data Exp : List String -> Type where
     Exp fvsOuter
 \end{code}
 
-Un valor de tipo \texttt{VarDec x} contiene la variable \texttt{x} y un natural. Representa la declaración de una variable, como \texttt{'x' := 10 : VarDec 'x'}.
+Un valor de tipo \texttt{VarDec x} contiene la variable \texttt{x} y un natural. Representa la declaración de una variable, como \texttt{''x'' := 10 : VarDec ''x''}.
 
-El tipo \texttt{Exp} se define como un tipo parametrizado por una lista de variables. Esta lista representa la lista de variables libres que ocurren en la expresión. Un valor de tipo \texttt{Exp ['x', 'y']} es una expresión que tiene a \textit{'x'} e \textit{'y'} como variables libres. Se decidió incluir la información de variables libres en el tipo para poder facilitar tanto la implementación del evaluador, como la construcción de expresiones.
+El tipo \texttt{Exp} se define como un tipo parametrizado por una lista de variables. Esta lista representa la lista de variables libres que ocurren en la expresión. Un valor de tipo \texttt{Exp [''x'', ''y'']} es una expresión que tiene a \textit{''x''} e \textit{''y''} como variables libres. Se decidió incluir la información de variables libres en el tipo para poder facilitar tanto la implementación del evaluador, como la construcción de expresiones.
 
 Cada constructor representa cada regla de formación de una expresión. A su vez, cada constructor sigue las reglas de construcción de variables libres definidas anteriormente.
 
@@ -299,9 +299,9 @@ local {localVars} {fvsInner} vars innerExp =
     (\localIsSet => localPred vars innerExp {isSet=localIsSet})
 \end{code}
 
-Antes que nada, \texttt{local} utiliza el mismo truco de \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variable varias veces, como \texttt{local ['x' := 1, 'x' := 2]}.
+Antes que nada, \texttt{local} utiliza el mismo truco de \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variable varias veces, como \texttt{local [''x'' := 1, ''x'' := 2]}.
 
-Tal declaración de variables se define en \texttt{LocalVariables}, que es un tipo que representa la lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{['x' := 10, 'y' := 4] : LocalVariables ['x', 'y']}.
+Tal declaración de variables se define en \texttt{LocalVariables}, que es un tipo que representa la lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{[''x'' := 10, ''y'' := 4] : LocalVariables [''x'', ''y'']}.
 
 La expresión resultante calcula sus variables libres con \texttt{deleteList}. Esta función es la análoga a \texttt{DeleteLabelsPred\_List} que cumple esta propiedad:
 
@@ -329,7 +329,7 @@ interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv ->
 
 Dada una expresión \texttt{Exp fvs}, con una lista de variables libres \texttt{fvs}, se necesita tener un ambiente \texttt{Ambiente fvsEnv} con variables \texttt{fvsEnv}. El ambiente contiene los valores para todas esas variables, las cuales deben incluir a todas las variables libres de la expresión.
 
-Si se tiene \texttt{Exp ['x', 'y']}, entonces se puede tener \texttt{Ambiente ['x', 'y']}, o \texttt{Ambiente ['x', 'y', 'z']}, o \texttt{Ambiente ['x', 'w', 'y', 'z']}. El ambiente puede tener variables extras, pero siempre debe tener valores para las variables libres de la expresión. Esto garantiza que cualquier llamada a \texttt{interpEnv} sea válida, ya que toda expresión puede evaluarse si se tienen valores para sus variables libres.
+Si se tiene \texttt{Exp [''x'', ''y'']}, entonces se puede tener \texttt{Ambiente [''x'', ''y'']}, o \texttt{Ambiente [''x'', ''y'', ''z'']}, o \texttt{Ambiente [''x'', ''w'', ''y'', ''z'']}. El ambiente puede tener variables extras, pero siempre debe tener valores para las variables libres de la expresión. Esto garantiza que cualquier llamada a \texttt{interpEnv} sea válida, ya que toda expresión puede evaluarse si se tienen valores para sus variables libres.
 
 El tipo \texttt{IsSubSet fvs fvsEnv} refleja esa relación, como se puede ver en estos ejemplos:
 
@@ -610,7 +610,7 @@ ifNotElemThenNotInNats : Not (Elem x xs) ->
   Not (ElemLabel x (AllNats xs))
 \end{code}
 
-Recordemos que se tiene la prueba \texttt{notVarInEnv : Not (Elem var fvsEnv)}, pero para poder extender el record se necesita una prueba de \texttt{Not (ElemLabel var (AllNats fvsEnv))}. Esta función auxiliar realiza esa transformación, conociendo que si un elemento no pertenece a una lista como \texttt{['x', 'y']}, entonces tampoco va a pertenecer a una donde se agrega el tipo \texttt{Nat}, como \texttt{[('x', Nat), ('y', Nat)]}.
+Recordemos que se tiene la prueba \texttt{notVarInEnv : Not (Elem var fvsEnv)}, pero para poder extender el record se necesita una prueba de \texttt{Not (ElemLabel var (AllNats fvsEnv))}. Esta función auxiliar realiza esa transformación, conociendo que si un elemento no pertenece a una lista como \texttt{[''x'', ''y'']}, entonces tampoco va a pertenecer a una donde se agrega el tipo \texttt{Nat}, como \texttt{[(''x'', Nat), (''y'', Nat)]}.
 
 Luego de extender el record, se obtiene el nuevo ambiente de forma simple:
 
