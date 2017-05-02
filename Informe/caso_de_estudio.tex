@@ -5,51 +5,55 @@
 \chapter{Caso de estudio}
 \label{ch:4}
 
-En el capítulo anterior se describió el diseño e implementación de records extensibles en Idris realizado en este trabajo. Sin embargo, el único uso de tales records visto fue en algunos ejemplos básicos. En el siguiente capítulo se mostrará un caso de estudio en el cual se utilizaron los records extensibles de este trabajo para poder solucionarlo.
+En el capítulo anterior se describió el diseño e implementación de records extensibles en Idris realizado en este trabajo. Sin embargo, el único uso de tales records visto hasta ahora fue en algunos ejemplos básicos. En este capítulo se muestra un caso de estudio más elaborado en el cual se utilizan los records extensibles desarrollados en este trabajo para poder solucionarlo.
 
 \section{Descripción del caso de estudio}
 
-El caso de estudio consiste en un pequeño lenguaje aritmético con variables y constantes. Se espera poder definir este lenguaje en Idris como un DSL (\textit{Domain Specific Language}), poder crear términos de este lenguaje, y luego evaluarlos en Idris y obtener valores naturales que se correspondan a la expresión aritmética definida.
+El caso de estudio consiste en un pequeño lenguaje de expresiones aritméticas con variables y constantes. Se define este lenguaje en Idris como un DSL (\textit{Domain Specific Language}), lo cual permite crear términos de este lenguaje, y luego evaluarlos en Idris.
 
-Este lenguaje \textit{Exp} se define de la siguiente manera:
+Este lenguaje está compuesto por:
 
 \begin{itemize}
-\item Si \textit{n} es un natural, entonces \textit{n} pertenece a \textit{Exp} como un literal.
-\item Si \textit{x} es un string, entonces \textit{x} pertenece a \textit{Exp} como una variable
-\item Si \textit{e1} y \textit{e2} pertenecen a \textit{Exp}, entonces \textit{e1 + e2} pertenece a \textit{Exp} como una suma.
-\item Si \textit{x} es un string, entonces \textit{let x := n in e} pertenece a \textit{Exp} como una sustitución de una variable.
+\item Literales dados por números naturales.
+\item Variables.
+\item Sumas de expresiones.
+\item Expresiones let.
 \end{itemize}
 
-Este lenguaje permite definir expresiones aritméticas donde se pueden definir valores numéricos, variables o sumar expresiones. Los siguientes son ejemplos de expresiones de este lenguaje:
+Este lenguaje permite definir expresiones aritméticas formadas por valores numéricos, variables y sumas de expresiones. Los siguientes son ejemplos de expresiones de este lenguaje:
 
 \begin{code}
 x
 x + 3
-let x := 3 in x + 3
-let y := 10 in (let x := 3 in x + 3)
+let x = 3 in x + 3
+let y = 10 in (let x = 3 in x + 3)
 \end{code}
 
-Su gramática en BNF es:
+La gramática del lenguaje en BNF se muestra en la Figura \ref{fig:RulesBNF}.
 
-\begin{bnf*}
-  \bnfprod{Exp} {\bnfpn{Nat} \bnfor \bnfpn{Var} \bnfor \bnfpn{Add} \bnfor \bnfpn{Let}}\\
-  \bnfprod{Nat} {\bnftd{Número natural}}\\
-  \bnfprod{Var} {\bnftd{Caracter o string}}\\
-  \bnfprod{Add} {\bnfpn{Exp} \bnfsp \bnfts{+} \bnfsp \bnfpn{Exp}}\\
-  \bnfprod{Let} {\bnfts{let} \bnfsp \bnfpn{Var} \bnfsp \bnfts{:=} \bnfsp \bnfpn{Nat} \bnfsp \bnfts{in} \bnfsp \bnfts{(} \bnfsp \bnfpn{Exp} \bnfsp \bnfts{)}}\\
-\end{bnf*}
+\begin{figure}[h]
 
-Se decidió utilizar records extensibles e Idris en este caso de estudio para poder verificar que las expresiones estén bien formadas, y que las llamadas al evaluador sean válidas, todo en tiempo de compilación.
+\centering
+Exp ::= n | x | e1 + e2 | let x = n in e\\
 
-Si se tiene una expresión, como \texttt{x + 3}, para evaluar esa expresión es necesario tener un ambiente con valores para las variables libres. En este caso es necesario tener un ambiente con el valor de la variable \texttt{x}, de lo contrario la evaluación de esa expresión no es válida. Con Idris, es posible verificar en tiempo de compilación que cualquier ambiente utilizado para evaluar una expresión debe contener valores para las variables libres de ésta. Con esta implementación, al llamar al evaluador se verifican que los tipos sean correctos.
+Donde n $\in$ Nat; x $\in$ Var; e, e1 y e2 $\in$ Exp
+\caption{Gramática BNF}
+\label{fig:RulesBNF}
+\end{figure}
 
-Los records extensibles fueron utilizados para poder definir tal ambiente al momento de evaluar una expresión. Como el ambiente contiene una lista de variables con sus valores, éstos pueden ser representados como un record, donde cada etiqueta es una variable libre, y éste puede ser extendido con nuevas variables, o se le pueden eliminar variables fuera de alcance. Al ser un record extensible se tiene la garantía de que ninguna variable se encuentra repetida en el ambiente, y en cada momento de la implementación se tiene una prueba de que toda variable libre pertenece al ambiente.
 
-Sin records extensibles ni tipos dependientes, tales garantías no existen en tiempo de compilación. Al momento de llamar al evaluador con una expresión en particular, el compilador no puede saber si las variables libres pertenecen al ambiente utilizado o no. Si alguna no pertenece, la evaluación va a fallar en tiempo de ejecución. Sin records extensibles tampoco se tiene una estructura de datos adecuada (con las propiedades deseadas) para almacenar las variables en el ambiente.
+
+Records extensibles son utilizados para poder verificar que las expresiones están bien formadas, y que las llamadas al evaluador son válidas, todo en tiempo de compilación.
+
+Dada una expresión, como \texttt{x + 3}, para evaluarla es necesario tener un ambiente con valores para sus variables libres. En el caso de \texttt{x + 3} es necesario tener un ambiente con el valor de la variable \texttt{x}, de lo contrario la evaluación de esa expresión no es válida. Con Idris, es posible verificar en tiempo de compilación que el ambiente utilizado para evaluar una expresión contiene valores para las variables libres de ésta. Al llamar al evaluador se verifican que los tipos sean correctos.
+
+Los records extensibles son utilizados para definir tal ambiente al momento de evaluar una expresión. Como el ambiente contiene una lista de variables con sus valores, éstos pueden ser representados como un record, donde cada etiqueta es una variable libre. El ambiente puede ser extendido con nuevas variables, o se le pueden eliminar variables fuera de alcance. Al ser un record extensible se tiene la garantía de que ninguna variable se encuentra repetida en el ambiente, y por otra parte se tiene una prueba de que toda variable libre pertenece al ambiente.
+
+Las propiedades descritas anteriormente son posibles utilizando records extensibles y tipos dependientes. Sin estas herramientas, es posible llamar al evaluador con un ambiente sin las variables libres necesarias para evaluar la expresión, fallando en tiempo de ejecución. Sin records extensibles tampoco se tiene una estructura de datos adecuada (con las propiedades deseadas) para almacenar las variables en el ambiente.
 
 \section{Definición de una expresión}
 
-Las expresiones de este lenguaje deben seguir las siguientes reglas de buena formación, como se indica en \ref{fig:RulesWellFormed}
+Toda expresión tiene un conjunto de variables libres, que se definen con las reglas de la Figura \ref{fig:RulesFreeVariables}.
 
 \begin{figure}[h]
 
@@ -57,76 +61,46 @@ Las expresiones de este lenguaje deben seguir las siguientes reglas de buena for
 
 \begin{subfigure}{0.5\linewidth}
 \centering
-\inference[lit]{n : Nat}{\Gamma \vdash n}
+\inference[lit]{n : Nat}{n \leadsto \emptyset}
 \end{subfigure}%
 
 \bigskip
 
 \begin{subfigure}{0.5\linewidth}
 \centering
-\inference[var]{v : String}{\Gamma \vdash v}
+\inference[var]{v : String}{v \leadsto \{v\}}
 \end{subfigure}%
 
 \bigskip
 
 \begin{subfigure}{0.5\linewidth}
 \centering
-\inference[add]{\Gamma \vdash e1 & \Gamma \vdash e2}{\Gamma \vdash e1 + e2}
+\inference[add]{e1 \leadsto \Delta1 & e2 \leadsto \Delta2}{e1 + e2 \leadsto \Delta1 \cup \Delta2 }
 \end{subfigure}%
 
 \bigskip
 
 \begin{subfigure}{0.5\linewidth}
 \centering
-\inference[let]{\Gamma \vdash e & n : Nat & v : String}{\Gamma \vdash \textbf{let} \, v := n \, \textbf{in} \, e}
-\end{subfigure}%
-
-\caption{Reglas de buena formación}
-\label{fig:RulesWellFormed}
-\end{figure}
-
-A su vez, toda expresión tiene un conjunto de variables libres, que se definen con las reglas \ref{fig:RulesFreeVariables}.
-
-\begin{figure}[h]
-
-\centering
-
-\begin{subfigure}{0.5\linewidth}
-\centering
-\inference[lit]{n : Nat}{\vdash n : \emptyset}
-\end{subfigure}%
-
-\bigskip
-
-\begin{subfigure}{0.5\linewidth}
-\centering
-\inference[var]{v : String}{\vdash v : \{v\}}
-\end{subfigure}%
-
-\bigskip
-
-\begin{subfigure}{0.5\linewidth}
-\centering
-\inference[add]{\vdash e1 : \Delta1 & \vdash e2 : \Delta2}{\vdash e1 + e2 : \Delta1 \cup \Delta2 }
-\end{subfigure}%
-
-\bigskip
-
-\begin{subfigure}{0.5\linewidth}
-\centering
-\inference[let]{\vdash e : \Delta & n : Nat & v : String}{\vdash \textbf{let} \, v := n \, \textbf{in} \, e : \Delta \setminus \{v\}}
+\inference[let]{e \leadsto \Delta & n : Nat & v : String}{\textbf{let} \, v = n \, \textbf{in} \, e \leadsto \Delta \setminus \{v\}}
 \end{subfigure}%
 
 \caption{Reglas de variables libres}
 \label{fig:RulesFreeVariables}
 \end{figure}
 
-Estas reglas pueden implementarse en Idris en un único tipo \texttt{Exp}:
+Estas reglas pueden implementarse en Idris en un único tipo \texttt{Exp}.
+
+Una expresión \texttt{e : Exp fv} indica que \texttt{e} es una expresión y \texttt{fv} es su conjunto de variables libres. Como ejemplo, \texttt{e : Exp [''x'', ''y'']} contiene a \texttt{''x''} y \texttt{''y''} como variables libres. Se decidió incluir la información de variables libres en el tipo para poder facilitar la implementación del evaluador.
 
 \begin{code}
 data VarDec : String -> Type where
   (:=) : (var : String) -> Nat -> VarDec var
+\end{code}
 
+Un valor de tipo \texttt{VarDec x} contiene la variable \texttt{x} y un natural. Representa la declaración de una variable, como \texttt{''x'' := 10 : VarDec ''x''}.
+
+\begin{code}
 data Exp : List String -> Type where
   Add : Exp fvs1 -> Exp fvs2 ->
     IsLeftUnion_List fvs1 fvs2 fvsRes ->
@@ -138,42 +112,19 @@ data Exp : List String -> Type where
     Exp fvsOuter
 \end{code}
 
-Un valor de tipo \texttt{VarDec x} contiene la variable \texttt{x} y un natural. Representa la declaración de una variable, como \texttt{''x'' := 10 : VarDec ''x''}.
-
-El tipo \texttt{Exp} se define como un tipo parametrizado por una lista de variables. Esta lista representa la lista de variables libres que ocurren en la expresión. Un valor de tipo \texttt{Exp [''x'', ''y'']} es una expresión que tiene a \textit{''x''} e \textit{''y''} como variables libres. Se decidió incluir la información de variables libres en el tipo para poder facilitar tanto la implementación del evaluador, como la construcción de expresiones.
-
 Cada constructor representa cada regla de formación de una expresión. A su vez, cada constructor sigue las reglas de construcción de variables libres definidas anteriormente.
 
-\begin{code}
-Var : (l : String) -> Exp [l]
-\end{code}
+En el caso de una expresión dada por una variable la expresión contiene una única variable libre. Si es un literal entonces no hay variables libres.
 
-Crea una expresión con una variable. En el tipo retorna esa variable como libre.
+En el caso de la suma de dos expresiones el conjunto de variables libres es la unión por izquierda de las listas de variables libres de los sumandos. Esto se realiza utilizando el predicado \texttt{IsLeftUnion\_List} visto en el capítulo anterior, solo que este funciona sobre listas  \texttt{List lty} en vez de listas de campos con etiquetas \texttt{LabelList lty}.
 
 \begin{code}
-Lit : Nat -> Exp []
-\end{code}
-
-Crea una expresión con un número como literal. No retorna variables libres.
-
-\begin{code}
-Add : Exp fvs1 -> Exp fvs2 ->
-  IsLeftUnion_LIst fvs1 fvs2 fvsRes ->
-  Exp fvsRes
-\end{code}
-
-Toma dos subexpresiones y crea una nueva expresión que representa la suma. Las variables libres son la unión por izquierda de las de la primera subexpresión con los de la segunda subexpresión.
-
-\texttt{IsLeftUnion\_List} es un predicado idéntico a \texttt{IsLeftUnion} visto en el capítulo anterior, solo que este funciona sobre listas \texttt{List lty} en vez de listas de campos con etiquetas \texttt{LabelList lty}.
-
-\begin{code}
-data DeleteLabelAtPred_List : lty -> List lty ->
+data IsLeftUnion_List : List lty -> List lty ->
   List lty -> Type where
-  EmptyRecord_List : {l : lty} -> DeleteLabelAtPred_List l [] []
-  IsElem_List : {l : lty} -> DeleteLabelAtPred_List l (l :: ls) ls
-  IsNotElem_List : {l1 : lty} -> Not (l1 = l2) ->
-    DeleteLabelAtPred_List l1 ls1 ls2 ->
-    DeleteLabelAtPred_List l1 (l2 :: ls1) (l2 :: ls2)
+  IsLeftUnionAppend_List :
+    {ls1, ls2, ls3 : List lty} ->
+    DeleteLabelsPred_List ls1 ls2 ls3 ->
+    IsLeftUnion_List ls1 ls2 (ls1 ++ ls3)
 
 data DeleteLabelsPred_List : List lty -> List lty ->
   List lty -> Type where
@@ -183,12 +134,13 @@ data DeleteLabelsPred_List : List lty -> List lty ->
     DeleteLabelsPred_List ls1 ls2 lsAux ->
     DeleteLabelsPred_List {lty} (l :: ls1) ls2 lsRes
 
-data IsLeftUnion_List : List lty -> List lty ->
+data DeleteLabelAtPred_List : lty -> List lty ->
   List lty -> Type where
-  IsLeftUnionAppend_List :
-    {ls1, ls2, ls3 : List lty} ->
-    DeleteLabelsPred_List ls1 ls2 ls3 ->
-    IsLeftUnion_List ls1 ls2 (ls1 ++ ls3)
+  EmptyRecord_List : {l : lty} -> DeleteLabelAtPred_List l [] []
+  IsElem_List : {l : lty} -> DeleteLabelAtPred_List l (l :: ls) ls
+  IsNotElem_List : {l1 : lty} -> Not (l1 = l2) ->
+    DeleteLabelAtPred_List l1 ls1 ls2 ->
+    DeleteLabelAtPred_List l1 (l2 :: ls1) (l2 :: ls2)
 \end{code}
 
 Un ejemplo sería el siguiente:
@@ -198,15 +150,7 @@ IsLeftUnion_List ["A", "B"] ["B", "C"]
   ["A", "B", "C"]
 \end{code}
 
-\begin{code}
-Let : VarDec var -> Exp fvsInner ->
-  DeleteLabelAtPred_List var fvsInner fvsOuter ->
-  Exp fvsOuter
-\end{code}
-
-Crea una expresión tomando una subexpresión y una asignación de un valor a una variable. Las variables libres de esta expresión se corresponden a las variables libres de la subexpresión, eliminando la variable recientemente asignada.
-
-\texttt{DeleteLabelAtPred\_List} es el predicado que indica esto. Se comporta igual que \texttt{DeleteLabelAtPred} definido en el capítulo anterior, solo que se aplica sobre listas \texttt{List lty} en vez de listas de campos con etiquetas \texttt{LabelList lty}. Su definición se mostró más arriba.
+En el caso de un let las variables libres corresponden a las variables libres de la expresión del let menos la variable local. Esto se realiza con el predicado \texttt{DeleteLabelAtPred\_List}, que se comporta igual que \texttt{DeleteLabelAtPred} definido en el capítulo anterior, solo que se aplica sobre listas \texttt{List lty} en vez de listas de campos con etiquetas \texttt{LabelList lty}. Su definición se mostró más arriba.
 
 Un ejemplo de tal predicado sería el siguiente:
 
@@ -219,7 +163,7 @@ Al igual que en el capítulo anterior, se decidió utilizar predicados que repre
 
 \subsection{Construcción de una expresión}
 
-Para poder construir expresiones de este lenguaje, se definieron funciones auxiliares que construyen valores del tipo \texttt{Exp}.
+Para poder construir expresiones de este lenguaje, se definieron funciones auxiliares (habitualmente denominados ''smart constructors'') que construyen valores del tipo \texttt{Exp}.
 
 \begin{code}
 var : (l : String) -> Exp [l]
@@ -237,12 +181,12 @@ eLet {var} {fvs} varDec e = Let varDec e
   (fromDeleteLabelAtListFuncToPred {l=var} {ls=fvs})
 \end{code}
 
-Las cuatro funciones simplemente aplican el constructor correspondiente. \texttt{add} y \texttt{eLet} tienen la particularidad de que realizan las computaciones sobre las listas de variables, y construyen los predicados correspondientes dadas esas computaciones. \texttt{leftUnion} y \texttt{deleteAtList} son las computaciones análogas a \texttt{IsLeftUnion\_List} y \texttt{DeleteAtLabel\_List}, cumpliendo las siguientes propiedades:
+Las cuatro funciones simplemente aplican el constructor correspondiente. Las funciones \texttt{add} y \texttt{eLet} tienen la particularidad de que realizan las computaciones sobre las listas de variables, y construyen los predicados correspondientes dadas esas computaciones. Las funciones \texttt{leftUnion} y \texttt{deleteAtList} computan valores análogos a \texttt{IsLeftUnion\_List} y \texttt{DeleteAtLabel\_List}, cumpliendo las siguientes propiedades:
 
 \begin{code}
-DeleteLabelAtPred_List l ls ls2 <-> ls1 = deleteAtList l ls1
+DeleteLabelAtPred_List l ls1 ls2 <-> ls2 = deleteAtList l ls1
 
-IsLeftUnion_List ls1 ls2 ls2 <-> ls3 = leftUnion ls1 ls2
+IsLeftUnion_List ls1 ls2 ls3 <-> ls3 = leftUnion ls1 ls2
 \end{code}
 
 Las funciones \texttt{fromLeftUnionFuncToPred} y \texttt{fromDeleteLabelAtListFuncToPred} son las que representan las propiedades anteriores:
@@ -255,7 +199,7 @@ fromLeftUnionFuncToPred : DecEq lty => {ls1, ls2 : List lty} ->
   IsLeftUnion_List {lty} ls1 ls2 (leftUnion ls1 ls2)
 \end{code}
 
-A continuación se muestran ejemplos de expresiones construidas con las funciones anteriores:
+A continuación se muestran ejemplos de expresiones construidas usando los ''smart constructors'':
 
 \begin{code}
 exp1 : Exp ["x", "y"]
@@ -278,9 +222,7 @@ exp2 : Exp []
 exp2 = local ["x" := 10, "y" := 9] $ add (var "x") (var "y")
 \end{code}
 
-\texttt{local} permite declarar varias variables simultáneamente.
-
-Su implementación es la siguiente:
+A diferencia de let, \texttt{local} permite declarar varias variables simultáneamente. Su implementación es la siguiente:
 
 \begin{code}
 data LocalVariables : List String -> Type where
@@ -299,7 +241,7 @@ local {localVars} {fvsInner} vars innerExp =
     (\localIsSet => localPred vars innerExp {isSet=localIsSet})
 \end{code}
 
-Antes que nada, \texttt{local} utiliza el mismo truco de \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variable varias veces, como \texttt{local [''x'' := 1, ''x'' := 2]}.
+Antes que nada, \texttt{local} utiliza la misma técnica que utilizamos para \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variable varias veces, como \texttt{local [''x'' := 1, ''x'' := 2]}.
 
 Tal declaración de variables se define en \texttt{LocalVariables}, que es un tipo que representa la lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{[''x'' := 10, ''y'' := 4] : LocalVariables [''x'', ''y'']}.
 
@@ -327,9 +269,9 @@ interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv ->
   Exp fvs -> Nat
 \end{code}
 
-Dada una expresión \texttt{Exp fvs}, con una lista de variables libres \texttt{fvs}, se necesita tener un ambiente \texttt{Ambiente fvsEnv} con variables \texttt{fvsEnv}. El ambiente contiene los valores para todas esas variables, las cuales deben incluir a todas las variables libres de la expresión.
+Dada una expresión \texttt{Exp fvs}, con una lista de variables libres \texttt{fvs}, se necesita tener un ambiente \texttt{Ambiente fvsEnv} con variables \texttt{fvsEnv}. El ambiente debe tener definidos valores para todas las variables libres de la expresión.
 
-Si se tiene \texttt{Exp [''x'', ''y'']}, entonces se puede tener \texttt{Ambiente [''x'', ''y'']}, o \texttt{Ambiente [''x'', ''y'', ''z'']}, o \texttt{Ambiente [''x'', ''w'', ''y'', ''z'']}. El ambiente puede tener variables extras, pero siempre debe tener valores para las variables libres de la expresión. Esto garantiza que cualquier llamada a \texttt{interpEnv} sea válida, ya que toda expresión puede evaluarse si se tienen valores para sus variables libres.
+Por ejemplo, si se tiene \texttt{Exp [''x'', ''y'']}, entonces deben tener ambientes que incluyan esas variables, como \texttt{Ambiente [''x'', ''y'']}, o \texttt{Ambiente [''x'', ''y'', ''z'']}, o \texttt{Ambiente [''x'', ''w'', ''y'', ''z'']}. El ambiente puede tener variables extras, pero siempre debe tener valores para las variables libres de la expresión. Esto garantiza que cualquier llamada a \texttt{interpEnv} sea válida, ya que toda expresión puede evaluarse si se tienen valores para sus variables libres.
 
 El tipo \texttt{IsSubSet fvs fvsEnv} refleja esa relación, como se puede ver en estos ejemplos:
 
@@ -353,12 +295,12 @@ En el caso base la lista vacía es subconjunto de cualquier posible lista. En el
 Por último se define el ambiente de esta forma:
 
 \begin{code}
+data Ambiente : List String -> Type where
+  MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
+
 AllNats : List lty -> LabelList lty
 AllNats [] = []
 AllNats (x :: xs) = (x, Nat) :: AllNats xs
-
-data Ambiente : List String -> Type where
-  MkAmbiente : Record {lty=String} (AllNats ls) -> Ambiente ls
 \end{code}
 
 \texttt{AllNats} es una función que toma una lista de etiquetas y les asigna el tipo \texttt{Nat} a todas. Por ejemplo:
@@ -372,11 +314,11 @@ Esto permite poder utilizar el record \texttt{Record \{lty=String\} (AllNats ls)
 Un ejemplo (con una pseudo-sintaxis) sería:
 
 \begin{code}
-{ "x": 10, "y": 20, "z": 22 } :
+{ "x = 10, "y" = 20, "z" = 22 } :
   Record [("x", Nat), ("y", Nat), ("z", Nat)]
 \end{code}
 
-Si se quieren evaluar expresiones cerradas (sin variables libres), se puede utilizar la siguiente función evaluadora:
+La evaluación de una expresión cerrada (o sea, sin variables libres) se hace de la siguiente manera:
 
 \begin{code}
 interp : Exp [] -> Nat
@@ -396,60 +338,21 @@ interp $ add (lit 1) (lit 2)
 -- 3
 \end{code}
 
-La implementación completa del evaluador se muestra a continuación:
-
-\begin{code}
-interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv -> Exp fvs -> Nat
-interpEnv env subSet (Add e1 e2 isUnionFvs) =
-  let (subSet1, subSet2) =
-      ifIsSubSetThenLeftUnionIsSubSet subSet isUnionFvs
-    res1 = interpEnv env subSet1 e1
-    res2 = interpEnv env subSet2 e2
-  in res1 + res2
-interpEnv {fvsEnv} (MkAmbiente rec) subSet (Var l) =
-  let hasField = HasFieldHere {l} {ty=Nat} {ts=[]}
-    hasFieldInEnv = ifIsSubSetThenHasFieldInIt subSet hasField
-  in hLookupByLabel l rec hasFieldInEnv
-interpEnv env subSet (Lit c) = c
-interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
-    with (isElem var fvsEnv)
-  interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
-    | Yes varInEnv =
-    let (MkAmbiente recEnv) = env
-      hasField = ifIsElemThenHasFieldNat varInEnv 
-      newRec = hUpdateAtLabel var n recEvn hasField
-      newEnv = MkAmbiente newRec
-      consSubSet =
-        ifIsSubSetThenSoIfYouDeleteLabel delAt subSet {l=var}
-      newSubSet = ifConsIsElemThenIsSubSet consSubSet varInEnv
-    in interpEnv newEnv newSubSet e
- 
-  interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
-    | No notVarInEnv =
-    let (MkAmbiente recEnv) = env
-      newRec = consRec var n recEnv
-        {notElem=ifNotElemThenNotInNats notVarInEnv}
-      newEnv = MkAmbiente newRec {ls=(var :: fvsEnv)}
-      newSubSet =
-        ifIsSubSetThenSoIfYouDeleteLabel delAt subSet {l=var}
-    in interpEnv newEnv newSubSet e
-\end{code}
-
-Se explicará su implementación para cada tipo de expresión por separado
+La implementación completa del evaluador se muestra a continuación.
 
 \subsection{Expresiones de literales}
 
-El caso de una expresión literal es el más sencillo:
+El caso de un literal es el más sencillo:
 
 \begin{code}
 interpEnv env subSet (Lit c) = c
 \end{code}
 
-Evaluar una expresión literal significa retornar tal valor literal como un natural.
+Significa retornar tal valor como un resultado.
 
 \subsection{Expresiones con declaración de variable}
 
-Una expresión que declara una variable, para poder ser evaluada, necesita tener esa variable en el ambiente y obtener el valor de ella:
+Una expresión que declara una variable necesita tener esa variable en el ambiente y obtener el valor de ella:
 
 \begin{code}
 interpEnv {fvsEnv} (MkAmbiente rec) subSet (Var l) =
@@ -523,7 +426,7 @@ En el evaluador, se realiza la llamada de la siguiente forma:
   ifIsSubSetThenLeftUnionIsSubSet subSet isUnionFvs
 \end{code}
 
-\texttt{isUnionFvs} tiene tipo \texttt{IsLeftUnion\_List fvs1 fvs2 fvs} y \texttt{subSet} tipo \texttt{IsSubSet fvs fvsEnv}. Por lo tanto, esta llamada obtiene las pruebas de \texttt{IsSubSet fvs1 fvsEnv} y \texttt{IsSubSet fvs2 fvsEnv} deseadas.
+Donde \texttt{isUnionFvs} tiene tipo \texttt{IsLeftUnion\_List fvs1 fvs2 fvs} y \texttt{subSet} tipo \texttt{IsSubSet fvs fvsEnv}. Por lo tanto, esta llamada obtiene las pruebas de \texttt{IsSubSet fvs1 fvsEnv} y \texttt{IsSubSet fvs2 fvsEnv} deseadas.
 
 Con tales pruebas se pueden evaluar las subexpresiones de esta forma:
 
@@ -540,7 +443,7 @@ res1 + res2
 
 \subsection{Expresiones con sustitución de variable}
 
-Una expresión donde se declara una sustitución de una variable \texttt{var} por un valor \texttt{n} en una subexpresión \texttt{e} es más difícil de evaluar que los demás casos, ya que requiere la manipulación del ambiente de variables, como se verá a continuación.
+Una expresión let es más difícil de evaluar que los demás casos, ya que requiere la manipulación del ambiente de variables, como se ve a continuación.
 
 \begin{code}
 interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
@@ -567,7 +470,7 @@ interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
     in interpEnv newEnv newSubSet e
 \end{code}
 
-El primer paso a tomar es saber si la variable \texttt{var} se encuentra en el ambiente o no. Es posible que la variable \texttt{var} ya tenga un valor \texttt{n2} asignado en el ambiente, pero si es así, tal valor debe ser sustituido por \texttt{n} cuando se intente evaluar la subexpresión \texttt{e}. Si la variable no se encuentra en el ambiente, entonces debe ser agregado a tal al momento de evaluar la subexpresión.
+El primer paso a tomar es saber si la variable \texttt{var} se encuentra en el ambiente o no. Es posible que la variable \texttt{var} ya tenga un valor \texttt{n2} asignado en el ambiente, pero si es así, tal valor debe ser sustituido por \texttt{n} cuando se intente evaluar la subexpresión \texttt{e}. Si la variable no se encuentra en el ambiente, entonces debe ser agregado al mismo al momento de evaluar la subexpresión.
 
 Veremos cómo se realiza esto en la implementación misma:
 
@@ -603,7 +506,7 @@ consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} ->
 
 La función \texttt{consRec} utilizada aquí no hace uso de \texttt{IsLabelSet} sino que utiliza \texttt{Not (Elemlabel l ts)}.
 
-Para poder extender el record se necesita una prueba de \texttt{Not (ElemLabel l ts)}, es decir, que la etiqueta a agregar no exista en el record. Como este caso surge de tener una prueba de que la variabel está en el ambiente, es posible construir la prueba con la siguiente función:
+Para poder extender el record se necesita una prueba de \texttt{Not (ElemLabel l ts)}, es decir, que la etiqueta a agregar no exista en el record. Como este caso surge de tener una prueba de que la variable está en el ambiente, es posible construir la prueba con la siguiente función:
 
 \begin{code}
 ifNotElemThenNotInNats : Not (Elem x xs) ->
