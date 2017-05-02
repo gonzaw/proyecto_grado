@@ -5,7 +5,7 @@
 \chapter{Trabajo a futuro}
 \label{ch:6}
 
-En este trabajo se encontraron varias tareas para mejorar la implementación de records extensibles:
+Existen posibles alternativas para mejorar la implementación de records extensibles:
 
 \begin{itemize}
 \item Una posible tarea a futuro es terminar de implementar las demás funciones y predicados de \textit{HList} de Haskell que no se tradujeron a Idris en esta solución.
@@ -23,4 +23,11 @@ En este trabajo se encontraron varias tareas para mejorar la implementación de 
 \item Como se vió en la introducción, los conceptos visitados en este trabajo aplican tanto a \textit{Agda} como a \textit{Idris}. Sería interesante estudiar replicar esta implementación en Agda.
 
 \item Se pueden mejorar los mensajes de error en la generación automática de predicados. Cuando se utiliza \texttt{TypeOrUnit}, si el compilador no puede generar el predicado esperado, entonces se muestra un error de unificación de \texttt{TypeOrUnit} con el tipo esperado. Se puede investigar una nueva forma de utilizar \texttt{TypeOrUnit} para mostrar mejores mensajes de error. Se debería poder asignar un mensaje de error para cada aplicación de \texttt{TypeOrUnit}, como por ejemplo el mensaje \textit{''El elemento a agregar ya existe''} al llamar a \texttt{consRecAuto}.
+
+\item En el caso de estudio, se decidió definir \texttt{Exp} parametrizando el tipo por el conjunto de variables libres. Esto complejiza la definición de sus constructores, ya que en cada constructor se necesita realizar la computación del conjunto de variables libres final, cuando en sí mismo la definición de una expresión es sencilla. A su vez acopla las variables libres a la expresión, lo cual no es necesario al momento de construir expresiones, ya que el conjunto de variables libres no impone ninguna restricción sobre la construcción de tales expresiones. Una mejora es definir las expresiones con un tipo de datos simple \texttt{data Exp : Type}, y tener un predicado \texttt{data Fv : Exp -> List String -> Type} o una función \texttt{fv : Exp -> List String} para manipular las variables libres. De esta forma el tipo del evualuador sería el siguiente:
+
+\begin{code}
+interpEnv : Ambiente fvsEnv -> (e : Exp) ->
+  IsSubSet (fv e) fvsEnv -> Nat
+\end{code}
 \end{itemize}
