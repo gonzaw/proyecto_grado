@@ -5,15 +5,15 @@
 \chapter{Conclusiones}
 \label{ch:5}
 
-El objetivo principal de este trabajo fue el de implementar una biblioteca de records extensibles en un lenguaje con tipos dependientes, de tal forma que su desarrollo y uso sean más sencillos o adecuados gracias a tales tipos dependientes (y gracias al lenguaje utilizado, Idris en este caso). Dicho objetivo se cumplió satisfactoriamente. Es posible tener una solución al problema de records extensibles en un lenguaje como Idris, el cual presenta muchas ventajas sobre otras soluciones que vale la pena tener en cuenta.
+El objetivo principal de este trabajo fue el de implementar una biblioteca de records extensibles en un lenguaje con tipos dependientes, de tal forma que su desarrollo y uso sean más sencillos o adecuados gracias a tales tipos dependientes (y gracias al lenguaje utilizado, Idris en este caso). Dicho objetivo se cumplió satisfactoriamente. Es posible tener una solución al problema de records extensibles en un lenguaje como Idris, el cual presenta muchas ventajas sobre otras soluciones.
 
 A continuación se discuten los problemas y facilidades que se encontraron en este trabajo.
 
 \section{Viabilidad de implementar records extensibles con tipos dependientes}
 
-Este trabajo es una prueba de la viabilidad de implementar records extensibles con tipos dependientes. Una vez que se tienen claro los conceptos del lenguaje, el desarrollo y diseño de la solución se realizan con bastante simpleza y sencillez. No se utilizan técnicas muy avanzadas ni poco entendibles, y el diseño final queda entendible también.
+Este trabajo es una prueba de la viabilidad de implementar records extensibles con tipos dependientes. Una vez que se tienen claros los conceptos del lenguaje, el desarrollo y diseño de la solución se realizan con bastante simpleza y sencillez. No se utilizan técnicas muy avanzadas ni poco entendibles, y el diseño final queda entendible también.
 
-Por ejemplo, la definición de records misma se realiza con solo dos líneas de código bastante entendibles:
+Por ejemplo, la definición de records misma se realiza con solo dos líneas de código:
 
 \begin{code}
 data Record : LabelList lty -> Type where
@@ -59,7 +59,7 @@ Esto resulta en varios problemas:
 \item El usuario va a tener que implementar sus propios teoremas para cualquier predicado nuevo que él cree. En el caso de estudio, el nuevo predicado fue \texttt{IsSubSet}. Al crear este nuevo predicado era necesario agregar nuevos teoremas, como el teorema \texttt{ifIsSubSetOfEachThenIsSoAppend} descrito anteriormente. Esto puede resultar muy costoso para el usuario.
 \end{itemize}
 
-En relación a los teoremas y predicados, la biblioteca en sí debería proporcionar todos los predicados y teoremas que pueda. Para poder tener las definiciones de los tipos y predicados encapsulados, sin que sea necesario que el usuario tenga que conocer sus implementaciones y mecanismos internos, no se debe poder esperar que el usuario mismo cree teoremas sobre estos predicados de tal forma que tenga que operar con su definición o implementación explícitamente. Esto requiere de un mayor trabajo para el desarrollador de la biblioteca, ya que debe crear teoremas para cualquier posible caso de uso de sus predicados y funciones, todo con el afán de facilitarle su uso al usuario. De lo contrario, los usuarios mismos tienen que conocer la implementación interna de la biblioteca y crear sus propios teoremas, lo cual resulta inviable.
+En relación a los teoremas y predicados, la biblioteca en sí debería proporcionar todos los predicados y teoremas que pueda. Para poder tener las definiciones de los tipos y predicados encapsulados, sin que sea necesario que el usuario tenga que conocer sus implementaciones y mecanismos internos, no se debe poder esperar que el usuario mismo cree teoremas sobre estos predicados de tal forma que tenga que operar con su definición o implementación explícitamente. Esto requiere de un mayor trabajo para el desarrollador de la biblioteca, ya que debe crear teoremas para cualquier posible caso de uso de sus predicados y funciones, todo con el afán de facilitarle su uso. De lo contrario, los usuarios mismos tienen que conocer la implementación interna de la biblioteca y crear sus propios teoremas, lo cual resulta inviable.
 
 En el desarrollo de este trabajo hubo algunos problemas de diseño que surgieron a causa de los tipos dependientes. En algunos momentos hubo algunos predicados sobre listas que tuvieron código duplicado. Los predicados \texttt{IsLeftUnion} trabajan sobre listas de tipo \texttt{LabelList lty}, mientras que predicados \texttt{IsLeftUnion\_List} trabajan sobre listas de tipo \texttt{List lty}. Son predicados con tipos distintos, sin embargo sus definiciones son idénticas. Parametrizar tales predicados por cualquier tipo de lista no es trivial y requiere de un rediseño de la solución. Varios de estos problemas surgen en una etapa avanzada del desarrollo (por ejemplo el problema de \texttt{IsLeftUnion} descrito anteriormente surgió al momento de implementar el caso de estudio), lo cual hace más costoso su cambio.
 
