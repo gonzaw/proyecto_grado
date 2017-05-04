@@ -45,7 +45,7 @@ Donde n $\in$ Nat; x $\in$ Var; e, e1 y e2 $\in$ Exp
 
 Records extensibles son utilizados para poder verificar que las expresiones están bien formadas, y que las llamadas al evaluador son válidas, todo en tiempo de compilación.
 
-Dada una expresión, como \texttt{x + 3}, para evaluarla es necesario tener un ambiente con valores para sus variables libres. En el caso de \texttt{x + 3} es necesario tener un ambiente con el valor de la variable \texttt{x}, de lo contrario la evaluación de esa expresión no es válida. Con Idris, es posible verificar en tiempo de compilación que el ambiente utilizado para evaluar una expresión contiene valores para las variables libres de ésta. Al llamar al evaluador se verifican que los tipos sean correctos.
+Dada una expresión, como \texttt{x + 3}, para evaluarla es necesario tener un ambiente con valores para sus variables libres. En el caso de \texttt{x + 3} es necesario tener un ambiente con el valor de la variable \texttt{x}, de lo contrario la evaluación de esa expresión no es válida. Con Idris, es posible verificar en tiempo de compilación que el ambiente utilizado para evaluar una expresión contiene valores para las variables libres de ésta. Al llamar al evaluador se verifica que los tipos sean correctos.
 
 Los records extensibles son utilizados para definir tal ambiente al momento de evaluar una expresión. Como el ambiente contiene una lista de variables con sus valores, éstos pueden ser representados como un record, donde cada etiqueta es una variable libre. El ambiente puede ser extendido con nuevas variables, o se le pueden eliminar variables fuera de alcance. Al ser un record extensible se tiene la garantía de que ninguna variable se encuentra repetida en el ambiente, y por otra parte se tiene una prueba de que toda variable libre pertenece al ambiente.
 
@@ -68,7 +68,7 @@ Toda expresión tiene un conjunto de variables libres, que se definen con las re
 
 \begin{subfigure}{0.5\linewidth}
 \centering
-\inference[var]{v : String}{v \leadsto \{v\}}
+\inference[var]{v : Var}{v \leadsto \{v\}}
 \end{subfigure}%
 
 \bigskip
@@ -116,7 +116,7 @@ Cada constructor representa cada regla de formación de una expresión. A su vez
 
 En el caso de una expresión dada por una variable la expresión contiene una única variable libre. Si es un literal entonces no hay variables libres.
 
-En el caso de la suma de dos expresiones el conjunto de variables libres es la unión por izquierda de las listas de variables libres de los sumandos. Esto se realiza utilizando el predicado \texttt{IsLeftUnion\_List} visto en el capítulo anterior, solo que este funciona sobre listas  \texttt{List lty} en vez de listas de campos con etiquetas \texttt{LabelList lty}.
+En el caso de la suma de dos expresiones el conjunto de variables libres es la unión por izquierda de las listas de variables libres de los sumandos. Esto se realiza utilizando el predicado \texttt{IsLeftUnion} visto en el capítulo anterior, solo que éste funciona sobre listas  \texttt{List lty} en vez de listas de campos con etiquetas \texttt{LabelList lty}.
 
 \begin{code}
 data IsLeftUnion_List : List lty -> List lty ->
@@ -241,7 +241,7 @@ local {localVars} {fvsInner} vars innerExp =
     (\localIsSet => localPred vars innerExp {isSet=localIsSet})
 \end{code}
 
-Antes que nada, \texttt{local} utiliza la misma técnica que utilizamos para \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variable varias veces, como \texttt{local [''x'' := 1, ''x'' := 2]}.
+La función \texttt{local} utiliza la misma técnica que utilizamos para \texttt{consRecAuto} y otras funciones sobre records con \texttt{TypeOrUnit}. En este caso, \texttt{local} permite construir una prueba de \texttt{IsSet localVars} automáticamente en tiempo de compilación. Esta prueba evita que se defina la misma variable varias veces, como \texttt{local [''x'' := 1, ''x'' := 2]}.
 
 Tal declaración de variables se define en \texttt{LocalVariables}, que es un tipo que representa la lista de declaraciones locales de variables, y en su tipo mantiene la lista de variables declaradas. Por ejemplo, se tiene \texttt{[''x'' := 10, ''y'' := 4] : LocalVariables [''x'', ''y'']}.
 
@@ -258,6 +258,32 @@ local ["x" := 10] $ lit 1 <-> eLet ("x" := 10) $ lit 1
 
 local ["x" := 10, "y" := 9] $ add (var "x") (var "y") <->
   eLet ("x" := 10) $ eLet ("y" := 9) $ add (var "x") (var "y)
+\end{code}
+
+Como \texttt{local} verifica que las variables definidas no se repitan, si se llama con variables repetidas se muestra un error de compilación:
+
+\begin{code}
+e : Exp []
+e = local ["x" := 10, "x" := 11] $ var "x"
+
+  When checking right hand side of e with expected type
+    Exp []
+  
+  Type mismatch between
+    TypeOrUnit (isSet ["x", "x"])
+      (Exp (deleteList ["x", "x"] ["x"]))
+      (type of 
+        local ["x" := 10, "x" := 11 (var "x"))
+
+  and
+    Exp [] (Expected type)
+
+  Specifically:
+    Type mismatch between
+      TypeOrUnit (isSet ["x", "x"]) 
+        (Exp (deleteList ["x", "x"] ["x"]))
+    and
+      Exp []
 \end{code}
 
 \section{Evaluación de una expresión}
@@ -338,6 +364,28 @@ interp $ add (lit 1) (lit 2)
 -- 3
 \end{code}
 
+Como la función \texttt{interp} solo se puede llamar con expresiones cerradas, si se llama con una expresión abierta se muestra un error de compilación:
+
+\begin{code}
+v : Nat
+v = interp $ var "x"
+
+  When checking right hand side of v with expected type 
+    Nat
+
+  When checking an application of function CasoDeEstudio.interp:
+    Type mismatch between
+      Exp [l] (Type of var l)
+    and
+      Exp [] (Expected type)
+    
+    Specifically:
+      Type mismatch between
+        [l]
+      and
+        []
+\end{code}
+
 La implementación completa del evaluador se muestra a continuación.
 
 \subsection{Expresiones de literales}
@@ -350,7 +398,7 @@ interpEnv env subSet (Lit c) = c
 
 Significa retornar tal valor como un resultado.
 
-\subsection{Expresiones con declaración de variable}
+\subsection{Expresiones con una variable}
 
 Una expresión que declara una variable necesita tener esa variable en el ambiente y obtener el valor de ella:
 
@@ -408,7 +456,7 @@ interpEnv env subSet (Add e1 e2 isUnionFvs) =
 
 El evaluador tiene tipo \texttt{Ambiente fvsEnv -> IsSubSet fvs fvsEnv -> Exp fvs -> Nat}. Cada subexpresión tiene tipo \texttt{Exp fvs1} y \texttt{Exp fvs2} respectivamente. Para poder evaluar tales subexpresiones, como ya se tiene un ambiente de tipo \texttt{Ambiente fvsEnv}, es necesario tener una prueba de \texttt{IsSubSet fvs1 fvsEnv} y \texttt{IsSubSet fvs2 fvsEnv} para poder llamar al evaluador.
 
-Por suerte eso es lo que efectivamente realiza esta función:
+Eso es lo que efectivamente realiza esta función:
 
 \begin{code}
 ifIsSubSetThenLeftUnionIsSubSet : DecEq lty =>
@@ -443,7 +491,9 @@ res1 + res2
 
 \subsection{Expresiones con sustitución de variable}
 
-Una expresión let es más difícil de evaluar que los demás casos, ya que requiere la manipulación del ambiente de variables, como se ve a continuación.
+Una expresión let es más difícil de evaluar que los demás casos, ya que requiere la manipulación del ambiente de variables. La implementación completa de este caso se puede ver en la Figura \ref{fig:InterpImplLet}.
+
+\begin{figure}[h]
 
 \begin{code}
 interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
@@ -469,6 +519,10 @@ interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
         ifIsSubSetThenSoIfYouDeleteLabel delAt subSet {l=var}
     in interpEnv newEnv newSubSet e
 \end{code}
+
+\caption{Evaluación de una sustitución de variable}
+\label{fig:InterpImplLet}
+\end{figure}
 
 El primer paso a tomar es saber si la variable \texttt{var} se encuentra en el ambiente o no. Es posible que la variable \texttt{var} ya tenga un valor \texttt{n2} asignado en el ambiente, pero si es así, tal valor debe ser sustituido por \texttt{n} cuando se intente evaluar la subexpresión \texttt{e}. Si la variable no se encuentra en el ambiente, entonces debe ser agregado al mismo al momento de evaluar la subexpresión.
 
