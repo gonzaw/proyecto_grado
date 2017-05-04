@@ -30,4 +30,6 @@ Existen posibles alternativas para mejorar la implementación de records extensi
 interpEnv : Ambiente fvsEnv -> (e : Exp) ->
   IsSubSet (fv e) fvsEnv -> Nat
 \end{code}
+
+\item En el caso de estudio, las expresiones solo representan números naturales. Esto permite que el caso de estudio pueda ser resuelto sin utilizar records extensibles, sino utilizando listas heterogéneas, manteniendo en el ambiente una lista de variables libres y un valor natural para cada una. Una mejora de este caso de estudio es extenderlo con expresiones booleanas y de otros tipos. Por ejemplo, extenderlo con un caso \texttt{if-then-else} que tome una expresión booleana y dos expresiones de tipo arbitrario, y retorne una de las dos según a qué evalúa la expresión booleana. Si el lenguaje de expresiones tuviera tal extensión, entonces no sería posible resolverlo con listas heterogéneas comunes, pero sí con records extensibles. De esta forma se mostrarían los beneficios de utilizar records extensibles con una mayor claridad.
 \end{itemize}
