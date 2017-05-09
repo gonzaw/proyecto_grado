@@ -131,7 +131,7 @@ hListToRec : DecEq lty => {ts : LabelList lty} -> {prf : IsLabelSet ts} -> HList
 hListToRec {prf} hs = MkRecord prf hs
 
 -- Dado un record, un label y un valor, extiende el record con ese valor ("hExtend" en HList de Haskell)
-consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} -> 
+consRec : {ts : LabelList lty} -> {t : Type} -> 
   (l : lty) -> (val : t)->  Record ts -> {notElem : Not (ElemLabel l ts)} -> Record ((l,t) :: ts)
 consRec l val (MkRecord subLabelSet hs) {notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
 

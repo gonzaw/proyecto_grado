@@ -104,7 +104,7 @@ hListToRec : DecEq lty => {ts : LabelList lty} ->
   {prf : IsLabelSet ts} -> HList ts -> Record ts
 hListToRec {prf} hs = MkRecord prf hs
 
-consRec : DecEq lty => {ts : LabelList lty} -> {t : Type} -> 
+consRec : {ts : LabelList lty} -> {t : Type} -> 
   (l : lty) -> (val : t)->  Record ts -> 
   {notElem : Not (ElemLabel l ts)} -> Record ((l,t) :: ts)
 consRec l val (MkRecord subLabelSet hs) {notElem} = 
