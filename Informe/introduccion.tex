@@ -53,7 +53,7 @@ pExtensible :: Persona + { apellido :: String }
 pExtensible = p + { apellido = "Sanchez" }
 \end{code}
 
-El tipo del nuevo record debería reflejar el hecho de que es una copia de \texttt{Persona} pero con el campo adicional utilizado. Uno debería poder, por ejemplo, acceder al campo \texttt{apellido} del nuevo record como uno lo haría con cualquier otro record arbitrario.
+El tipo del nuevo record debería reflejar el hecho de que es una copia de \texttt{Persona} pero con el campo adicional utilizado. Uno debería poder, por ejemplo, acceder al campo \texttt{apellido} del nuevo record como uno lo haría con cualquier otro record arbitrario. A su vez, se pueden acceder a los campos \texttt{edad} y \texttt{nombre} como se podía hacerlo antes de extender el record.
 
 Para poder implementar un record extensible, es necesario poder codificar toda la información del record. Esta información incluye las etiquetas que acepta el record, y el tipo de los valores asociados a cada una de esas etiquetas.
 
@@ -63,7 +63,7 @@ Las propiedades de records extensibles requieren que los campos sean variables y
 
 \section{Tipos dependientes}
 
-\textit{Tipos dependientes} son tipos que dependen de valores, y no solamente de otros tipos. En el ejemplo anterior, el nuevo tipo \texttt{Persona + \{ apellido :: String \}} depende de tipos (\texttt{Persona} y \texttt{String}) pero también de valores. El elemento \texttt{apellido} se puede representar como un valor de tipo \texttt{String}, quedando el tipo final \texttt{Persona + \{ 'apellido' :: String \}}. Al ser un valor, se podría, por ejemplo, guardarlo en una variable y utilizarlo de la siguiente manera:
+\textit{Tipos dependientes} son tipos que dependen de valores, y no solamente de otros tipos. En el ejemplo anterior, el nuevo tipo \texttt{Persona + \{ apellido :: String \}} depende de tipos (\texttt{Persona} y \texttt{String}) pero también de valores. El elemento \texttt{apellido} se puede representar, por ejemplo, como un valor de tipo \texttt{String}, quedando el tipo final \texttt{Persona + \{ 'apellido' :: String \}}. Al ser un valor, se podría, por ejemplo, guardarlo en una variable y utilizarlo de la siguiente manera:
 
 \begin{code}
 miCampo = String
@@ -84,9 +84,7 @@ Otra propiedad de los tipos dependientes es que permiten definir predicados como
 
 En este trabajo se decidió utilizar el lenguaje de programación \textit{Idris} \cite{brady:idris-jfp13} para llevar a cabo la investigación del uso de tipos dependientes aplicados a la definición de records extensibles. Idris es un lenguaje de programación funcional con tipos dependientes, con sintaxis similar a Haskell.
 
-Otro lenguaje que cumple con los requisitos es \textit{Agda} \cite{Norell:2009:DTP:1481861.1481862}, un lenguaje funcional con tipos dependientes. Sin embargo, se decidió utilizar Idris para investigar las funcionalidades de este nuevo lenguaje.
-
-Las conclusiones obtenidas en este trabajo podrían ser aplicadas a \textit{Agda} también.
+Otro lenguaje que cumple similares requisitos es \textit{Agda} \cite{Norell:2009:DTP:1481861.1481862}. Sin embargo, se decidió utilizar Idris para investigar las funcionalidades de este nuevo lenguaje. Las conclusiones obtenidas en este trabajo podrían ser aplicadas a \textit{Agda} también.
 
 La versión de Idris utilizada en este trabajo es la 0.12.0
 
@@ -104,5 +102,5 @@ En el capítulo \ref{ch:5} se toman las experiencias del desarrollo del trabajo 
 
 En el capítulo \ref{ch:6} se indican aspectos de diseño e implementación que pueden realizarse sobre este trabajo para mejorarlo, como posibles tareas que surgieron y se pueden llevar a cabo.
 
-En el capítulo \ref{ch:7} se encuentran recursos adicionales, como el código fuente de este trabajo.
+En el apéndice se encuentran recursos adicionales, como el código fuente de este trabajo.
 
