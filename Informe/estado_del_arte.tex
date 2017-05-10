@@ -158,9 +158,9 @@ data instance HList (x ': xs) = x `HCons` HList xs
 
 Se utilizan \textit{data families} para poder crear una familia de tipos \texttt{HList}, que toma una lista de tipos como parámetro, definiendo un caso cuando una lista de tipos es vacía y otro caso cuando no lo es.
 
-\textit{Data families} es una extensión de Haskell, junto a \textit{type synonym families} (juntas denominadas \textit{type families}), que permiten realizar polimorfismo ad-hoc sobre tipos. Cada type family se parametriza sobre un tipo, y permite generar instancias para tipos específicos.
+\textit{Data families} es una extensión de Haskell, junto a \textit{type synonym families} (juntas denominadas \textit{type families}), que permiten realizar overloading sobre tipos paramétricos. Cada type family se parametriza sobre un tipo y permite generar representaciones distintas para distintas instancias de ese tipo. Si se tiene \texttt{MyType a} como type family, entonces la representación de ese tipo va a ser distinta para \texttt{MyType Int} que para \texttt{MyType String}.
 
-Las instancias de una \textit{data family} indican que, para cada instancia en particular, ésta se construye con un constructor específico y ningún otro. Como ejemplo:
+En una \textit{data family}, para cada instancia del tipo paramétrico en particular se definen constructores distintos. Como ejemplo:
 
 \begin{code}
 data family MyData a
@@ -171,15 +171,15 @@ data instance MyData String = MyDataC3 [Int]
 
 Si en algún momento se tiene \texttt{MyData Int}, entonces es posible realizar pattern matching sobre él con los constructores \texttt{MyDataC1} y \texttt{MyDataC2}, pero \textit{no} con \texttt{MyDataC3}. Si se tiene \texttt{MyData String} ocurre lo contrario, se puede realizar pattern matching con el constructor \texttt{MyDataC3} pero no con los demás. Si se tiene \texttt{MyData a} parametrizado por un \texttt{a} arbitrario, no se puede realizar pattern matching hasta conocer más sobre el tipo \texttt{a}.
 
-A diferencia de \textit{data families}, las instancias de un \textit{type synonym family} indican que, para cada instancia en particular, ésta es un sinónimo de tipo del tipo indicado a la derecha. Como ejemplo:
+A diferencia de \textit{data families}, las instancias de un \textit{type synonym family} indican que, para cada instancia del tipo paramétrico en particular, su representación es un sinónimo de tipo distinto. Como ejemplo:
 
 \begin{code}
-type family MyFam a
-type instance MyFam Int = Maybe Int
-type instance MyFam String = [Int]
+type family MySyn a
+type instance MySyn Int = Maybe Int
+type instance MySyn String = [Int]
 \end{code}
 
-En este caso, cada vez que se tiene \texttt{MyFam Int}, éste funciona como un alias para \texttt{Maybe Int}. Cada vez que se tiene \texttt{MyFam String}, éste funciona como un alias de \texttt{[Int]}. Si se tiene \texttt{MyFam a} parametrizado por un \texttt{a} arbitrario, no se puede conocer su sinónimo hasta tener más información sobre el tipo \texttt{a}.
+En este caso, cada vez que se tiene \texttt{MySyn Int}, éste funciona como un alias para \texttt{Maybe Int}. Cada vez que se tiene \texttt{MySyn String}, éste funciona como un alias de \texttt{[Int]}. Si se tiene \texttt{MySyn a} parametrizado por un \texttt{a} arbitrario, no se puede conocer su sinónimo hasta tener más información sobre el tipo \texttt{a}.
 
 Para el caso de \texttt{HList t}, ésta se define como un data family de dos constructores, \texttt{HNil} y \texttt{HCons}, donde \texttt{HNil} solo puede aplicarse cuando la lista \texttt{t} es vacía, y \texttt{HCons} cuando ésta no es vacía. Esto permite, por ejemplo, construir el siguiente valor:
 
@@ -192,17 +192,19 @@ La estructura recursiva de \texttt{HList} garantiza que es posible construir ele
 Para poder definir funciones sobre este tipo de listas, es necesario utilizar \textit{type synonym families}, como muestra el siguiente ejemplo:
 
 \begin{code}
+hLength :: HList l -> Proxy (HLength l)
+hLength _ = Proxy
+
+data Proxy a = Proxy
+
 type family HLength (x :: [k]) :: HNat
 type instance HLength '[] = HZero
 type instance HLength (x ': xs) = HSucc (HLength xs)
-
-hLength   :: HLengthEq l n => HList l -> Proxy n
-hLength _ =  Proxy
 \end{code}
 
 Type families como la anterior permiten que se tenga un tipo \texttt{HLength ls} en la definición de una función y que el typechecker decida cuál de las instancias anteriores debe llamar, culminando en un valor del kind \texttt{HNat}.
 
-Luego, la función \texttt{hLength} toma una lista heterogénea, calcula su largo con \texttt{HLengthEq} (cuya implementación no se verá, pero se basa en \texttt{HLength}) y lo retorna en un tipo \texttt{Proxy n} (un \textit{phantom type} que solo mantiene una referencia a \texttt{n}, el largo de la lista, en su tipo).
+Luego, la función \texttt{hLength} toma una lista heterogénea, calcula su largo con \texttt{HLength}, y lo retorna en un tipo \texttt{Proxy a} (un \textit{phantom type} que solo mantiene una referencia a \texttt{n}, el largo de la lista, en su tipo).
 
 Un ejemplo de uso de tal función sería el siguiente:
 
