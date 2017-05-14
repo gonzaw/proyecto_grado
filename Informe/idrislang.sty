@@ -63,10 +63,10 @@
 \lstdefinelanguage{idris}{%
   sensitive,%
 %% ----------------------------------------------------------- [ Default Style ]
-  xleftmargin=1.5em,
+  xleftmargin=0.5em,   %1.5em,
   tabsize=2,
   upquote=true,
-  basicstyle=\ttfamily,
+  basicstyle=\small\ttfamily,
   flexiblecolumns=false,
   commentstyle=\footnotesize\itshape,
 %% ---------------------------------------------------------------- [ Keywords ]
@@ -143,7 +143,7 @@
     {\ifthenelse{\boolean{literate}}{%
         \lstset{language=literateidris}}{%
         \lstset{language=idris}}
-    \IdrisLineSpacing{}
+%    \IdrisLineSpacing{}
     }{}
 %% ---------------------------------------------------------- [ Input Listings ]
 %% Command to add externally defined Idris code to the document.

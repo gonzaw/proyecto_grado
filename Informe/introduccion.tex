@@ -72,9 +72,26 @@ miCampo = 'apellido'
 pExtensible :: Persona + { miCampo :: String }
 \end{code}
 
-Otro ejemplo de tipo dependiente sería tener un vector parametrizado por su largo. Un valor de tipo \texttt{Vect 0 String} representaría un vector de strings de largo 0, mientras que \texttt{Vect 2 String} representaría un vector de strings de largo 2. El tipo \texttt{Vect} no solo dependería de tipos como \texttt{String}, sino de valores como \texttt{0} o \texttt{2}.
-
 Con tipos dependientes los tipos son \textit{first-class}, lo que permite que cualquier operación que se puede realizar sobre valores también se puede realizar sobre tipos. En particular, se pueden definir funciones que tengan tipos como parámetros y retornen tipos como resultado. En el ejemplo, \texttt{(+)} funciona como tal función, tomando el tipo \texttt{Persona} y el tipo \texttt{\{ 'apellido' :: String \}} y uniéndolos en un nuevo tipo. \texttt{(::)} funciona como otra función, uniendo el valor \texttt{apellido} y el tipo \texttt{String}.
+
+Para conocer mejor el uso de tipos dependientes, veamos la definición del tipo \textit{vector} en  \textit{Idris} \cite{brady:idris-jfp13}, que representa listas cuyo largo es anotado en su tipo:
+
+\begin{code}
+data Vect : Nat -> Type -> Type where
+  [] : Vect 0 A
+  (::) : (x : A) -> (xd : Vect n A) -> Vect (n + 1) A
+\end{code}
+
+Un valor del tipo \texttt{Vect 1 String} es una lista que contiene 1 string, mientras que un valor del tipo \texttt{Vect 10 String} es una lista que contiene 10 strings. En la definición \texttt{Vect : Nat -> Type -> Type} el tipo mismo queda parametrizado por un natural, además de un tipo cualquiera.
+
+Tener valores en el tipo permite poder restringir el uso de funciones a determinados tipos que tengan valores específicos. Como ejemplo se tiene la siguiente función:
+
+\begin{code}
+head : Vect (n + 1) a -> a
+head (x :: xs) = x
+\end{code}
+
+Esta función obtiene el primer valor de un vector. Es una función total, ya que restringe su uso solamente a vectores que tengan un largo mayor a 0, por lo que el vector al que se le aplique esta función siempre va a tener por lo menos un elemento para obtener. Si se intenta llamar a esta función con un vector sin elementos, como \texttt{head []}, la llamada no va a compilar porque el typechecker no va a poder unificar el tipo \texttt{Vect 0 a} con \texttt{Vect (n + 1) a} (no puede encontrar un valor natural \texttt{n} que cumpla \texttt{n + 1 = 0}, por lo que falla el typechecking).
 
 En relación a records extensibles, los tipos dependientes hacen posible que dentro del tipo del record puedan existir valores para poder ser manipulados, como podría ser la lista de etiquetas del record. Como esta información se encuentra en el tipo del record, es posible definir tipos y funciones que accedan a ella y la manipulen para poder definir todas las funcionalidades de records extensibles.
 

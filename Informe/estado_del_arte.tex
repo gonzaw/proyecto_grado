@@ -217,26 +217,7 @@ hLength (10 `HCons` ("Texto" `HCons` HNil)) =
 
 Uno de los objetivos de la investigación de listas heterogéneas en un lenguaje como Idris es poder utilizar el poder de su sistema de tipos. La intención es poder manipular listas heterogéneas con la misma facilidad que uno lo hace con listas homogéneas. Esto no ocurre en el caso de HList en Haskell, ya que el tipo de HList es definido con data families, y las funciones sobre HList requieren ser definidas con type families y typeclasses. Esta definición se contrasta con las listas homogéneas, cuyo tipo se define como un tipo común, y funciones sobre tales se definen como funciones normales también.
 
-A diferencia de Haskell, Idris maneja tipos dependientes. Esto significa que cualquier tipo puede estar parametrizado por un valor, y en tal caso el tipo es un ciudadano de primera clase que puede ser utilizado como cualquier otro elemento del lenguaje. Por lo tanto, para Idris no hay diferencia en el trato de un tipo simple como \texttt{String} o un tipo complejo con tipos dependientes como \texttt{Vect 2 Nat} (este tipo se verá a continuación).
-
-Para conocer mejor el uso de tipos dependientes en Idris, veamos la definición del tipo \textit{vector}, que representa listas cuyo largo es anotado en su tipo:
-
-\begin{code}
-data Vect : Nat -> Type -> Type where
-  [] : Vect 0 A
-  (::) : (x : A) -> (xd : Vect n A) -> Vect (n + 1) A
-\end{code}
-
-Un valor del tipo \texttt{Vect 1 String} es una lista que contiene 1 string, mientras que un valor del tipo \texttt{Vect 10 String} es una lista que contiene 10 strings. En la definición \texttt{Vect : Nat -> Type -> Type} el tipo mismo queda parametrizado por un natural, además de un tipo cualquiera.
-
-Tener valores en el tipo permite poder restringir el uso de funciones a determinados tipos que tengan valores específicos. Como ejemplo se tiene la siguiente función:
-
-\begin{code}
-head : Vect (n + 1) a -> a
-head (x :: xs) = x
-\end{code}
-
-Esta función obtiene el primer valor de un vector. Es una función total, ya que restringe su uso solamente a vectores que tengan un largo mayor a 0, por lo que el vector al que se le aplique esta función siempre va a tener por lo menos un elemento para obtener. Si se intenta llamar a esta función con un vector sin elementos, como \texttt{head []}, la llamada no va a compilar porque el typechecker no va a poder unificar el tipo \texttt{Vect 0 a} con \texttt{Vect (n + 1) a} (no puede encontrar un valor natural \texttt{n} que cumpla \texttt{n + 1 = 0}, por lo que falla el typechecking).
+A diferencia de Haskell, Idris maneja tipos dependientes. Esto significa que cualquier tipo puede estar parametrizado por un valor, y en tal caso el tipo es un ciudadano de primera clase que puede ser utilizado como cualquier otro elemento del lenguaje. Por lo tanto, para Idris no hay diferencia en el trato de un tipo simple como \texttt{String} o un tipo complejo con tipos dependientes como \texttt{Vect 2 Nat}.
 
 En cuanto a listas heterogéneas, la definición de HList utilizada en Idris es la siguiente:
 
