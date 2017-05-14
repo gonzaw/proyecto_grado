@@ -135,7 +135,6 @@ consRec : {ts : LabelList lty} -> {t : Type} ->
   (l : lty) -> (val : t)->  Record ts -> {notElem : Not (ElemLabel l ts)} -> Record ((l,t) :: ts)
 consRec l val (MkRecord subLabelSet hs) {notElem} = MkRecord (IsSetCons notElem subLabelSet) (val :: hs)
 
-
 -- Tipo que representa un tipo o top ("()") segun si se cumple una condicion o no
 -- Es utilizado para forzar la unificación de ese tipo si la condición se cumple, o unificar contra top y crear un error de compilación
 -- en caso de que no se cumpla la condición
@@ -162,94 +161,28 @@ hListToRecAuto ts hs = mkTypeOrUnit (isLabelSet ts) (\tsIsSet => MkRecord tsIsSe
         
         
 -- *** hProjectByLabels ***                     
-                                    
--- Predicado que indica que una lista es el resultado de eliminar un elemento de otra lista
-data DeleteElemPred : (xs : List t) -> Elem x xs -> List t -> Type where
-  DeleteElemPredHere : DeleteElemPred (x :: xs) Here xs
-  DeleteElemPredThere : {isThere : Elem y xs} -> DeleteElemPred xs isThere ys -> DeleteElemPred (x :: xs) (There isThere) (x :: ys)
-
-isDeleteElemPred_Lemma_1 : DecEq t => {xs, res : List t} -> Not (xs = res) -> Not (DeleteElemPred (x :: xs) Here res)
-isDeleteElemPred_Lemma_1 notEq DeleteElemPredHere = notEq Refl
-
-isDeleteElemPred_Lemma_2 : DecEq t => {xs : List t} -> {isThere : Elem y xs} -> Not (DeleteElemPred (x :: xs) (There isThere) [])
-isDeleteElemPred_Lemma_2 (DeleteElemPredThere _) impossible
-
-isDeleteElemPred_Lemma_3 : DecEq t => {xs1, xs2 : List t} -> {isThere : Elem y xs1} -> Not (x1 = x2) ->
-  Not (DeleteElemPred (x1 :: xs1) (There isThere) (x2 :: xs2))
-isDeleteElemPred_Lemma_3 notEq (DeleteElemPredThere _) = notEq Refl
-
-isDeleteElemPred_Lemma_4 : DecEq t => {xs, ys : List t} -> {isThere : Elem y xs} -> Not (DeleteElemPred xs isThere ys) ->
-  Not (DeleteElemPred (x :: xs) (There isThere) (x :: ys))
-isDeleteElemPred_Lemma_4 notSubDel (DeleteElemPredThere subDel) = notSubDel subDel
-
--- Función de decisión de DeleteElemPred
-isDeleteElemPred : DecEq t => (xs : List t) -> (isElem : Elem x xs) -> (res : List t) -> Dec (DeleteElemPred xs isElem res)
-isDeleteElemPred [] isElem res = absurd $ noEmptyElem isElem
-isDeleteElemPred (x :: xs) Here res with (decEq xs res)
-  isDeleteElemPred (x :: xs) Here xs | Yes Refl = Yes DeleteElemPredHere
-  isDeleteElemPred (x :: xs) Here res | No notXsEqRes = No (isDeleteElemPred_Lemma_1 notXsEqRes)
-isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) [] = No (isDeleteElemPred_Lemma_2 {isThere=isThere} {x=x1} {xs=xs} {y=x2})
-isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (y::ys) with (decEq x1 y)
-  isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (x1::ys) | Yes Refl with (isDeleteElemPred xs isThere ys)
-    isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | Yes subDel = Yes (DeleteElemPredThere subDel)
-    isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (x1::ys) | Yes Refl | No notSubDel = No (isDeleteElemPred_Lemma_4 notSubDel)
-  isDeleteElemPred (x1 :: xs) (There {x=x2} isThere) (y::ys) | No notX1EqY = No (isDeleteElemPred_Lemma_3 notX1EqY)
-  
--- Función que computa una lista eliminando un elemento de ella
-deleteElem : (xs : List t) -> Elem x xs -> List t
-deleteElem (x :: xs) Here = xs
-deleteElem (x :: xs) (There inThere) =
-  let rest = deleteElem xs inThere
-  in x :: rest  
-  
--- Dado "DeleteElemPred" se puede computar "deleteElem"
-fromDeleteElemPredToComp : {xs1, xs2 : List t} -> {isElem : Elem x xs1} -> DeleteElemPred xs1 isElem xs2 -> xs2 = deleteElem xs1 isElem
-fromDeleteElemPredToComp DeleteElemPredHere = Refl
-fromDeleteElemPredToComp (DeleteElemPredThere isDelElem) = 
-  let subPrf = fromDeleteElemPredToComp isDelElem
-  in rewrite subPrf in Refl
-
--- Dada la computación de "deleteElem" de puede crear una prueba de "DeleteElemPred"
-fromCompToDeleteElemPred : (xs : List t) -> (isElem : Elem x xs) -> DeleteElemPred xs isElem (deleteElem xs isElem)
-fromCompToDeleteElemPred (x :: xs) Here = DeleteElemPredHere
-fromCompToDeleteElemPred (x :: xs) (There inThere) =
-  let subPrf = fromCompToDeleteElemPred xs inThere
-  in DeleteElemPredThere subPrf
-      
+                             
 -- Predicado que indica que la proyección izquierda de un hProjectByLabels es efectivamente tal proyección    
 data IsProjectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
-  IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty} [] ts []
   IPL_EmptyVect : DecEq lty => IsProjectLeft {lty} ls [] []
-  IPL_ProjLabelElem : DecEq lty => (isElem : Elem l ls) -> DeleteElemPred ls isElem lsNew ->
-                      IsProjectLeft {lty} lsNew ts res1 -> IsProjectLeft ls ((l,ty) :: ts) ((l,ty) :: res1)      
-  IPL_ProjLabelNotElem : DecEq lty => Not (Elem l ls) -> IsProjectLeft {lty} ls ts res1 -> 
-                       IsProjectLeft ls ((l,ty) :: ts) res1
+  IPL_ProjLabelElem : DecEq lty => {l : lty} -> Elem l ls -> IsProjectLeft {lty} ls ts res1 -> 
+                      IsProjectLeft ls ((l,ty) :: ts) ((l,ty) :: res1)      
+  IPL_ProjLabelNotElem : DecEq lty => {l : lty} -> Not (Elem l ls) -> IsProjectLeft {lty} ls ts res1 -> 
+                      IsProjectLeft ls ((l,ty) :: ts) res1
 
 -- Predicado que indica que la proyección derecha de un hProjectByLabels es efectivamente tal proyección    
 data IsProjectRight : DecEq lty => List lty -> LabelList lty -> LabelList lty -> Type where
-  IPR_EmptyLabels : DecEq lty => IsProjectRight {lty} [] ts ts
   IPR_EmptyVect : DecEq lty => IsProjectRight {lty} ls [] []
-  IPR_ProjLabelElem : DecEq lty => (isElem : Elem l ls) -> DeleteElemPred ls isElem lsNew ->
-                      IsProjectRight {lty} lsNew ts res1 -> IsProjectRight ls ((l,ty) :: ts) res1      
-  IPR_ProjLabelNotElem : DecEq lty => Not (Elem l ls) -> IsProjectRight {lty} ls ts res1 -> 
+  IPR_ProjLabelElem : DecEq lty => {l : lty} -> Elem l ls -> IsProjectRight {lty} ls ts res1 -> 
+                      IsProjectRight ls ((l,ty) :: ts) res1      
+  IPR_ProjLabelNotElem : DecEq lty => {l : lty} -> Not (Elem l ls) -> IsProjectRight {lty} ls ts res1 -> 
                        IsProjectRight ls ((l,ty) :: ts) ((l,ty) :: res1)
-  
--- Función que dada una prueba de que un elemento pertenece a una lista, retorna la lista sin el elemento y una prueba de que 
--- éste fue eliminado
-deleteElemPred : {x : t} -> (xs : List t) -> (elem : Elem x xs) -> (res : List t ** DeleteElemPred xs elem res)
-deleteElemPred (x :: xs) Here = (xs ** DeleteElemPredHere)
-deleteElemPred (x :: xs) (There xInThere) =
-  let (subDel ** subPrf) = deleteElemPred xs xInThere
-  in (x :: subDel ** DeleteElemPredThere subPrf)
-          
+            
 -- hProjectByLabels que también devuelve una prueba de que los vectores son actualmente proyecciones izquierda y derecha para un HList
 -- Este hProjectByLabels retorna ambas listas: La de proyecciones y la resultante      
 hProjectByLabelsHList : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> HList ts ->     
   ((ls1 : LabelList lty ** (HList ls1, IsProjectLeft ls ts ls1)),
   (ls2 : LabelList lty ** (HList ls2, IsProjectRight ls ts ls2)))
-hProjectByLabelsHList [] {ts} hs = 
-                   (([] ** ([], IPL_EmptyLabels)),
-                   (ts ** (hs, IPR_EmptyLabels)))
 hProjectByLabelsHList _ [] =
                    (([] ** ([], IPL_EmptyVect)),
                    ([] ** ([], IPR_EmptyVect)))
@@ -257,11 +190,10 @@ hProjectByLabelsHList {lty} ls ((::) {l=l2} {t} {ts=ts2} val hs) =
   case (isElem l2 ls) of
     Yes l2InLs =>
       let
-        (lsNew ** isDelElem) = deleteElemPred ls l2InLs
         ((subInLs ** (subInHs, subPrjLeft)), (subOutLs ** (subOutHs, subPrjRight))) =
-          hProjectByLabelsHList {lty=lty} {ts=ts2} lsNew hs
-        rPrjRight = IPR_ProjLabelElem {l=l2} {ty=t} {ts=ts2} {res1=subOutLs} l2InLs isDelElem subPrjRight
-        rPrjLeft = IPL_ProjLabelElem {l=l2} {ty=t} {ts=ts2} {res1=subInLs} l2InLs isDelElem subPrjLeft
+          hProjectByLabelsHList {lty=lty} {ts=ts2} ls hs
+        rPrjRight = IPR_ProjLabelElem {l=l2} {ty=t} {ts=ts2} {res1=subOutLs} l2InLs subPrjRight
+        rPrjLeft = IPL_ProjLabelElem {l=l2} {ty=t} {ts=ts2} {res1=subInLs} l2InLs subPrjLeft
         rRight = (subOutLs ** (subOutHs, rPrjRight))
         rLeft = ((l2,t) :: subInLs ** ((::) {l=l2} val subInHs, rPrjLeft))
        in
@@ -294,9 +226,8 @@ notElem_Lemma2 notElem notEq (There isElem) = notElem isElem
 -- resultante    
 hProjectByLabelsRightIsSet_Lemma1 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} ->
   IsProjectRight ls ts1 ts2 -> Not (ElemLabel l ts1) -> Not (ElemLabel l ts2)
-hProjectByLabelsRightIsSet_Lemma1 IPR_EmptyLabels notElem = notElem
 hProjectByLabelsRightIsSet_Lemma1 IPR_EmptyVect notElem = notElem
-hProjectByLabelsRightIsSet_Lemma1 (IPR_ProjLabelElem isElem delLs subPrjRight) notElem = 
+hProjectByLabelsRightIsSet_Lemma1 (IPR_ProjLabelElem isElem subPrjRight) notElem = 
   let
     (notElemSub, notEq) = notElem_Lemma1 notElem
     notIsElemRec = hProjectByLabelsRightIsSet_Lemma1 subPrjRight notElemSub
@@ -310,9 +241,8 @@ hProjectByLabelsRightIsSet_Lemma1 (IPR_ProjLabelNotElem subNotElem subPrjRight) 
 -- Dada una proyección por la izquierda, si un label no pertenece a la lista inicial, tampoco pertenece al resultante      
 hProjectByLabelsLeftIsSet_Lemma1 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} ->
   IsProjectLeft ls ts1 ts2 -> Not (ElemLabel l ts1) -> Not (ElemLabel l ts2)
-hProjectByLabelsLeftIsSet_Lemma1 IPL_EmptyLabels notElem = noEmptyElem
 hProjectByLabelsLeftIsSet_Lemma1 IPL_EmptyVect notElem = notElem
-hProjectByLabelsLeftIsSet_Lemma1 (IPL_ProjLabelElem isElem delElem subPrjLeft) notElem = 
+hProjectByLabelsLeftIsSet_Lemma1 (IPL_ProjLabelElem isElem subPrjLeft) notElem = 
   let
     (notElemSub, notEq) = notElem_Lemma1 notElem
     notIsElemRec = hProjectByLabelsLeftIsSet_Lemma1 subPrjLeft notElemSub
@@ -325,10 +255,9 @@ hProjectByLabelsLeftIsSet_Lemma1 (IPL_ProjLabelNotElem subNotElem subPrjLeft) no
 
 -- Dada una proyección por la derecha, si la lista inicial es un conjunto, entonces la resultante tambien lo es
 hProjectByLabelsRightIsSet_Lemma2 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
-  IsProjectRight ls ts1 ts2 -> IsLabelSet ts1 -> IsLabelSet ts2
-hProjectByLabelsRightIsSet_Lemma2 IPR_EmptyLabels isLabelSet = isLabelSet         
+  IsProjectRight ls ts1 ts2 -> IsLabelSet ts1 -> IsLabelSet ts2      
 hProjectByLabelsRightIsSet_Lemma2 IPR_EmptyVect isLabelSet = isLabelSet         
-hProjectByLabelsRightIsSet_Lemma2 (IPR_ProjLabelElem isElem delLs subPrjRight) (IsSetCons notMember subLabelSet) =
+hProjectByLabelsRightIsSet_Lemma2 (IPR_ProjLabelElem isElem subPrjRight) (IsSetCons notMember subLabelSet) =
   let isLabelSetRec = hProjectByLabelsRightIsSet_Lemma2 subPrjRight subLabelSet
   in isLabelSetRec 
 hProjectByLabelsRightIsSet_Lemma2 (IPR_ProjLabelNotElem notElem subPrjRight) (IsSetCons notMember subLabelSet) = 
@@ -339,9 +268,8 @@ hProjectByLabelsRightIsSet_Lemma2 (IPR_ProjLabelNotElem notElem subPrjRight) (Is
 -- Dada una proyección por la izquierda, si la lista inicial es un conjunto, entonces la resultante tambien lo es    
 hProjectByLabelsLeftIsSet_Lemma2 : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> 
   IsProjectLeft ls ts1 ts2 -> IsLabelSet ts1 -> IsLabelSet ts2
-hProjectByLabelsLeftIsSet_Lemma2 IPL_EmptyLabels isLabelSet = IsSetNil
 hProjectByLabelsLeftIsSet_Lemma2 IPL_EmptyVect isLabelSet = isLabelSet
-hProjectByLabelsLeftIsSet_Lemma2 (IPL_ProjLabelElem isElem delLs subPrjLeft) (IsSetCons notMember subLabelSet) = 
+hProjectByLabelsLeftIsSet_Lemma2 (IPL_ProjLabelElem isElem subPrjLeft) (IsSetCons notMember subLabelSet) = 
   let isLabelSetRec = hProjectByLabelsLeftIsSet_Lemma2 subPrjLeft subLabelSet
       notElemPrf = hProjectByLabelsLeftIsSet_Lemma1 subPrjLeft notMember
   in IsSetCons notElemPrf isLabelSetRec
@@ -370,13 +298,9 @@ hProjectByLabelsWithPredAuto ls rec = mkTypeOrUnit (isSet ls) (\isSet => hProjec
 
 -- Función que computa la proyeccion por izquierda de una LabelList dada una lista de labels
 projectLeft : DecEq lty => List lty -> LabelList lty -> LabelList lty
-projectLeft [] ts = []
 projectLeft ls [] = []
 projectLeft ls ((l,ty) :: ts) with (isElem l ls)
-  projectLeft ls ((l,ty) :: ts) | Yes lIsInLs = 
-    let delLFromLs = deleteElem ls lIsInLs
-        rest = projectLeft delLFromLs ts
-    in (l,ty) :: rest
+  projectLeft ls ((l,ty) :: ts) | Yes lIsInLs = (l,ty) :: projectLeft ls ts
   projectLeft ls ((l,ty) :: ts) | No _ = projectLeft ls ts
 
 fromIsProjectLeftToComp_Lemma_1 : DecEq lty => {ls : List lty} -> [] = projectLeft ls []
@@ -385,58 +309,18 @@ fromIsProjectLeftToComp_Lemma_1 {ls=(l::ls)} = Refl
 
 fromIsProjectLeftToComp_Lemma_2 : DecEq lty => {ls : List lty} -> {ts : LabelList lty} -> Not (Elem l ls) -> 
   projectLeft ls ts = projectLeft ls ((l, ty) :: ts)
-fromIsProjectLeftToComp_Lemma_2 {l} {ls=[]} {ts} lInLs = Refl
-fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2 :: ls)} {ts} notLInLs with (isElem l1 (l2 :: ls))
-  fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2 :: ls)} {ts} notLInLs | Yes lInLs = absurd $ notLInLs lInLs
-  fromIsProjectLeftToComp_Lemma_2 {l=l1} {ls=(l2 :: ls)} {ts} notLInLs | No _  = Refl
-
-fromIsProjectLeftToComp_Lemma_3_1 : DecEq lty => {ls : List lty} -> {elm1, elm2 : Elem l ls} -> IsSet ls -> 
-  deleteElem ls elm1 = deleteElem ls elm2
-fromIsProjectLeftToComp_Lemma_3_1 {ls=[]} {elm1} {elm2} _ = absurd $ noEmptyElem elm1
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=Here} {elm2=Here} (IsSetCons notLInLs lsIsSet) = Refl
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=(There elm1)} {elm2=Here} (IsSetCons notLInLs lsIsSet) = absurd $ notLInLs elm1
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=Here} {elm2=(There elm2)} (IsSetCons notLInLs lsIsSet) = absurd $ notLInLs elm2
-fromIsProjectLeftToComp_Lemma_3_1 {ls=(l :: ls)} {elm1=(There elm1)} {elm2=(There elm2)} (IsSetCons notLInLs lsIsSet) = 
-  let subPrf = fromIsProjectLeftToComp_Lemma_3_1 {elm1=elm1} {elm2=elm2} lsIsSet
-  in cong subPrf
-
-fromIsProjectLeftToComp_Lemma_3 : DecEq lty => {ls : List lty} -> {ts : LabelList lty} -> (lInLs : Elem l ls) -> IsSet ls ->
-  projectLeft ls ((l, ty) :: ts) = (l, ty) :: (projectLeft (deleteElem ls lInLs) ts)
-fromIsProjectLeftToComp_Lemma_3 {ls=[]} {ts} lInLs _ = absurd $ noEmptyElem lInLs
-fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2 :: ls)} {ts} lInLs lsIsSet with (isElem l1 (l2::ls))
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2 :: ls)} {ts} lInLs lsIsSet | Yes lInLsAux =
-    let delElemEq = fromIsProjectLeftToComp_Lemma_3_1 {ls=(l2 :: ls)} {elm1=lInLs} {elm2=lInLsAux} lsIsSet
-    in rewrite delElemEq in Refl
-  fromIsProjectLeftToComp_Lemma_3 {l=l1} {ls=(l2 :: ls)} {ts} lInLs lsIsSet | No notLInLs = absurd $ notLInLs lInLs
-
-fromIsProjectLeftToComp_Lemma_4_1 : {elm : Elem l ls1} -> DeleteElemPred ls1 elm ls2 -> Not (Elem x ls1) -> Not (Elem x ls2)
-fromIsProjectLeftToComp_Lemma_4_1 DeleteElemPredHere notXInLs1 xInLs2 = notElemInCons notXInLs1 xInLs2
-fromIsProjectLeftToComp_Lemma_4_1 (DeleteElemPredThere delElemPred) notX1InLs1Cons Here = 
-  let notX1EqX2 = ifNotElemThenNotEqual notX1InLs1Cons
-  in notX1EqX2 Refl
-fromIsProjectLeftToComp_Lemma_4_1 {x=x1} {ls1=(x2 :: ls1)} {ls2=(x2 :: ls2)} (DeleteElemPredThere delElemPred) notX1InLs1Cons (There x1InLs2) =
-  let notX1InLs1 = notElemInCons notX1InLs1Cons
-      notX1EqX2 = ifNotElemThenNotEqual notX1InLs1Cons
-      subPrf = fromIsProjectLeftToComp_Lemma_4_1 delElemPred notX1InLs1
-  in subPrf x1InLs2
-
-fromIsProjectLeftToComp_Lemma_4 : {elm : Elem l ls1} -> DeleteElemPred ls1 elm ls2 -> IsSet ls1 -> IsSet ls2
-fromIsProjectLeftToComp_Lemma_4 DeleteElemPredHere (IsSetCons _ isSet) = isSet
-fromIsProjectLeftToComp_Lemma_4 (DeleteElemPredThere delElemPred) (IsSetCons notElem isSet) = 
-  let subPrf = fromIsProjectLeftToComp_Lemma_4 delElemPred isSet
-      notInLs2 = fromIsProjectLeftToComp_Lemma_4_1 delElemPred notElem
-  in IsSetCons notInLs2 subPrf
+fromIsProjectLeftToComp_Lemma_2 {l} {ls} {ts} notLInLs with (isElem l ls)
+  fromIsProjectLeftToComp_Lemma_2 {l} {ls} {ts} notLInLs | Yes lInLs = absurd $ notLInLs lInLs
+  fromIsProjectLeftToComp_Lemma_2 {l} {ls} {ts} notLInLs | No _  = Refl
 
 -- Dada una prueba de "IsProjectLeft" se puede computar "projectLeft"
 fromIsProjectLeftToComp : DecEq lty => {ls : List lty} -> {ts1, ts2 : LabelList lty} -> IsProjectLeft ls ts1 ts2 -> IsSet ls -> ts2 = projectLeft ls ts1
-fromIsProjectLeftToComp IPL_EmptyLabels _ = Refl
 fromIsProjectLeftToComp {ls} {ts1=[]} {ts2=[]} IPL_EmptyVect _ = fromIsProjectLeftToComp_Lemma_1 {ls=ls}
-fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelElem l1InLs isDelElem isProjLeft) lsIsSet =
-  let lsNewIsSet = fromIsProjectLeftToComp_Lemma_4 isDelElem lsIsSet
-      subPrf = fromIsProjectLeftToComp isProjLeft lsNewIsSet
-      delElemEq = fromDeleteElemPredToComp isDelElem
-      resEq = fromIsProjectLeftToComp_Lemma_3 {ls=ls} {ts=ts1} {l=l1} {ty=ty1} l1InLs lsIsSet
-  in rewrite subPrf in (rewrite delElemEq in sym resEq)
+fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelElem l1InLs isProjLeft) lsIsSet with (isElem l1 ls)
+  fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelElem l1InLs isProjLeft) lsIsSet | Yes _ = 
+    cong $ fromIsProjectLeftToComp isProjLeft lsIsSet
+  fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelElem l1InLs isProjLeft) lsIsSet | No notL1InLs = 
+    absurd $ notL1InLs l1InLs
 fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelNotElem notIsElem isProjLeft) lsIsSet =
   let subPrf = fromIsProjectLeftToComp isProjLeft lsIsSet
       resEq = fromIsProjectLeftToComp_Lemma_2 notIsElem {ls=ls} {ts=ts1} {l=l1} {ty=ty1}
@@ -444,16 +328,14 @@ fromIsProjectLeftToComp {ls} {ts1=(l1,ty1) :: ts1} (IPL_ProjLabelNotElem notIsEl
   
 -- Dada la computación de "projectLeft" se puede crear una prueba de "IsProjectLeft"
 fromCompToIsProjectLeft : DecEq lty => (ls : List lty) -> (ts : LabelList lty) -> IsProjectLeft ls ts (projectLeft ls ts) 
-fromCompToIsProjectLeft [] ts = IPL_EmptyLabels
-fromCompToIsProjectLeft (l1 :: ls) [] = IPL_EmptyVect
-fromCompToIsProjectLeft (l1 :: ls) ((l2,ty) :: ts) with (isElem l2 (l1::ls))
-  fromCompToIsProjectLeft (l1 :: ls) ((l2,ty) :: ts) | Yes l2InLs = 
-    let delElemPred = fromCompToDeleteElemPred (l1 :: ls) l2InLs        
-        subPrf = fromCompToIsProjectLeft (deleteElem (l1 :: ls) l2InLs) ts
-    in IPL_ProjLabelElem l2InLs delElemPred subPrf
-  fromCompToIsProjectLeft (l1 :: ls) ((l2,ty) :: ts) | No notL2InLs = 
-    let subPrf = fromCompToIsProjectLeft (l1 :: ls) ts
-    in IPL_ProjLabelNotElem notL2InLs subPrf
+fromCompToIsProjectLeft ls [] = IPL_EmptyVect
+fromCompToIsProjectLeft ls ((l,ty) :: ts) with (isElem l ls)
+  fromCompToIsProjectLeft ls ((l,ty) :: ts) | Yes lInLs =
+    let subPrf = fromCompToIsProjectLeft ls ts
+    in IPL_ProjLabelElem lInLs subPrf
+  fromCompToIsProjectLeft ls ((l,ty) :: ts) | No notLInLs = 
+    let subPrf = fromCompToIsProjectLeft ls ts
+    in IPL_ProjLabelNotElem notLInLs subPrf
     
 -- hProjectByLabels que retorna la computación de la proyección en el tipo
 hProjectByLabels : DecEq lty => {ts : LabelList lty} -> (ls : List lty) -> Record ts -> IsSet ls -> Record (projectLeft ls ts)
@@ -477,7 +359,7 @@ hProjectByLabelsAuto {ts} ls rec = mkTypeOrUnit (isSet ls) (\lsIsSet => hProject
 data DeleteLabelAtPred : DecEq lty => lty -> LabelList lty -> LabelList lty -> Type where
   EmptyRecord : DecEq lty => {l : lty} -> DeleteLabelAtPred l [] []
   IsElem : DecEq lty => {l : lty} -> DeleteLabelAtPred l ((l,ty) :: ts) ts
-  IsNotElem : DecEq lty => {l1 : lty} -> Not (l1 = l2) -> DeleteLabelAtPred l1 ts1 ts2 -> 
+  IsNotElem : DecEq lty => Not (l1 = l2) -> DeleteLabelAtPred {lty} l1 ts1 ts2 -> 
     DeleteLabelAtPred l1 ((l2,ty) :: ts1) ((l2,ty) :: ts2)
   
 deleteLabelAt : DecEq lty => lty -> LabelList lty -> LabelList lty
@@ -510,10 +392,9 @@ fromDeleteLabelAtPredToFunc {l=l1} {ts1 = (l2, ty) :: ts1} {ts2 = ((l2, ty) :: t
 fromIsProjectRightToDeleteLabelAtPred : DecEq lty => {ts1, ts2 : LabelList lty} -> {l : lty} -> IsProjectRight [l] ts1 ts2 -> 
   DeleteLabelAtPred l ts1 ts2
 fromIsProjectRightToDeleteLabelAtPred IPR_EmptyVect = EmptyRecord
-fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem delElem IPR_EmptyLabels) impossible
-fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem delElem IPR_EmptyVect) impossible
-fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem delElem (IPR_ProjLabelElem subElem subDel subProjRight)) impossible
-fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem delElem (IPR_ProjLabelNotElem subNotElem subProjRight)) impossible
+fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem IPR_EmptyVect) impossible
+fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem (IPR_ProjLabelElem subElem subProjRight)) impossible
+fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelElem isElem (IPR_ProjLabelNotElem subNotElem subProjRight)) impossible
 fromIsProjectRightToDeleteLabelAtPred (IPR_ProjLabelNotElem notElem subPrjRight) = 
   let subDelFromRec = fromIsProjectRightToDeleteLabelAtPred subPrjRight
       notEqual = ifNotElemThenNotEqual notElem
