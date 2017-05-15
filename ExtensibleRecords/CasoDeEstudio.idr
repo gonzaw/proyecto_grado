@@ -31,29 +31,6 @@ deleteList (l :: ls1) ls2 =
 leftUnion : DecEq lty => List lty -> List lty -> List lty
 leftUnion ls1 ls2 = ls1 ++ (deleteList ls1 ls2)
 
-projectRightList : DecEq lty => List lty -> List lty -> List lty
-projectRightList ls1 [] = []
-projectRightList ls1 (l :: ls2) with (isElem l ls1)
- projectRightList ls1 (l :: ls2) | Yes lInLs = 
-   let delLFromLs1 = deleteElem ls1 lInLs
-   in projectRightList delLFromLs1 ls2
- projectRightList ls1 (l :: ls2) | No notLInLs = l :: projectRightList ls1 ls2
-
-projectRightOfEmptyIsTheOther : DecEq lty => {ls : List lty} -> projectRightList [] ls = ls
-projectRightOfEmptyIsTheOther {ls=[]} = Refl
-projectRightOfEmptyIsTheOther {ls=l :: ls} = cong $ projectRightOfEmptyIsTheOther {ls}
-
-data IsProjectRight_List :  List lty -> List lty -> List lty -> Type where
-  IPR_EmptyVect_List :  IsProjectRight_List {lty} ls [] []
-  IPR_ProjLabelElem_List : (isElem : Elem l ls1) -> DeleteElemPred ls1 isElem lsNew ->
-                      IsProjectRight_List {lty} lsNew ls2 res1 -> IsProjectRight_List ls1 (l :: ls2) res1      
-  IPR_ProjLabelNotElem_List : Not (Elem l ls1) -> IsProjectRight_List {lty} ls1 ls2 res1 -> 
-                       IsProjectRight_List ls1 (l :: ls2) (l :: res1)
-
-projectRightOfEmptyIsTheOtherPred : DecEq lty => {ls : List lty} -> IsProjectRight_List [] ls ls
-projectRightOfEmptyIsTheOtherPred {ls=[]} = IPR_EmptyVect_List
-projectRightOfEmptyIsTheOtherPred {ls=l :: ls} = IPR_ProjLabelNotElem_List noEmptyElem (projectRightOfEmptyIsTheOtherPred {ls})
-
 data DeleteLabelAtPred_List : lty -> List lty -> List lty -> Type where
   EmptyRecord_List : {l : lty} -> DeleteLabelAtPred_List l [] []
   IsElem_List : {l : lty} -> DeleteLabelAtPred_List l (l :: ls) ls
@@ -89,17 +66,6 @@ fromLeftUnionFuncToPred : DecEq lty => {ls1, ls2 : List lty} -> IsLeftUnion_List
 fromLeftUnionFuncToPred {ls1} {ls2} =
   let delPred = fromDeleteLabelsListFuncToPred {ls1} {ls2}
   in IsLeftUnionAppend_List delPred
-
-fromIsProjRightFuncToPred : DecEq lty => {ls1, ls2 : List lty} -> IsProjectRight_List ls1 ls2 (projectRightList ls1 ls2)
-fromIsProjRightFuncToPred {ls1} {ls2=[]} = IPR_EmptyVect_List
-fromIsProjRightFuncToPred {ls1} {ls2=l2 :: ls2} with (isElem l2 ls1)
-  fromIsProjRightFuncToPred {ls1} {ls2=l2 :: ls2} | Yes l2InLs1 =
-    let delElemPred = fromCompToDeleteElemPred ls1 l2InLs1
-        subPrf = fromIsProjRightFuncToPred {ls1= deleteElem ls1 l2InLs1} {ls2}
-    in IPR_ProjLabelElem_List l2InLs1 delElemPred subPrf
-  fromIsProjRightFuncToPred {ls1} {ls2=l2 :: ls2} | No notL2InLs1 = 
-    let subPrf = fromIsProjRightFuncToPred {ls1} {ls2}
-    in IPR_ProjLabelNotElem_List notL2InLs1 subPrf
       
 -- Arbol sintactico del lenguaje de expresiones aritmeticas
 data VarDec : String -> Type where

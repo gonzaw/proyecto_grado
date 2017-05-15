@@ -707,22 +707,14 @@ La implementación de \texttt{projectLeft} es la siguiente:
 \begin{code}
 projectLeft : DecEq lty => List lty -> LabelList lty ->
   LabelList lty
-projectLeft [] ts = []
 projectLeft ls [] = []
 projectLeft ls ((l, ty) :: ts) with (isElem l ls)
-  projectLeft ls ((l, ty) :: ts) | Yes lIsInLs =
-    let delLFromLs = deleteElem ls lIsInLs
-      rest = projectLeft delLFromLs ts
-    in (l, ty) :: rest
+  projectLeft ls ((l, ty) :: ts) | Yes _ = 
+    (l,ty) :: projectLeft ls ts
   projectLeft ls ((l, ty) :: ts) | No _ = projectLeft ls ts
-
-deleteElem : (xs : List t) -> Elem x xs -> List t
-deleteElem (x :: xs) Here = xs
-deleteElem (x :: xs) (There inThere) =
-  x :: (deleteElem xs inThere)
 \end{code}
 
-La implementación hace recursión sobre los campos del record. Si el primer campo pertenece a la lista a proyectar, elimina ese campo de la lista a proyectar y retorna el campo elegido, aplicando el mismo razonamiento para el resto de la lista. Si no pertence, no retorna ese campo y aplica la función al resto de la lista.
+La implementación hace recursión sobre los campos del record. Si el primer campo pertenece a la lista a proyectar, entonces lo retorna y aplica el mismo razonamiento al resto de la lista. Si no pertence, no retorna ese campo y aplica la función al resto de la lista.
 
 Con esto se puede implementar \texttt{hProjectByLabelsAuto}
 
@@ -799,41 +791,25 @@ Su definición es la siguiente:
 \begin{code}
 data IsProjectLeft : DecEq lty => List lty -> LabelList lty ->
   LabelList lty -> Type where
-  IPL_EmptyLabels : DecEq lty => IsProjectLeft {lty} [] ts []
-  IPL_EmptyVect : DecEq lty => IsProjectLeft {lty} ls [] []
-  IPL_ProjLabelElem : DecEq lty => (isElem : Elem l ls) ->
-    DeleteElemPred ls isElem lsNew ->
-    IsProjectLeft {lty} lsNew ts res1 ->
-    IsProjectLeft ls ((l, ty) :: ts) ((l, ty) :: rs1)
+  IPL_ProjLabelElem : DecEq lty => {l : lty} -> 
+    Elem l ls -> IsProjectLeft {lty} ls ts res1 ->
+    IsProjectLeft ls ((l,ty) :: ts) ((l,ty) :: res1)  
   IPL_ProjLabelNotElem : DecEq lty => Not (Elem l ls) ->
     IsProjectLeft {lty} ls ts res1 ->
     IsProjectLeft ls ((l, ty) :: ts) res1
-
-data DeleteElemPred : (xs : List t) -> Elem x xs ->
-  List t -> Type where
-  DeleteElemPredHere : DeleteElemPred (x :: xs) Here xs
-  DeleteElemPredThere : {isThere : Elem y xs} ->
-    DeleteElemPred xs isThere ys ->
-    DeleteElemPred (x :: xs) (There isThere) (x :: ys)
 \end{code}
 
 Como se ve, la definición de \texttt{IsProjectLeft} es muy similar a la de \texttt{projectLeft}. Esto es necesario para que se ambos sean isomorfismos (descrito por la propiedad anterior). Se pueden ver tales similitudes comparando ambas implementaciones línea a línea:
 
 \begin{code}
-IPL_EMptyLabels : DecEq lty => IsProjectLeft {lty} [] ts []
-projectLeft [] ts = []
-
 IPL_EmptyVect : DecEq lty => IsProjectLeft {lty} ls [] []
 projectLeft ls [] []
 
-IPL_ProjLabelElem : DecEq lty => (isElem : Elem l ls) ->
-  DeleteElemPred ls isElem lsNew ->
-  IsProjectLeft {lty} lsNew ts res1 ->
-  IsProjectLeft ls ((l, ty) :: ts) ((l, ty) :: res1)
-projectLeft ls ((l, ty) :: ts) | Yes lIsInLs =
-  let delLFromLs = deleteElem ls lIsInLs
-    rest = projectLet delLFromLs ts
-  in (l, ty) :: rest
+IPL_ProjLabelElem : DecEq lty => {l : lty} -> 
+    Elem l ls -> IsProjectLeft {lty} ls ts res1 ->
+    IsProjectLeft ls ((l,ty) :: ts) ((l,ty) :: res1)  
+projectLeft ls ((l, ty) :: ts) | Yes _ = 
+  (l,ty) :: projectLeft ls ts
 
 IPL_ProjLabelNotElem : DecEq lty => Not (Elem l ls) ->
   IsProjectLeft {lty} ls ts res1 ->
