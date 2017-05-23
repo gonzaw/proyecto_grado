@@ -34,22 +34,20 @@ La gramática del lenguaje en BNF se muestra en la Figura \ref{fig:RulesBNF}.
 \begin{figure}[h]
 
 \centering
-Exp ::= n | x | e1 + e2 | let x = n in e\\
+e ::= n | x | e1 + e2 | let x = n in e\\
 
 Donde n $\in$ Nat; x $\in$ Var; e, e1 y e2 $\in$ Exp
 \caption{Gramática BNF}
 \label{fig:RulesBNF}
 \end{figure}
 
+Vamos a usar records extensibles para poder que las expresiones están bien formadas, y que las llamadas al evaluador son válidas, todo en tiempo de compilación.
 
-
-Records extensibles son utilizados para poder verificar que las expresiones están bien formadas, y que las llamadas al evaluador son válidas, todo en tiempo de compilación.
-
-Dada una expresión, como \texttt{x + 3}, para evaluarla es necesario tener un ambiente con valores para sus variables libres. En el caso de \texttt{x + 3} es necesario tener un ambiente con el valor de la variable \texttt{x}, de lo contrario la evaluación de esa expresión no es válida. Con Idris, es posible verificar en tiempo de compilación que el ambiente utilizado para evaluar una expresión contiene valores para las variables libres de ésta. Al llamar al evaluador se verifica que los tipos sean correctos.
+Dada una expresión, como \texttt{x + 3}, para evaluarla es necesario tener un ambiente con valores para sus variables libres. En el caso de \texttt{x + 3} es necesario tener un ambiente con el valor de la variable \texttt{x}, de lo contrario la evaluación de esa expresión no es válida. Con Idris, es posible verificar en tiempo de compilación que el ambiente utilizado para evaluar una expresión contiene valores para variables libres.
 
 Los records extensibles son utilizados para definir tal ambiente al momento de evaluar una expresión. Como el ambiente contiene una lista de variables con sus valores, éstos pueden ser representados como un record, donde cada etiqueta es una variable libre. El ambiente puede ser extendido con nuevas variables, o se le pueden eliminar variables fuera de alcance. Al ser un record extensible se tiene la garantía de que ninguna variable se encuentra repetida en el ambiente, y por otra parte se tiene una prueba de que toda variable libre pertenece al ambiente.
 
-Las propiedades descritas anteriormente son posibles utilizando records extensibles y tipos dependientes. Sin estas herramientas, es posible llamar al evaluador con un ambiente sin las variables libres necesarias para evaluar la expresión, fallando en tiempo de ejecución. Sin records extensibles tampoco se tiene una estructura de datos adecuada (con las propiedades deseadas) para almacenar las variables en el ambiente.
+Las propiedades descritas anteriormente son posibles de asegurar utilizando records extensibles y tipos dependientes. Sin estas herramientas, es posible llamar al evaluador con un ambiente sin las variables libres necesarias para evaluar la expresión, fallando en tiempo de ejecución. Sin records extensibles tampoco se tiene una estructura de datos adecuada (con las propiedades deseadas) para almacenar las variables en el ambiente.
 
 \section{Definición de una expresión}
 
@@ -82,7 +80,7 @@ Toda expresión tiene un conjunto de variables libres, que se definen con las re
 
 \begin{subfigure}{0.5\linewidth}
 \centering
-\inference[let]{e \leadsto \Delta & n : Nat & v : String}{\textbf{let} \, v = n \, \textbf{in} \, e \leadsto \Delta \setminus \{v\}}
+\inference[let]{e \leadsto \Delta & n : Nat & v : Var}{\textbf{let} \, v = n \, \textbf{in} \, e \leadsto \Delta \setminus \{v\}}
 \end{subfigure}%
 
 \caption{Reglas de variables libres}
@@ -91,7 +89,7 @@ Toda expresión tiene un conjunto de variables libres, que se definen con las re
 
 Estas reglas pueden implementarse en Idris en un único tipo \texttt{Exp}.
 
-Una expresión \texttt{e : Exp fv} indica que \texttt{e} es una expresión y \texttt{fv} es su conjunto de variables libres. Como ejemplo, \texttt{e : Exp [''x'', ''y'']} contiene a \texttt{''x''} y \texttt{''y''} como variables libres. Se decidió incluir la información de variables libres en el tipo para poder facilitar la implementación del evaluador.
+El juicio de tipado \texttt{e : Exp fv} indica que \texttt{e} es una expresión y cuyo su conjunto de variables libres es \texttt{fv}. Como ejemplo, \texttt{e : Exp [''x'', ''y'']} contiene a \texttt{''x''} y \texttt{''y''} como variables libres. Se decidió incluir la información de variables libres en el tipo para facilitar la implementación del evaluador. Vamos a tomar a \texttt{String} como siendo \textit{Var}, el dominio de los nombres de las variables.
 
 \begin{code}
 data VarDec : String -> Type where
@@ -112,7 +110,7 @@ data Exp : List String -> Type where
     Exp fvsOuter
 \end{code}
 
-Cada constructor representa cada regla de formación de una expresión. A su vez, cada constructor sigue las reglas de construcción de variables libres definidas anteriormente.
+Cada constructor del tipo \texttt{Exp} representa una regla de formación de expresiones. A su vez, cada constructor sigue las reglas de construcción de variables libres definidas anteriormente.
 
 En el caso de una expresión dada por una variable la expresión contiene una única variable libre. Si es un literal entonces no hay variables libres.
 
@@ -212,7 +210,7 @@ exp3 : Exp []
 exp3 = eLet ("y" := 5) exp4
 \end{code}
 
-También se decidió incluir otra función útil para construir expresiones. Se trata de \textit{local}, que permite definir un binding local de variables. Su uso sería el siguiente:
+Además de las anteriores, se decidió incluir otra función para construir expresiones. Se trata de \textit{local}, que permite definir un binding local de variables. Su uso sería el siguiente:
 
 \begin{code}
 exp1 : Exp []
@@ -335,7 +333,7 @@ AllNats (x :: xs) = (x, Nat) :: AllNats xs
 AllNats ["x", "y"] = [("x", Nat), ("y", Nats)]
 \end{code}
 
-Esto permite poder utilizar el record \texttt{Record \{lty=String\} (AllNats ls)}. El ambiente se trata de un record extensible, donde sus etiquetas son strings y sus campos siempre son del tipo \texttt{Nat}.
+Esto permite utilizar el record \texttt{Record \{lty=String\} (AllNats ls)}. El ambiente es un record extensible, donde sus etiquetas son strings y sus campos siempre son del tipo \texttt{Nat}.
 
 Un ejemplo (con una pseudo-sintaxis) sería:
 
@@ -388,7 +386,7 @@ v = interp $ var "x"
 
 La implementación completa del evaluador se muestra a continuación.
 
-\subsection{Expresiones de literales}
+\subsection{Literales}
 
 El caso de un literal es el más sencillo:
 
@@ -398,7 +396,7 @@ interpEnv env subSet (Lit c) = c
 
 Significa retornar tal valor como un resultado.
 
-\subsection{Expresiones con una variable}
+\subsection{Variables}
 
 Una expresión que declara una variable necesita tener esa variable en el ambiente y obtener el valor de ella:
 
@@ -441,9 +439,9 @@ hLookupByLabel l rec hasFieldInEnv
 
 En este caso la llamada a lookup es válida en tiempo de compilación. Por cómo se definió el evaluador, toda variable libre de la expresión pertenece al ambiente, por lo cual es posible probar que una variable específica de \texttt{Var l} pertenece al ambiente, y por lo tanto es posible obtener su valor. En ningún momento el lookup va a fallar en tiempo de ejecución porque no pudo encontrar la variable.
 
-\subsection{Expresiones con suma}
+\subsection{Sumas}
 
-Una expresión del tipo suma es sencilla de evaluar. Se necesitan evaluar las subexpresiones de ella, y luego sumar sus resultados:
+Una expresión del tipo suma es sencilla de evaluar. Se necesita evaluar sus subexpresiones, y luego sumar sus resultados:
 
 \begin{code}
 interpEnv env subSet (Add e1 e2 isUnionFvs) =
@@ -489,7 +487,7 @@ Al tener ya los resultados de tales evaluaciones, el resultado final es su simpl
 res1 + res2
 \end{code}
 
-\subsection{Expresiones con sustitución de variable}
+\subsection{Expresiones let}
 
 Una expresión let es más difícil de evaluar que los demás casos, ya que requiere la manipulación del ambiente de variables. La implementación completa de este caso se puede ver en la Figura \ref{fig:InterpImplLet}.
 
@@ -520,13 +518,13 @@ interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
     in interpEnv newEnv newSubSet e
 \end{code}
 
-\caption{Evaluación de una sustitución de variable}
+\caption{Evaluación de lets}
 \label{fig:InterpImplLet}
 \end{figure}
 
 El primer paso a tomar es saber si la variable \texttt{var} se encuentra en el ambiente o no. Es posible que la variable \texttt{var} ya tenga un valor \texttt{n2} asignado en el ambiente, pero si es así, tal valor debe ser sustituido por \texttt{n} cuando se intente evaluar la subexpresión \texttt{e}. Si la variable no se encuentra en el ambiente, entonces debe ser agregado al mismo al momento de evaluar la subexpresión.
 
-Veremos cómo se realiza esto en la implementación misma:
+Veamos cómo se realiza esto en la implementación misma:
 
 \begin{code}
 interpEnv {fvsEnv} env subSet (Let (var := n) e delAt)
