@@ -92,7 +92,7 @@ p = { nombre = "Juan", edad = 20 }
 \begin{verbatim}
 p' :: Record { apellido :: String, nombre :: String, 
       edad :: Int }
-p' = { apellido :: "Torres" } .*. p
+p' = { apellido = "Torres" } .*. p
 \end{verbatim}
 \end{example}
 
@@ -709,9 +709,9 @@ project : DecEq lty => {ts : List (lty, Type)} ->
 
 \begin{example}
 \begin{verbatim}
-r' : Record [("nombre", String)]
+r' : (Record [("nombre", String)], Record [("edad", Int)])
 r' = project ["nombre"] r
--- { "nombre" = "Juan" }
+-- ({ "nombre" = "Juan" }, { "edad" = 20 })
 \end{verbatim}
 \end{example}
 
@@ -803,6 +803,8 @@ let y = 10 in (let x = 3 in x + 3)
 \frametitle{Caso de estudio (2)}
 
 Los records extensibles se utilizaron para modelar y mantener el ambiente con las variables y sus valores. Este ambiente es usado al momento de evaluar las expresiones.
+
+\pause
 
 \begin{definition}[Definición del ambiente]
 \begin{verbatim}
