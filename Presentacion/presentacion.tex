@@ -22,7 +22,6 @@
 \RequirePackage[iso,english]{isodate}
 \RequirePackage[spanish,es-lcroman]{babel}
 \RequirePackage[utf8]{inputenc}
-%\RequirePackage[useregional]{datetime2}
 
 \RequirePackage{graphicx}
 \RequirePackage{booktabs}
@@ -30,6 +29,7 @@
 %----------------------------
 %	Titulo
 %----------------------------
+
 
 \title[Records Extensibles en Idris]{Desarrollo de records extensibles en lenguajes con tipos dependientes}
 
@@ -41,12 +41,7 @@ Universidad de la República, Uruguay
 \medskip
 }
 
-%\newcommand{\fechaPresentacion}{\DTMdisplaydate{2017}{6}{14}{-1}}
-
-%\selectlanguage{spanish}
-%\mydate
-%\selectlanguage{spanish}
-%\printdate{2017-6-14}
+\date{14 de Junio, 2017}
 
 \begin{document}
 
@@ -65,7 +60,7 @@ Universidad de la República, Uruguay
 \begin{frame}[fragile]
 \frametitle{Records}
 
-Estructura de datos que contiene valores de (posiblemente) diferentes tipos, los cuales están asociados a etiquetas.
+Estructura de datos estática que contiene valores de (posiblemente) diferentes tipos, los cuales están asociados a etiquetas.
 
 \pause
 
@@ -96,7 +91,7 @@ p = { nombre = "Juan", edad = 20 }
 \begin{example}[Extensión de record]
 \begin{verbatim}
 p' :: Record { apellido :: String, nombre :: String, 
-  edad :: Int }
+      edad :: Int }
 p' = { apellido :: "Torres" } .*. p
 \end{verbatim}
 \end{example}
@@ -156,7 +151,7 @@ p' :: Record { nombre :: String, apellido :: String }
 p' = { nombre = "Juan", apellido = "Torres" }
 
 p'' :: Record { nombre :: String, edad :: Int,
-  apellido :: String}
+       apellido :: String}
 p'' = p :||: p''
 -- { nombre = "Juan", edad = 20, apellido = "Torres" }
 \end{verbatim}
@@ -295,7 +290,7 @@ p = "Juan" :> 20 :> HNil
 \subsection{HList extendido}
 
 \begin{frame}[fragile]
-\frametitle{Definición completa}
+\frametitle{HList con etiquetas}
 
 Donde están las etiquetas? Falta completar la definición.
 
@@ -341,8 +336,7 @@ p = ("nombre" .=. "Juan) :>
 
 \pause
 
-Quisiéramos que no se permitan construir records con etiquetas repetidas. Debería ser error de compilación.
-Hay que actualizar la definición una vez más.
+Este caso compila, pero es incorrecto. La definición de records extensibles no debe permitir construir records con etiquetas repetidas.
 
 \end{frame}
 
@@ -411,9 +405,9 @@ Con estas definiciones se puede construir un record:
 \begin{verbatim}
 r : Record [("nombre", String), ("edad", Int)]
 r = MkRecord (IsSetCons not1 (IsSetCons not2 IsSetNil)) 
-  (("nombre" .=. "Juan") :>
-  ("edad" .=. 20) :>
-  HNil)
+    (("nombre" .=. "Juan") :>
+    ("edad" .=. 20) :>
+    HNil)
 
 not1 : Not (Elem "nombre" ["edad"])
 not1 Here impossible
@@ -460,8 +454,8 @@ consR f p (MkRecord isS fs)
 \begin{verbatim}
 r : Record [("nombre", String), ("edad", Int)]
 r = consR ("nombre" .=. "Juan") not1 $
-   consR ("edad" .=. 20) not2 $
-   emptyRec
+    consR ("edad" .=. 20) not2 $
+    emptyRec
 \end{verbatim}
 \end{example}
 \end{frame}
@@ -636,13 +630,13 @@ Toma dos records con etiquetas sin repetir, y concatena los campos de cada uno.
 
 \begin{example}[Ejemplo]
 \begin{verbatim}
-r' : Record [("direccion", String), ("apellido", String), 
-  ("nombre", String), ("edad", Int)]
-r' = (("direccion" .=. "18 de Julio") .*. 
-      ("apellido" .=. "Torres") .*.
-      emptyRec) .++. r
--- { "direccion" = "18 de Julio", "apellido" = "Torres",
-  "nombre" = "Juan", "edad" = 20 }
+r' : Record [("apellido", String)]
+r' = ("apellido" .=. "Torres") .*. empty
+
+r'' : Record [("apellido", String), ("nombre", String), 
+      ("edad", Int)]
+r'' = r' .++. r
+-- { "apellido" = "Torres", "nombre" = "Juan", "edad" = 20 }
 \end{verbatim}
 \end{example}
 
@@ -692,11 +686,13 @@ Toma dos records y retorna la unión por izquierda de ambos.
 
 \begin{example}[Ejemplo]
 \begin{verbatim}
-r' : Record [("nombre", String), ("edad", Int), 
-  ("apellido", String)]
-r' = r :||: (("nombre" .=. "Roberto") .*. 
-     ("apellido" = "Torres") .*. 
-     emptyRec)
+r' :: Record [("nombre", String), ("apellido", String)]
+r' = ("nombre" .=. "Juan") .*. ("apellido" .=. "Torres") .*. 
+     emptyRec
+
+r'' : Record [("nombre", String), ("edad", Int), 
+      ("apellido", String)]
+r' = r :||: r''
 -- { "nombre" = "Juan", "edad" = 20, "apellido" = "Torres" }
 \end{verbatim}
 \end{example}
@@ -733,6 +729,114 @@ r' = updateR "edad" 15 r
 
 \section{Caso de estudio}
 
-\section{Conclusiones}
+\begin{frame}[fragile]
+\frametitle{Caso de estudio (1)}
+
+Se realizó un caso de estudio más elaborado donde se utilizaron los records extensibles desarrollados en este trabajo. El caso consiste en modelar como un DSL (\textit{Domain Specific Language}) un pequeño lenguaje de expresiones aritméticas con variables y constantes.
+
+
+\begin{itemize}
+\item Literales dados por números naturales
+\item Variables
+\item Sumas de expresiones
+\item Expresiones let
+\end{itemize}
+
+\begin{example}[Ejemplos de expresiones]
+\begin{verbatim}
+x
+x + 3
+let x = 3 in x + 3
+let y = 10 in (let x = 3 in x + 3)
+\end{verbatim}
+\end{example}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Caso de estudio (2)}
+
+Los records extensibles se utilizaron para modelar y mantener el ambiente con las variables y sus valores. Este ambiente es usado al momento de evaluar las expresiones.
+
+\begin{example}[Definición del ambiente]
+\begin{verbatim}
+data Ambiente : List String -> Type where
+  MkAmbiente : Record (AllNats ls) -> Ambiente ls
+
+AllNats : List lty -> List (lty, Type)
+AllNats [] = []
+AllNats (x :: xs) = (x, Nat) :: AllNats xs
+\end{verbatim}
+\end{example}
+
+\begin{example}[Definición del evaluador]
+\begin{verbatim}
+interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv -> 
+            Exp fvs -> Nat
+
+interp : Exp [] -> Nat
+\end{verbatim}
+\end{example}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Caso de estudio (3)}
+
+\begin{example}[Ejemplos de construcción y evaluación de expresiones]
+\begin{verbatim}
+interp $ add (lit 1) (lit 2)
+-- 3
+
+interp $ eLet ("x" := 10) $ add (var "x") (lit 2)
+-- 12
+
+interp $ local ["x" := 10, "y" := 9] $ 
+  add (var "x") (var "y")
+-- 19
+\end{verbatim}
+\end{example}
+
+\end{frame}
+
+\section{Conclusiones y final}
+
+\begin{frame}
+\frametitle{Trabajo a futuro}
+
+En cuanto al trabajo, se identificaron varios aspectos para mejorar en el futuro:
+
+\begin{itemize}
+\item Implementar resto de operaciones sobre records extensibles.
+\item Parametrizar el record por un tipo abstracto, y no una lista ordenada.
+\item Estudiar replicar este trabajo en Agda.
+\item Agregar más tipos de expresiones al caso de estudio. Booleanos, if-then-else, etc.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Conclusiones del trabajo}
+
+Se cumplieron los objetivos propuestos para este trabajo:
+
+\begin{itemize}
+\item Solución expuesta como biblioteca de usuario.
+\item Typesafe.
+\item Records extensibles como first-class citizens.
+\item Cubre funcionalidades y operaciones de records extensibles.
+\item Práctica de usar.
+\end{itemize}
+
+\pause
+
+Otras conclusiones:
+
+\begin{itemize}
+\item Desarrollo en lenguajes con tipos dependientes es relativamente directo y sencillo.
+\item Las mayores dificultades se encuentran en probar teoremas/lemas, no en el desarrollo mismo.
+\item Se necesita tener un buen diseño de tipos y predicados.
+\end{itemize}
+
+\end{frame}
+
+
 
 \end{document} 
