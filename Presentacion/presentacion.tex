@@ -171,16 +171,6 @@ p'' = p .||. p''
 \item Ejemplos de uso: Intérprete de un lenguaje, consultas a base de datos, archivo de configuracion, etc.
 \end{itemize}
 
-\begin{table}
-\begin{tabular}{c | c c}
- & \textbf{Estructura homogénea} & \textbf{Estructura heterogénea} \\
-\hline
-\textbf{Estático} & & Record \\
-\textbf{Dinámico} & Diccionario & Record Extensible
-\end{tabular}
-\caption{Comparación con otras estructuras de datos}
-\end{table}
-
 \end{frame}
 
 \subsection{Otros lenguajes}
@@ -603,15 +593,6 @@ data HasField : lty -> Type -> List (lty, Type) -> Type where
 \end{verbatim}
 \end{definition}
 
-\pause
-
-\begin{example}
-\begin{verbatim}
-HasField "nombre" String [("nombre", String), ("edad", Int)]
-HasField "edad"   Int    [("nombre", String), ("edad", Int)]
-\end{verbatim}
-\end{example}
-
 \end{frame}
 
 \begin{frame}[fragile]
@@ -649,16 +630,6 @@ l .!. r {hasF} = lookupR l r hasF
 \end{verbatim}
 \end{definition}
 
-\pause
-
-\begin{example}
-\begin{verbatim}
-nombre : String
-nombre = "nombre" .!. r
--- "Juan"
-\end{verbatim}
-\end{example}
-
 \end{frame}
 
 \subsection{Otras operaciones}
@@ -676,27 +647,9 @@ Concatena los campos de dos records si no hay etiquetas repetidas.
 \end{verbatim}
 \end{definition}
 
-\begin{example}
-\begin{verbatim}
-r' : Record [("apellido", String)]
-r' = ("apellido" .=. "Torres") .*. empty
-
-r'' : Record [("apellido", String), ("nombre", String), 
-      ("edad", Int)]
-r'' = r' .++. r
--- { "apellido" = "Torres", "nombre" = "Juan", "edad" = 20 }
-\end{verbatim}
-\end{example}
-
 \end{block}
 
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Otras operaciones (2)}
-
 \begin{block}{Project}
-
 Permite seleccionar campos de un record a retornar según si pertenecen a una lista dada o no.
 
 \begin{definition}
@@ -707,19 +660,13 @@ project : DecEq lty => {ts : List (lty, Type)} ->
 \end{verbatim}
 \end{definition}
 
-\begin{example}
-\begin{verbatim}
-r' : (Record [("nombre", String)], Record [("edad", Int)])
-r' = project ["nombre"] r
--- ({ "nombre" = "Juan" }, { "edad" = 20 })
-\end{verbatim}
-\end{example}
-
 \end{block}
+
 \end{frame}
 
+
 \begin{frame}[fragile]
-\frametitle{Otras operaciones (3)}
+\frametitle{Otras operaciones (2)}
 
 \begin{block}{Left Union}
 
@@ -732,24 +679,7 @@ Toma dos records y retorna la unión por izquierda de ambos.
 \end{verbatim}
 \end{definition}
 
-\begin{example}
-\begin{verbatim}
-r' :: Record [("nombre", String), ("apellido", String)]
-r' = ("nombre" .=. "Juan") .*. ("apellido" .=. "Torres") .*. 
-     emptyRec
-
-r'' : Record [("nombre", String), ("edad", Int), 
-      ("apellido", String)]
-r' = r .||. r''
--- { "nombre" = "Juan", "edad" = 20, "apellido" = "Torres" }
-\end{verbatim}
-\end{example}
-
 \end{block}
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Otras operaciones (4)}
 
 \begin{block}{Update}
 
@@ -763,15 +693,65 @@ updateR : DecEq lty => {ts : List (lty, Type)} ->
 \end{verbatim}
 \end{definition}
 
-\begin{example}
-\begin{verbatim}
-r' : Record [("nombre", String), ("edad", Int)]
-r' = updateR "edad" 15 r
--- { "nombre" = "Juan", "edad" = 15 }
-\end{verbatim}
-\end{example}
-
 \end{block}
+\end{frame}
+
+\section{Conclusiones y final}
+
+\begin{frame}
+\frametitle{Conclusiones del trabajo (1)}
+
+Se cumplieron los objetivos propuestos para este trabajo:
+
+\begin{itemize}
+\item Solución expuesta como biblioteca de usuario.
+\item Typesafe.
+\item Records extensibles como first-class citizens.
+\item Cubre funcionalidades y operaciones de records extensibles.
+\item Práctica de usar.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Conclusiones del trabajo (2)}
+
+Otras conclusiones:
+
+\begin{itemize}
+\item Desarrollo en lenguajes con tipos dependientes es relativamente directo y sencillo.
+\item Las mayores dificultades se encuentran en probar teoremas/lemas, no en el desarrollo mismo.
+\item Se necesita tener un buen diseño de tipos y predicados.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Caso de estudio}
+
+Se desarrolló un caso de estudio utilizando esta implementación de records extensibles. El caso consiste en modelar un pequeño lenguaje de expresiones aritméticas. Los records extensibles fueron utilizados para implementar el ambiente de variables al momento de evaluar expresiones.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Trabajo futuro}
+
+En cuanto al trabajo, se identificaron varios aspectos para mejorar en el futuro:
+
+\begin{itemize}
+\item Implementar resto de operaciones sobre records extensibles.
+\item Parametrizar el record por un tipo abstracto, y no una lista ordenada.
+\item Estudiar replicar este trabajo en Agda.
+\item Agregar más tipos de expresiones al caso de estudio. Booleanos, if-then-else, etc.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Fin}
+
+\begin{center}
+{\huge Muchas Gracias!}
+\end{center}
 
 \end{frame}
 
@@ -845,50 +825,5 @@ interp $ local ["x" := 10, "y" := 9] $
 \end{example}
 
 \end{frame}
-
-\section{Conclusiones y final}
-
-\begin{frame}
-\frametitle{Conclusiones del trabajo (1)}
-
-Se cumplieron los objetivos propuestos para este trabajo:
-
-\begin{itemize}
-\item Solución expuesta como biblioteca de usuario.
-\item Typesafe.
-\item Records extensibles como first-class citizens.
-\item Cubre funcionalidades y operaciones de records extensibles.
-\item Práctica de usar.
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Conclusiones del trabajo (2)}
-
-Otras conclusiones:
-
-\begin{itemize}
-\item Desarrollo en lenguajes con tipos dependientes es relativamente directo y sencillo.
-\item Las mayores dificultades se encuentran en probar teoremas/lemas, no en el desarrollo mismo.
-\item Se necesita tener un buen diseño de tipos y predicados.
-\end{itemize}
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Trabajo a futuro}
-
-En cuanto al trabajo, se identificaron varios aspectos para mejorar en el futuro:
-
-\begin{itemize}
-\item Implementar resto de operaciones sobre records extensibles.
-\item Parametrizar el record por un tipo abstracto, y no una lista ordenada.
-\item Estudiar replicar este trabajo en Agda.
-\item Agregar más tipos de expresiones al caso de estudio. Booleanos, if-then-else, etc.
-\end{itemize}
-\end{frame}
-
-
 
 \end{document} 
