@@ -761,10 +761,76 @@ hUpdateAtLabel {ts} l val rec hasField =
   in
     hListToRec {prf=isLabelSet} (hUpdateAtLabel_HList {ts=ts} l val hs hasField)
     
+    
 -- hUpdateAtLabel que obtiene la prueba de "HasField" de forma automática    
 hUpdateAtLabelAuto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> ty -> Record ts -> {auto hasField : HasField l ts ty} -> Record ts
 hUpdateAtLabelAuto {ts} l val rec {hasField} = hUpdateAtLabel {ts} l val rec hasField
 
+
+-- ** New Lookup **
+
+getTypeFromList : (ts : LabelList lty) -> ElemLabel l ts -> Type
+getTypeFromList ((l,ty) :: ts) Here = ty
+getTypeFromList ((l,ty) :: ts) (There there) = getTypeFromList ts there
+
+hLookupByLabel_HList2 : DecEq lty => {ts : LabelList lty} -> (l : lty) -> HList ts -> (elem : ElemLabel l ts) -> (getTypeFromList ts elem)
+hLookupByLabel_HList2 _ (val :: _) Here = val
+hLookupByLabel_HList2 l (_ :: hs) (There there) = hLookupByLabel_HList2 l hs there
+
+hLookupByLabel2 : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> (elem : ElemLabel l ts) -> (getTypeFromList ts elem)
+hLookupByLabel2 {ts} l rec elem = hLookupByLabel_HList2 {ts} l (recToHList rec) elem
+
+TypeOrUnit2 : Dec p -> (p -> Type) -> Type
+TypeOrUnit2 (Yes prf) cons = cons prf
+TypeOrUnit2 (No _) _ = ()
+
+mkTypeOrUnit2 : (d : Dec p) -> (tyCons : p -> Type) -> (cnst : (prf : p) -> tyCons prf) -> TypeOrUnit2 d tyCons
+mkTypeOrUnit2 (Yes prf) _ cnst = cnst prf
+mkTypeOrUnit2 (No _) _ _ = ()
+
+hLookupByLabel2Auto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts -> 
+  TypeOrUnit2 (isElemLabel l ts) (\isElem => getTypeFromList ts isElem)
+hLookupByLabel2Auto {ts} l rec =
+  mkTypeOrUnit2 (isElemLabel l ts) (\isElem => getTypeFromList ts isElem)
+    (\isElem => hLookupByLabel2 l rec isElem)
+
+recEx : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
+recEx = consRecAuto "Apellido" "Sanchez" $
+  consRecAuto "Nombre" "Juan" $
+  consRecAuto "Edad" 20 $
+  emptyRec
+  
+nombre : String
+nombre = hLookupByLabel2Auto "Nombre" recEx
+
+-- ** New Update **
+
+hUpdateAtLabel2_HList : DecEq lty => {ts : LabelList lty} -> (l : lty) -> (elem : ElemLabel l ts) -> getTypeFromList ts elem -> HList ts -> HList ts
+hUpdateAtLabel2_HList {ts = (l, ty) :: ts} l Here val (oldVal :: hs) = val :: hs
+hUpdateAtLabel2_HList {ts = (l2, ty) :: ts} l1 (There there) val (oldVal :: hs) = oldVal :: hUpdateAtLabel2_HList l1 there val hs
+
+hUpdateAtLabel2 : DecEq lty => {ts : LabelList lty} -> (l : lty) -> (elem : ElemLabel l ts) -> getTypeFromList ts elem -> Record ts -> Record ts
+hUpdateAtLabel2 l elem val (MkRecord isSet hs) =
+  let newHs = hUpdateAtLabel2_HList l elem val hs
+  in MkRecord isSet newHs
+  
+hUpdateByLabel2Auto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record ts ->
+  TypeOrUnit2 (isElemLabel l ts) (\elem => getTypeFromList ts elem -> Record ts)
+hUpdateByLabel2Auto {ts} l rec =
+  mkTypeOrUnit2 (isElemLabel l ts) (\elem => getTypeFromList ts elem -> Record ts)
+     (\elem => \val => hUpdateAtLabel2 l elem val rec)
+
+exUpd1 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
+exUpd1 = consRecAuto "Apellido" "Sanchez" $
+  consRecAuto "Nombre" "Juan" $
+  consRecAuto "Edad" 20 $
+  emptyRec
+  
+exUpd2 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
+exUpd2 = hUpdateByLabel2Auto "Nombre" exUpd1 "Pedro"
+     
+nombreExUpd2 : String
+nombreExUpd2 = hLookupByLabel2Auto "Nombre" exUpd2
 
 -- *** Auxiliares ***
 -- Funciones que permiten forzar la unificación con tipo o su negación, según si se quiere forzar que una proposición se cumpla o no
