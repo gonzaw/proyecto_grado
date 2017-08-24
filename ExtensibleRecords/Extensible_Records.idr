@@ -794,15 +794,6 @@ hLookupByLabel2Auto {ts} l rec =
   mkTypeOrUnit2 (isElemLabel l ts) (\isElem => getTypeFromList ts isElem)
     (\isElem => hLookupByLabel2 l rec isElem)
 
-recEx : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
-recEx = consRecAuto "Apellido" "Sanchez" $
-  consRecAuto "Nombre" "Juan" $
-  consRecAuto "Edad" 20 $
-  emptyRec
-  
-nombre : String
-nombre = hLookupByLabel2Auto "Nombre" recEx
-
 -- ** New Update **
 
 hUpdateAtLabel2_HList : DecEq lty => {ts : LabelList lty} -> (l : lty) -> (elem : ElemLabel l ts) -> getTypeFromList ts elem -> HList ts -> HList ts
@@ -819,18 +810,6 @@ hUpdateByLabel2Auto : DecEq lty => {ts : LabelList lty} -> (l : lty) -> Record t
 hUpdateByLabel2Auto {ts} l rec =
   mkTypeOrUnit2 (isElemLabel l ts) (\elem => getTypeFromList ts elem -> Record ts)
      (\elem => \val => hUpdateAtLabel2 l elem val rec)
-
-exUpd1 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
-exUpd1 = consRecAuto "Apellido" "Sanchez" $
-  consRecAuto "Nombre" "Juan" $
-  consRecAuto "Edad" 20 $
-  emptyRec
-  
-exUpd2 : Record [("Apellido", String), ("Nombre", String), ("Edad", Nat)]
-exUpd2 = hUpdateByLabel2Auto "Nombre" exUpd1 "Pedro"
-     
-nombreExUpd2 : String
-nombreExUpd2 = hLookupByLabel2Auto "Nombre" exUpd2
 
 -- *** Auxiliares ***
 -- Funciones que permiten forzar la unificación con tipo o su negación, según si se quiere forzar que una proposición se cumpla o no
