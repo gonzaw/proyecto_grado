@@ -1,8 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Presentacion - Proyecto de Grado
-% Desarrollo de records extensibles en lenguajes con tipos dependientes
-% Gonzalo Waszczuk
-% Facultad de Ingenieria, UDELAR
+% SBLP - Extensible Records in Idris
+% Gonzalo Waszczuk - Alberto Pardo - Marcos Viera
+% Instituto de Computación, Universidad de la República, Montevideo, Uruguay
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -27,21 +26,21 @@
 \RequirePackage{booktabs}
 
 %----------------------------
-%	Titulo
+%	Title
 %----------------------------
 
 
-\title[Records Extensibles en Idris]{Desarrollo de records extensibles en lenguajes con tipos dependientes}
+\title[Extensible records in Idris]{Extensible records in Idris}
 
-\author{Gonzalo Waszczuk}
+\author{Gonzalo Waszczuk, Alberto Pardo, Marcos Viera}
 \institute[UDELAR]
 {
-Instituto de Computación, Facultad de Ingeniería \\
-Universidad de la República, Uruguay 
+Instituto de Computación, Universidad de la República \\
+Montevideo, Uruguay
 \medskip
 }
 
-\date{14 de Junio, 2017}
+\date{August 21th, 2017}
 
 \begin{document}
 
@@ -50,59 +49,58 @@ Universidad de la República, Uruguay
 \end{frame}
 
 %----------------------------
-% Presentacion
+% Presentation
 %----------------------------
 
-\section{Introducción}
+\section{Introduction}
 
 \subsection{Records}
 
 \begin{frame}[fragile]
 \frametitle{Records}
 
-Estructura de datos estática que contiene valores de (posiblemente) diferentes tipos, los cuales están asociados a etiquetas.
+Data structure composed of a collection of fields, possibly with different types and with an associated label.
 
 \pause
 
 \begin{example}[Record]
 \begin{verbatim}
-data Persona = Persona { nombre :: String, edad :: Int }
+type Person = Record { surname : String, age : Int }
 \end{verbatim}
 \end{example}
 
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Records Extensibles}
+\frametitle{Extensible Record}
 
-Record que se puede extender de forma dinámica, agregando nuevos valores con sus correspondientes etiquetas.
+Record that can be extended dynamically, adding new values with corresponding labels.
 
 \pause
 
-\begin{example}[Definición de record]
+\begin{example}[Definition of record]
 \begin{verbatim}
-p :: Record { nombre :: String, edad :: Int }
-p = { nombre = "Juan", edad = 20 }
+p : Record { surname : String, age : Int }
+p = { surname = "Bond", age = 30 }
 \end{verbatim}
 \end{example}
 
 \pause
 
-\begin{example}[Extensión de record]
+\begin{example}[Extension of record]
 \begin{verbatim}
-p' :: Record { apellido :: String, nombre :: String, 
-      edad :: Int }
-p' = { apellido = "Torres" } .*. p
+p' : Record { name : String, surname : String, age : Int }
+p' = { name = "James" } .*. p
 \end{verbatim}
 \end{example}
 
 \pause
 
-\begin{example}[Definición alternativa]
+\begin{example}[Alternative definition]
 \begin{verbatim}
-p :: Record { nombre :: String, edad :: Int }
-p = { nombre = "Juan" } .*.
-    { edad = 20 } .*.
+p : Record { surname : String, age : Int }
+p = { surname = "Bond" } .*.
+    { age = 30 } .*.
     emptyRec
 \end{verbatim}
 \end{example}
@@ -110,13 +108,13 @@ p = { nombre = "Juan" } .*.
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Otras operaciones (1)}
+\frametitle{Other operations (1)}
 
 \begin{example}[Lookup]
 \begin{verbatim}
-n :: String
-n = p .!. nombre
--- "Juan"
+n : String
+n = p .!. surname
+-- "Bond"
 \end{verbatim}
 \end{example}
 
@@ -126,22 +124,22 @@ n = p .!. nombre
 
 \begin{example}[Update]
 \begin{verbatim}
-p' :: Record { nombre :: String, edad :: Int }
-p' = updateR nombre "Pedro" p
--- { nombre = "Pedro", edad = 20 }
+p' : Record { surname : String, age : Int }
+p' = updateR surname "Dean" p
+-- { surname = "Dean", age = 30 }
 \end{verbatim}
 \end{example}
 
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Otras operaciones (2)}
+\frametitle{Other operations (2)}
 
 \begin{example}[Delete]
 \begin{verbatim}
-p' :: Record { edad :: Int }
-p' = p .//. nombre
--- { edad = 20 }
+p' : Record { age : Int }
+p' = p .//. surname
+-- { age = 30 }
 \end{verbatim}
 \end{example}
 
@@ -149,74 +147,72 @@ p' = p .//. nombre
 
 \begin{example}[Union]
 \begin{verbatim}
-p' :: Record { nombre :: String, apellido :: String }
-p' = { nombre = "Juan", apellido = "Torres" }
+p' : Record { surname : String, name : String }
+p' = { surname = "Bond", name = "James" }
 
-p'' :: Record { nombre :: String, edad :: Int,
-       apellido :: String}
-p'' = p .||. p''
--- { nombre = "Juan", edad = 20, apellido = "Torres" }
+p'' : Record { surname : String, age : Int, name : String}
+p'' = p .||. p'
+-- { surname = "Bond", age = 30, name = "James" }
 \end{verbatim}
 \end{example}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Por qué usar records extensibles?}
+\frametitle{Why use extensible records?}
 
 \begin{itemize}
-\item Estructura dinámica de datos. Se puede extender, se puede reducir.
-\item Valores con tipos arbitrarios y variables.
-\item Fuertemente tipada. Se puede conocer el tipo de cada campo en particular.
-\item Ejemplos de uso: Intérprete de un lenguaje, consultas a base de datos, archivo de configuracion, etc.
+\item Dynamic data structure. Can be extended, can be reduced.
+\item Fields can have arbitrary and variable types.
+\item Statically typed. The type of each individual field is known.
+\item Examples of uses: Language interpreter, database queries, configuration files, etc.
 \end{itemize}
 
 \end{frame}
 
-\subsection{Otros lenguajes}
+\subsection{Other languages}
 
 \begin{frame}
-\frametitle{Lenguajes actuales con records extensibles}
+\frametitle{Current languages with extensible records}
 
-Lenguajes proporcionan records extensibles como primitivas del lenguaje, o mediante bibliotecas de usuario.
+Languages provide extensibles records via primitive features, or via libraries.
 
 \pause
 
-\begin{block}{Como primitiva del lenguaje}
-Los records extensibles son funcionalidades del lenguaje en sí, y tienen sintaxis y funcionamiento especial en el lenguaje.
+\begin{block}{Via primitive features}
+Extensible records are supported by the language itself. They have special syntax and behavior in the language.
 
-Ejemplos: Elm, Purescript.
+Examples: Elm, Purescript.
 \end{block}
 
 \pause
 
-\begin{block}{Como biblioteca de usuario}
-Los records extensibles se definen como componentes dentro del lenguaje que pueden ser utilizados por usuarios mediante bibliotecas.
+\begin{block}{Via libraries}
+Extensible records are defined as components inside the language that can be used by users via libraries.
 
-Ejemplos: records, rawr, vinyl, HList en Haskell.
+Examples: records, rawr, vinyl, HList in Haskell.
 \end{block}
-
 
 \end{frame}
 
-\section{Descripción del trabajo}
+\section{Description of this work}
 
 \begin{frame}
-\frametitle{Qué se busca en este trabajo?}
+\frametitle{What are we looking for?}
 
-Se busca tener una solución de records extensibles que:
+We are looking for a solution for extensible records that:
 
 \begin{itemize}
-\item Sea typesafe.
-\item Cubra todas las funcionalidades y operaciones de records extensibles.
-\item Se defina como biblioteca de usuario.
-\item Tenga records extensibles como first-class citizens.
-\item Sea práctica de usar.
+\item Is typesafe
+\item Covers all operations and functionalities of extensible records.
+\item Is defined as a library.
+\item Has extensibles records as first-class citizens.
+\item Is practical to use.
 \end{itemize}
 
 \pause
 
-La biblioteca HList de Haskell cumple con estas funcionalidades. Este trabajo se basa en HList, adaptándolo a tipos dependientes.
+Haskell's HList library fulfills these functionalities. This work is inspired by HList, adapting it to dependent types.
 
 \end{frame}
 
@@ -224,38 +220,38 @@ La biblioteca HList de Haskell cumple con estas funcionalidades. Este trabajo se
 \frametitle{Idris}
 
 \begin{itemize}
-\item Solución de este trabajo basada en Idris.
-\item Idris es un lenguaje funcional, total, fuertemente tipado, y con tipos dependientes.
-\item En un sistema de tipos con tipos dependientes, los tipos pueden depender de valores y son first-class citizens.
+\item This solution is based on Idris.
+\item Idris is a functional, statically-typed, total, and dependently-typed language.
+\item In a dependently-typed language, types can depend on values and are first-class citizens.
 \end{itemize}
 \end{frame}
 
-\section{Definición de records extensibles}
+\section{Definition of extensible records}
 
-\subsection{Listas heterogéneas}
+\subsection{Heterogeneous Lists}
 
 \begin{frame}[fragile]
-\frametitle{Records como listas heterogéneas}
+\frametitle{Records as heterogeneous lists}
 
-\begin{example}[Ejemplo original]
+\begin{example}[Original example]
 \begin{verbatim}
-p :: Record { nombre :: String, edad :: Int }
-p = { nombre = "Juan" } .*.
-    { edad = 20 } .*.
+p : Record { surname : String, age : Int }
+p = { surname = "Bond" } .*.
+    { age = 30 } .*.
     emptyRec
 \end{verbatim}
 \end{example}
 
 \pause
 
-Un record extensible se puede ver como una lista variable de campos con valores. Estos campos tienen tipos distintos, por lo que el record se puede representar con una \textit{lista heterogénea}. 
+An extensible record can be seen as a variable list of fields. These fields have different types, meaning the record can be represented with a \textit{heterogeneous list}.
 
 \pause
 
-\begin{example}[Record como lista heterogénea]
+\begin{example}[Record as a heterogeneous list]
 \begin{verbatim}
-p = { nombre = "Juan" } ::
-    { edad = 20 } ::
+p = { surname = "Bond" } ::
+    { age = 30 } ::
     Nil
 \end{verbatim}
 \end{example}
@@ -263,9 +259,9 @@ p = { nombre = "Juan" } ::
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Listas heterogéneas en Idris}
+\frametitle{Heterogeneous lists in Idris}
 
-\begin{definition}[HList en Idris]
+\begin{definition}[HList in Idris]
 \begin{verbatim}
 data HList : List Type -> Type where
   HNil : HList []
@@ -275,7 +271,7 @@ data HList : List Type -> Type where
 
 \pause
 
-\begin{definition}[Operación sobre HList]
+\begin{definition}[Operation on HList]
 \begin{verbatim}
 hLength : HList ts -> Nat
 hLength HNil      = 0
@@ -286,27 +282,27 @@ hLength (x :> xs) = 1 + hLength xs
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Record definido usando HList}
+\frametitle{Record defined with HList}
 
 \begin{example}
 \begin{verbatim}
 p : HList [String, Int]
-p = "Juan" :> 20 :> HNil
+p = "Bond" :> 30 :> HNil
 \end{verbatim}
 \end{example}
 
 \end{frame}
 
-\subsection{HList extendido}
+\subsection{Labelled HList}
 
 \begin{frame}[fragile]
-\frametitle{HList con etiquetas}
+\frametitle{Labelled HList}
 
-Donde están las etiquetas? Falta completar la definición.
+Where are the labels? This definition is incomplete.
 
 \pause
 
-\begin{definition}[HList extendido]
+\begin{definition}[Labelled HList]
 \begin{verbatim}
 data LHList : List (lty, Type) -> Type where
   HNil : LHList []
@@ -319,11 +315,11 @@ data Field : lty -> Type -> Type where
 
 \pause
 
-\begin{example}[Record definido usando LHList]
+\begin{example}[Record defined with LHList]
 \begin{verbatim}
-p : LHList [("nombre", String), ("edad", Int)]
-p = ("nombre" .=. "Juan) :> 
-    ("edad" .=. 20) :> 
+p : LHList [("surname", String), ("age", Int)]
+p = ("surname" .=. "Bond") :> 
+    ("age" .=. 30) :> 
     HNil
 \end{verbatim}
 \end{example}
@@ -333,31 +329,31 @@ p = ("nombre" .=. "Juan) :>
 \subsection{Record}
 
 \begin{frame}[fragile]
-\frametitle{Etiquetas repetidas}
+\frametitle{Repeated labels}
 
-\begin{example}[Record con etiquetas repetidas]
+\begin{example}[Record with repeated labels]
 \begin{verbatim}
-p : LHList [("nombre", String), ("nombre", Int)]
-p = ("nombre" .=. "Juan) :> 
-    ("nombre" .=. 20) :> 
+p : LHList [("surname", String), ("surname", Int)]
+p = ("surname" .=. "Bond") :> 
+    ("surname" .=. 30) :> 
     HNil
 \end{verbatim}
 \end{example}
 
 \pause
 
-Este caso compila, pero es incorrecto. La definición de records extensibles no debe permitir construir records con etiquetas repetidas.
+This case compiles, but is incorrect. The definition of extensible records should not allow the construction of records with repeated labels.
 
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Definición completa de Record}
+\frametitle{Complete definition of extensible record}
 
-Un record extensible es una lista heterogénea de campos con etiquetas, tal que ninguna etiqueta esté repetida.
+An extensible record is an heterogeneous list of fields with labels, such that no label is repeated.
 
 \pause
 
-\begin{definition}[Definición de un record extensibles]
+\begin{definition}[Definition of extensible records]
 \begin{verbatim}
 data Record : List (lty, Type) -> Type where
   MkRecord : IsSet (labelsOf ts) -> LHList ts ->
@@ -374,16 +370,16 @@ labelsOf = map fst
 
 \end{frame}
 
-\subsection{Etiquetas no repetidas}
+\subsection{Non-repeated labels}
 
 \begin{frame}[fragile]
 \frametitle{IsSet}
 
-Predicado inductivo sobre listas que indica que no hay valores repetidos.
+Inductive predicate over lists that indicates that there are no repeated values.
 
 \pause
 
-\begin{definition}[Definición de IsSet]
+\begin{definition}[Definition of IsSet]
 \begin{verbatim}
 data IsSet : List t -> Type where
   IsSetNil  : IsSet []
@@ -394,9 +390,9 @@ data IsSet : List t -> Type where
 
 \pause
 
-\texttt{Elem} es un predicado inductivo que indica que un valor pertenece a una lista.
+\texttt{Elem} is an inductive predicate that indicates that a value belongs to a list.
 
-\begin{definition}[Definición de Elem]
+\begin{definition}[Definition of Elem]
 \begin{verbatim}
 data Elem : t -> List t -> Type where
   Here  : Elem x (x :: xs)
@@ -407,31 +403,31 @@ data Elem : t -> List t -> Type where
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Construcción final de un record (1)}
+\frametitle{Final construction of a record (1)}
 
-Con estas definiciones se puede construir un record:
+With these definitions we can construct a record:
 
-\begin{example}[Ejemplo de record extensible]
+\begin{example}[Example of an extensible record]
 \begin{verbatim}
-r : Record [("nombre", String), ("edad", Int)]
+r : Record [("surname", String), ("age", Int)]
 r = MkRecord (IsSetCons not1 (IsSetCons not2 IsSetNil)) 
-    (("nombre" .=. "Juan") :>
-    ("edad" .=. 20) :>
+    (("surname" .=. "Bond") :>
+    ("age" .=. 30) :>
     HNil)
 
-not1 : Not (Elem "nombre" ["edad"])
+not1 : Not (Elem "surname" ["age"])
 not1 Here impossible
 
-not2 : Not (Elem "edad" [])
+not2 : Not (Elem "age" [])
 not2 Here impossible
 \end{verbatim}
 \end{example}
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Construcción final de un record (2)}
+\frametitle{Final construction of a record (2)}
 
-\begin{example}[Record vacío]
+\begin{example}[Empty record]
 \begin{verbatim}
 emptyRec : Record []
 emptyRec = MkRecord IsSetNil HNil
@@ -440,12 +436,12 @@ emptyRec = MkRecord IsSetNil HNil
 
 \end{frame}
 
-\subsection{Extensión de un record}
+\subsection{Extension of a record}
 
 \begin{frame}[fragile]
-\frametitle{Extensión de un record}
+\frametitle{Extension of a record}
 
-La extensión de un record simplemente verifica que la etiqueta no esté repetida, y luego agrega el campo a la lista de campos del record.
+The extension of a record simply verifies that the label is not repeated, and then adds the field to the list of fields of the record.
 
 \pause
 
@@ -460,37 +456,37 @@ consR f p (MkRecord isS fs)
 \end{definition}
 
 \pause
-\begin{example}[Ejemplo de record extensible]
+\begin{example}[Example of an extensible record]
 \begin{verbatim}
-r : Record [("nombre", String), ("edad", Int)]
-r = consR ("nombre" .=. "Juan") not1 $
-    consR ("edad" .=. 20) not2 $
+r : Record [("surname", String), ("age", Int)]
+r = consR ("surname" .=. "Bond") not1 $
+    consR ("age" .=. 30) not2 $
     emptyRec
 \end{verbatim}
 \end{example}
 \end{frame}
 
-\subsection{Generación de pruebas automática}
+\subsection{Automatic generation of proofs}
 
 \begin{frame}[fragile]
-\frametitle{Generación de pruebas automáticas (1)}
+\frametitle{Automatic generation of proofs (1)}
 
-La definición anterior tiene un problema. Siempre es necesario proveer la prueba de no pertenencia. \\
+The previous definition has a problem. It is always necessary to provide the proof of a label not being repeated. \\
 
-Podemos mejorarlo, generando la prueba en tiempo de compilación de forma automática.
+We can improve it by automatically generating the proof at compilation time.
 
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Generación de pruebas automáticas (2)}
+\frametitle{Automatic generation of proofs (2)}
 
-Para poder generar las pruebas, utilizamos el hecho que la pertenencia es un predicado decidible. \\
+To be able to generate the proofs, we can use the fact that belonging to a list is a decidable predicate. \\
 
-Un predicado es decidible si siempre se puede conseguir una prueba de ella o de su negación.
+A predicate is decidable if you can always get a proof of it or its negation.
 
 \pause
 
-\begin{definition}[Definición de decidibilidad en Idris]
+\begin{definition}[Definition of decidabilty in Idris]
 \begin{verbatim}
 data Dec : Type -> Type where
   Yes : prop     -> Dec prop
@@ -504,7 +500,7 @@ interface DecEq t where
 
 \pause
 
-\begin{definition}[Función de decidibilidad de Elem]
+\begin{definition}[Decidability function of Elem]
 \begin{verbatim}
 isElem : DecEq t => (x : t) -> (xs : List t) -> 
          Dec (Elem x xs)
@@ -515,9 +511,9 @@ isElem : DecEq t => (x : t) -> (xs : List t) ->
 
 
 \begin{frame}[fragile]
-\frametitle{Generación de pruebas automáticas (3)}
+\frametitle{Automatic generation of proofs (3)}
 
-Se puede usar la decidibilidad de un predicado para obtener una prueba de ella o de su negación en tiempo de compilación. Según el resultado, se unifica con el tipo esperado o se unifica con unit.
+We can use the decidability of a predicate to get a proof of it or its negation in compilation time. Depending on the result, we can unify it with our expected type or unify it with unit.
 
 \pause
 
@@ -540,9 +536,9 @@ mkUorT (No no) f = f no
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Nueva definición de extensión de record (1)}
+\frametitle{New definition of record extension (1)}
 
-Con esta nueva técnica, se puede redefinir consR para que genere la prueba de no inclusión de etiquetas de manera automática.
+With this new technique, we can redefine consR so that it automatically generates the proof of the label not belonging to the record.
 
 \pause
 
@@ -560,36 +556,34 @@ Con esta nueva técnica, se puede redefinir consR para que genere la prueba de n
 \end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Nueva definición de extensión de record (2)}
+\frametitle{New definition of record extension (2)}
 
-\begin{example}[Ejemplo original con nueva definición de extensión]
+\begin{example}[Original example with new extension operator]
 \begin{verbatim}
-r : Record [("nombre", String), ("edad", Int)]
-r = ("nombre" .=. "Juan") .*.
-    ("edad" .=. 20) .*.
+r : Record [("surname", String), ("age", Int)]
+r = ("surname" .=. "Bond") .*.
+    ("age" .=. 30) .*.
     emptyRec
 \end{verbatim}
 \end{example}
 
 \end{frame}
 
-\section{Operaciones sobre records}
+\section{Operations on records}
 
 \subsection{Lookup}
 
 \begin{frame}[fragile]
 \frametitle{Lookup (1)}
 
-Para implementar lookup se precisa una prueba de que el campo deseado existe y tiene el tipo que se busca.
+To implement lookup we first need to find the type of a label that belongs to the record:
 
-\pause
-
-\begin{definition}[Existencia de campo]
+\begin{definition}
 \begin{verbatim}
-data HasField : lty -> Type -> List (lty, Type) -> Type where
-  HFHere  : HasField l ty ((l, ty) :: ts)
-  HFThere : HasField l ty ts -> 
-            HasField l ty ((l', ty') :: ts)
+getType : (ts : List (lty, Type)) -> Elem l (labelsOf ts) -> 
+          Type
+getType ((l, ty) :: ts) Here      = ty
+getType ((l, ty) :: ts)(There th) = getType ts th
 \end{verbatim}
 \end{definition}
 
@@ -598,16 +592,18 @@ data HasField : lty -> Type -> List (lty, Type) -> Type where
 \begin{frame}[fragile]
 \frametitle{Lookup (2)}
 
-Lookup actúa recursivamente sobre el término de prueba para obtener el campo buscado.
+We can use the previous function to implement lookup:
 
 \begin{definition}
 \begin{verbatim}
-lookupR : (l : lty) -> Record ts -> HasField l ty ts -> ty
-lookupR l (MkRecord _ fs) hasF = lookupH l fs hasF
+lookupR : (l : lty) -> Record ts -> 
+          (elem : Elem l (labelsOf ts)) -> getType ts elem
+lookupR l (MkRecord _ fs) elem = lookupH l fs elem
 
-lookupH : (l : lty) -> LHList ts -> HasField l ty ts -> ty
-lookupH _ ((_ .=. v) :: _) HFHere   = v
-lookupH l (_ :: ts) (HFThere hasTh) = lookupH l ts hasTh
+lookupH : (l : lty) -> LHList ts -> 
+          (elem : Elem l (labelsOf ts)) -> getType ts elem
+lookupH _ ((_ .=. v) :: _) Here   = v
+lookupH l (_ :: hs) (There th)    = lookupH l hs th
 \end{verbatim}
 \end{definition}
 
@@ -616,47 +612,63 @@ lookupH l (_ :: ts) (HFThere hasTh) = lookupH l ts hasTh
 \begin{frame}[fragile]
 \frametitle{Lookup (3)}
 
-No se puede generar la prueba de HasField automáticamente utilizando la técnica vista anteriormente porque el predicado no es decidible. \\
-
-Sin embargo, sí se puede generar automáticamente utilizando la funcionalidad 'auto' de Idris.
-
-\pause
+We can use a similar technique as the one used in record extension to dynamically construct a proof of the \texttt{Elem} predicate and define the lookup operator:
 
 \begin{definition}
 \begin{verbatim}
-(.!.) : (l : lty) -> Record ts -> 
-        {auto hasF : HasField l ty ts} -> ty
-l .!. r {hasF} = lookupR l r hasF
+MaybeLkp : DecEq lty => List (lty, Type) -> lty -> Type
+MaybeLkp ts l = TypeOrUnit2 (isElem l (labelsOf ts))
+                            (\isE => getType ts isE)
+
+(.!.) : DecEq lty => Record ts -> (l : lty) -> 
+        MaybeLkp ts l
+(.!.) {ts} r l = mkTorU2 (isElem l (labelsOf ts))
+                         (\isE => getType ts isE)
+                         (\isE => lookupR l r isE)
 \end{verbatim}
 \end{definition}
 
 \end{frame}
 
-\subsection{Otras operaciones}
+\begin{frame}[fragile]
+\frametitle{Lookup (4)}
+
+The operator uses a similar definition of \texttt{UnitOrType}, but it acts on the \texttt{Yes} predicate and uses a type constructor to compute the returning type.
+
+\begin{definition}
+\begin{verbatim}
+TypeOrUnit2 : Dec p -> (p -> Type) -> Type
+TypeOrUnit2 (Yes yes) tyCons = tyCons yes
+TypeOrUnit2 (No _) _         = ()
+
+mkTorU2 : (d : Dec p) -> (tyCons : p -> Type) -> 
+          (f : (prf : p) -> tyCons prf) ->
+          TypeOrUnit2 d tyCons
+mkTorU2 (Yes yes) _ f = f yes
+mkTorU2 (No _) _ _    = ()
+\end{verbatim}
+\end{definition}
+
+\end{frame}
+
+
+\subsection{Other operations}
 
 \begin{frame}[fragile]
-\frametitle{Otras operaciones (1)}
+\frametitle{Other operations (1)}
 
 \begin{block}{Append}
-Concatena los campos de dos records si no hay etiquetas repetidas.
+Concats the fields of two records, but only if there are no repeated labels.
 
 \begin{definition}
 \begin{verbatim}
+MaybeApp : DecEq lty => List (lty, Type) ->
+           List (lty, Type) -> Type -> Type
+MaybeApp ts us r = 
+    TypeOrUnit (isSet (labelsOf (ts ++ us))) r
+
 (.++.) : DecEq lty => {ts : List (lty, Type)} -> Record ts -> 
-         Record us -> IsSet (ts ++ us) -> Record (ts ++ us)
-\end{verbatim}
-\end{definition}
-
-\end{block}
-
-\begin{block}{Project}
-Permite seleccionar campos de un record a retornar según si pertenecen a una lista dada o no.
-
-\begin{definition}
-\begin{verbatim}
-project : DecEq lty => {ts : List (lty, Type)} -> 
-          (ls : List lty) -> Record ts -> IsSet ls -> 
-          (Record (ls :<: ts), Record (ls :>: ts))
+         Record us -> MaybeApp ts us (Record (ts ++ us))
 \end{verbatim}
 \end{definition}
 
@@ -664,13 +676,37 @@ project : DecEq lty => {ts : List (lty, Type)} ->
 
 \end{frame}
 
+\begin{frame}[fragile]
+\frametitle{Other operations (2)}
+
+\begin{block}{Project}
+Returns fields from a record by checking if they belong to a given list or not.
+
+\begin{definition}
+\begin{verbatim}
+MaybeP : DecEq lty => (ls : List lty) -> 
+         (ts : List (lty, Type)) -> Type -> Type
+MaybeP ls ts r = TypeOrUnit (isSet ls) r
+
+(.<.) : DecEq lty => {ts : List (lty, Type)} -> 
+        (ls : List lty) -> Record ts -> 
+        MaybeP ls ts (Record (ls :<: ts)) 
+
+(.>.) : DecEq lty => {ts : List (lty, Type)} -> 
+        (ls : List lty) -> Record ts -> 
+        MaybeP ls ts (Record (ls :>: ts))
+\end{verbatim}
+\end{definition}
+
+\end{block}
+
+\end{frame}
 
 \begin{frame}[fragile]
-\frametitle{Otras operaciones (2)}
+\frametitle{Other operations (3)}
 
 \begin{block}{Left Union}
-
-Toma dos records y retorna la unión por izquierda de ambos.
+Takes two records and returns the left union of both.
 
 \begin{definition}
 \begin{verbatim}
@@ -683,13 +719,15 @@ Toma dos records y retorna la unión por izquierda de ambos.
 
 \begin{block}{Update}
 
-Modifica el valor de un campo en particular.
+Updates the value of a particular field.
 
 \begin{definition}
 \begin{verbatim}
-updateR : DecEq lty => {ts : List (lty, Type)} -> 
-          (l : lty) -> ty -> Record ts -> 
-          {auto hasF : HasField l ty ts} -> Record ts
+MaybeUpd : DecEq lty => List (lty, Type) -> lty -> Type
+MaybeUpd ts l = TypeOrUnit2 (isElem l (labelsOf ts))
+                (\isE => getType ts isE -> Record ts)
+
+updR : DecEq lty => (l : lty) -> Record ts -> MaybeUpd ts l
 \end{verbatim}
 \end{definition}
 
@@ -699,130 +737,52 @@ updateR : DecEq lty => {ts : List (lty, Type)} ->
 \section{Conclusiones y final}
 
 \begin{frame}
-\frametitle{Conclusiones del trabajo (1)}
+\frametitle{Conclusions (1)}
 
-Se cumplieron los objetivos propuestos para este trabajo:
+The principal objectives of this work were achieved:
 
 \begin{itemize}
-\item Solución expuesta como biblioteca de usuario.
-\item Typesafe.
-\item Records extensibles como first-class citizens.
-\item Cubre funcionalidades y operaciones de records extensibles.
-\item Práctica de usar.
+\item The solution is exposed as an user library.
+\item It's typesafe.
+\item Extensible records are first-class citizens.
+\item It covers the functionalities and operations of extensible records.
+\item It's relatively practical to use.
 \end{itemize}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Conclusiones del trabajo (2)}
+\frametitle{Conclusions (2)}
 
-Otras conclusiones:
+Other conclusions:
 
 \begin{itemize}
-\item Desarrollo en lenguajes con tipos dependientes es relativamente directo y sencillo.
-\item Las mayores dificultades se encuentran en probar teoremas/lemas, no en el desarrollo mismo.
-\item Se necesita tener un buen diseño de tipos y predicados.
+\item Development in dependently-typed languages is relatively direct and easy.
+\item Most dificulties are found in theorem proving, not in the development itself.
+\item A good type and predicate design is needed.
 \end{itemize}
 
 \end{frame}
 
 \begin{frame}
-\frametitle{Caso de estudio}
+\frametitle{Future Work}
 
-Se desarrolló un caso de estudio utilizando esta implementación de records extensibles. El caso consiste en modelar un pequeño lenguaje de expresiones aritméticas. Los records extensibles fueron utilizados para implementar el ambiente de variables al momento de evaluar expresiones.
-
-\end{frame}
-
-\begin{frame}
-\frametitle{Trabajo futuro}
-
-En cuanto al trabajo, se identificaron varios aspectos para mejorar en el futuro:
+We identified various aspects of this library to improve in the future:
 
 \begin{itemize}
-\item Implementar resto de operaciones sobre records extensibles.
-\item Parametrizar el record por un tipo abstracto, y no una lista ordenada.
-\item Estudiar replicar este trabajo en Agda.
-\item Agregar más tipos de expresiones al caso de estudio. Booleanos, if-then-else, etc.
+\item Implement the rest of the operations on extensible records.
+\item Parametrize the record by a sorted list or abstract type, not an ordered list.
+\item Replicate this library in Agda
 \end{itemize}
+
 \end{frame}
 
 \begin{frame}
-\frametitle{Fin}
+\frametitle{End}
 
 \begin{center}
-{\huge Muchas Gracias!}
+{\huge Thanks!}
 \end{center}
-
-\end{frame}
-
-\section{Caso de estudio}
-
-\begin{frame}[fragile]
-\frametitle{Caso de estudio (1)}
-
-Se realizó un caso de estudio más elaborado donde se utilizaron los records extensibles desarrollados en este trabajo. El caso consiste en modelar un pequeño lenguaje de expresiones aritméticas dado por:
-
-\begin{itemize}
-\item Literales dados por números naturales
-\item Variables
-\item Sumas de expresiones
-\item Expresiones let
-\end{itemize}
-
-\begin{example}
-\begin{verbatim}
-x
-x + 3
-let x = 3 in x + 3
-let y = 10 in (let x = 3 in x + 3)
-\end{verbatim}
-\end{example}
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Caso de estudio (2)}
-
-Los records extensibles se utilizaron para modelar y mantener el ambiente con las variables y sus valores. Este ambiente es usado al momento de evaluar las expresiones.
-
-\pause
-
-\begin{definition}[Definición del ambiente]
-\begin{verbatim}
-data Ambiente : List String -> Type where
-  MkAmbiente : Record (AllNats ls) -> Ambiente ls
-
-AllNats : List lty -> List (lty, Type)
-AllNats [] = []
-AllNats (x :: xs) = (x, Nat) :: AllNats xs
-\end{verbatim}
-\end{definition}
-
-\begin{definition}[Definición del evaluador]
-\begin{verbatim}
-interpEnv : Ambiente fvsEnv -> IsSubSet fvs fvsEnv -> 
-            Exp fvs -> Nat
-
-interp : Exp [] -> Nat
-\end{verbatim}
-\end{definition}
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Caso de estudio (3)}
-
-\begin{example}[Ejemplos de construcción y evaluación de expresiones]
-\begin{verbatim}
-interp $ add (lit 1) (lit 2)
--- 3
-
-interp $ eLet ("x" := 10) $ add (var "x") (lit 2)
--- 12
-
-interp $ local ["x" := 10, "y" := 9] $ 
-  add (var "x") (var "y")
--- 19
-\end{verbatim}
-\end{example}
 
 \end{frame}
 
