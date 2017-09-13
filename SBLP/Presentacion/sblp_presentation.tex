@@ -21,6 +21,7 @@
 \RequirePackage[iso,english]{isodate}
 \RequirePackage[spanish,es-lcroman]{babel}
 \RequirePackage[utf8]{inputenc}
+\RequirePackage{hyperref}
 
 \RequirePackage{graphicx}
 \RequirePackage{booktabs}
@@ -684,17 +685,13 @@ Returns fields from a record by checking if they belong to a given list or not.
 
 \begin{definition}
 \begin{verbatim}
-MaybeP : DecEq lty => (ls : List lty) -> 
-         (ts : List (lty, Type)) -> Type -> Type
-MaybeP ls ts r = TypeOrUnit (isSet ls) r
-
 (.<.) : DecEq lty => {ts : List (lty, Type)} -> 
         (ls : List lty) -> Record ts -> 
-        MaybeP ls ts (Record (ls :<: ts)) 
+        Record (ls :<: ts)
 
 (.>.) : DecEq lty => {ts : List (lty, Type)} -> 
         (ls : List lty) -> Record ts -> 
-        MaybeP ls ts (Record (ls :>: ts))
+        Record (ls :>: ts)
 \end{verbatim}
 \end{definition}
 
@@ -782,6 +779,14 @@ We identified various aspects of this library to improve in the future:
 
 \begin{center}
 {\huge Thanks!}
+\end{center}
+
+\vfill
+
+\vfill
+
+\begin{center}
+GitHub: \url{https://github.com/gonzaw/extensible-records}
 \end{center}
 
 \end{frame}
