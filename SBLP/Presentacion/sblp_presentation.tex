@@ -545,165 +545,22 @@ r = ("surname" .=. "Bond") .*.
 
 \end{frame}
 
-\section{Operations on records}
-
-\subsection{Lookup}
+\section{Other operations on records}
 
 \begin{frame}[fragile]
-\frametitle{Lookup (1)}
+\frametitle{Other operations}
 
-To implement lookup we first need to find the type of a label that belongs to the record:
+Other operations on records are also implemented:
 
-\begin{definition}
-\begin{verbatim}
-getType : (ts : List (lty, Type)) -> Elem l (labelsOf ts) -> 
-          Type
-getType ((l, ty) :: ts) Here      = ty
-getType ((l, ty) :: ts)(There th) = getType ts th
-\end{verbatim}
-\end{definition}
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Lookup (2)}
-
-We can use the previous function to implement lookup:
-
-\begin{definition}
-\begin{verbatim}
-lookupR : (l : lty) -> Record ts -> 
-          (elem : Elem l (labelsOf ts)) -> getType ts elem
-lookupR l (MkRecord _ fs) elem = lookupH l fs elem
-
-lookupH : (l : lty) -> LHList ts -> 
-          (elem : Elem l (labelsOf ts)) -> getType ts elem
-lookupH _ ((_ .=. v) :: _) Here   = v
-lookupH l (_ :: hs) (There th)    = lookupH l hs th
-\end{verbatim}
-\end{definition}
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Lookup (3)}
-
-We can use a similar technique as the one used in record extension to dynamically construct a proof of the \texttt{Elem} predicate and define the lookup operator:
-
-\begin{definition}
-\begin{verbatim}
-MaybeLkp : DecEq lty => List (lty, Type) -> lty -> Type
-MaybeLkp ts l = TypeOrUnit2 (isElem l (labelsOf ts))
-                            (\isE => getType ts isE)
-
-(.!.) : DecEq lty => Record ts -> (l : lty) -> 
-        MaybeLkp ts l
-(.!.) {ts} r l = mkTorU2 (isElem l (labelsOf ts))
-                         (\isE => getType ts isE)
-                         (\isE => lookupR l r isE)
-\end{verbatim}
-\end{definition}
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Lookup (4)}
-
-The operator uses a similar definition of \texttt{UnitOrType}, but it acts on the \texttt{Yes} predicate and uses a type constructor to compute the returning type.
-
-\begin{definition}
-\begin{verbatim}
-TypeOrUnit2 : Dec p -> (p -> Type) -> Type
-TypeOrUnit2 (Yes yes) tyCons = tyCons yes
-TypeOrUnit2 (No _) _         = ()
-
-mkTorU2 : (d : Dec p) -> (tyCons : p -> Type) -> 
-          (f : (prf : p) -> tyCons prf) ->
-          TypeOrUnit2 d tyCons
-mkTorU2 (Yes yes) _ f = f yes
-mkTorU2 (No _) _ _    = ()
-\end{verbatim}
-\end{definition}
-
-\end{frame}
-
-
-\subsection{Other operations}
-
-\begin{frame}[fragile]
-\frametitle{Other operations (1)}
-
-\begin{block}{Append}
-Concats the fields of two records, but only if there are no repeated labels.
-
-\begin{definition}
-\begin{verbatim}
-MaybeApp : DecEq lty => List (lty, Type) ->
-           List (lty, Type) -> Type -> Type
-MaybeApp ts us r = 
-    TypeOrUnit (isSet (labelsOf (ts ++ us))) r
-
-(.++.) : DecEq lty => {ts : List (lty, Type)} -> Record ts -> 
-         Record us -> MaybeApp ts us (Record (ts ++ us))
-\end{verbatim}
-\end{definition}
-
-\end{block}
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Other operations (2)}
-
-\begin{block}{Project}
-Returns fields from a record by checking if they belong to a given list or not.
-
-\begin{definition}
-\begin{verbatim}
-(.<.) : DecEq lty => {ts : List (lty, Type)} -> 
-        (ls : List lty) -> Record ts -> 
-        Record (ls :<: ts)
-
-(.>.) : DecEq lty => {ts : List (lty, Type)} -> 
-        (ls : List lty) -> Record ts -> 
-        Record (ls :>: ts)
-\end{verbatim}
-\end{definition}
-
-\end{block}
-
-\end{frame}
-
-\begin{frame}[fragile]
-\frametitle{Other operations (3)}
-
-\begin{block}{Left Union}
-Takes two records and returns the left union of both.
-
-\begin{definition}
-\begin{verbatim}
-(.||.) : DecEq lty => {ts, us : List (lty, Type)} -> 
-         Record ts -> Record us -> Record (ts :||: us)
-\end{verbatim}
-\end{definition}
-
-\end{block}
-
-\begin{block}{Update}
-
-Updates the value of a particular field.
-
-\begin{definition}
-\begin{verbatim}
-MaybeUpd : DecEq lty => List (lty, Type) -> lty -> Type
-MaybeUpd ts l = TypeOrUnit2 (isElem l (labelsOf ts))
-                (\isE => getType ts isE -> Record ts)
-
-updR : DecEq lty => (l : lty) -> Record ts -> MaybeUpd ts l
-\end{verbatim}
-\end{definition}
-
-\end{block}
+\begin{itemize}
+\item Lookup
+\item Update
+\item Append
+\item Project
+\item LeftUnion
+\item Delete
+\item DeleteLabels
+\end{itemize}
 \end{frame}
 
 \section{Conclusions}
@@ -761,7 +618,15 @@ We identified various aspects of this library to improve in the future:
 \vfill
 
 \begin{center}
-GitHub: \url{https://github.com/gonzaw/extensible-records}
+\textbf{GitHub:} \url{https://github.com/gonzaw/extensible-records}
+\end{center}
+
+\vfill
+
+\begin{center}
+\textbf{Gonzalo Waszczuk:} gonzaw308@gmail.com \\
+\textbf{Alberto Pardo:} pardo@fing.edu.uy \\
+\textbf{Marcos Viera:} mviera@fing.edu.uy
 \end{center}
 
 \end{frame}
